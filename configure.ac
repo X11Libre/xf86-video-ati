@@ -100,10 +100,10 @@ CPPFLAGS="$CPPFLAGS $XORG_CFLAGS"
 
 AC_MSG_CHECKING([whether to include GLAMOR support])
 AC_ARG_ENABLE(glamor,
-	      AS_HELP_STRING([--enable-glamor],
-			     [Enable glamor, a new GL-based acceleration [default=no]]),
+	      AS_HELP_STRING([--disable-glamor],
+			     [Disable glamor, a new GL-based acceleration [default=enabled]]),
 	      [GLAMOR="$enableval"],
-	      [GLAMOR=no])
+	      [GLAMOR=yes])
 AC_MSG_RESULT([$GLAMOR])
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 if test "x$GLAMOR" != "xno"; then
