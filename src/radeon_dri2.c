@@ -520,6 +520,8 @@ typedef struct _DRI2ClientEvents {
 
 #if HAS_DEVPRIVATEKEYREC
 
+static int DRI2InfoCnt;
+
 static DevPrivateKeyRec DRI2ClientEventsPrivateKeyRec;
 #define DRI2ClientEventsPrivateKey (&DRI2ClientEventsPrivateKeyRec)
 
@@ -1543,7 +1545,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
 #ifdef USE_DRI2_SCHEDULING
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
     const char *driverNames[2];
     Bool scheduling_works = TRUE;
 #endif
@@ -1607,7 +1608,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         dri2_info.driverNames = driverNames;
         driverNames[0] = driverNames[1] = dri2_info.driverName;
 
-	if (pRADEONEnt->dri2_info_cnt == 0) {
+	if (DRI2InfoCnt == 0) {
 #if HAS_DIXREGISTERPRIVATEKEY
 	    if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey,
 				       PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
@@ -1627,7 +1628,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 	    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 	}
 
-	pRADEONEnt->dri2_info_cnt++;
+	DRI2InfoCnt++;
     }
 #endif
 
@@ -1646,12 +1647,12 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
-#ifdef USE_DRI2_SCHEDULING
-    RADEONEntPtr pRADEONEnt   = RADEONEntPriv(pScrn);
 
-    if (--pRADEONEnt->dri2_info_cnt == 0)
+#ifdef USE_DRI2_SCHEDULING
+    if (--DRI2InfoCnt == 0)
     	DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 #endif
+
     DRI2CloseScreen(pScreen);
     drmFree(info->dri2.device_name);
 }
