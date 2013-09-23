@@ -355,3 +355,8 @@ radeon_glamor_flush(ScrnInfoPtr pScrn)
 	if (info->use_glamor)
 		glamor_block_handler(pScrn->pScreen);
 }
+
+XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt)
+{
+	return glamor_xv_init(pScreen, num_adapt);
+}
