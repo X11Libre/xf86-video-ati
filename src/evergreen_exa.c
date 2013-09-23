@@ -156,7 +156,8 @@ EVERGREENPrepareSolid(PixmapPtr pPix, int alu, Pixel pm, Pixel fg)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
-    if (accel_state->dst_obj.tiling_flags == 0) {
+    if ((accel_state->dst_obj.tiling_flags & RADEON_TILING_MASK) ==
+	RADEON_TILING_LINEAR) {
 	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
@@ -335,7 +336,8 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    if (accel_state->src_obj[0].tiling_flags == 0)
+    if ((accel_state->src_obj[0].tiling_flags & RADEON_TILING_MASK) ==
+	RADEON_TILING_LINEAR)
 	tex_res.array_mode          = 0;
     evergreen_set_tex_resource(pScrn, &tex_res, accel_state->src_obj[0].domain);
 
@@ -378,7 +380,8 @@ EVERGREENDoPrepareCopy(ScrnInfoPtr pScrn)
     if (accel_state->planemask & 0xff000000)
 	cb_conf.pmask |= 8; /* A */
     cb_conf.rop = accel_state->rop;
-    if (accel_state->dst_obj.tiling_flags == 0) {
+    if ((accel_state->dst_obj.tiling_flags & RADEON_TILING_MASK) ==
+	RADEON_TILING_LINEAR) {
 	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
@@ -1001,7 +1004,8 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     tex_res.base_level          = 0;
     tex_res.last_level          = 0;
     tex_res.perf_modulation     = 0;
-    if (accel_state->src_obj[unit].tiling_flags == 0)
+    if ((accel_state->src_obj[unit].tiling_flags & RADEON_TILING_MASK) ==
+	RADEON_TILING_LINEAR)
 	tex_res.array_mode          = 0;
     evergreen_set_tex_resource  (pScrn, &tex_res, accel_state->src_obj[unit].domain);
 
@@ -1449,7 +1453,8 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.blendcntl |= CB_BLEND0_CONTROL__ENABLE_bit;
     cb_conf.rop = 3;
     cb_conf.pmask = 0xf;
-    if (accel_state->dst_obj.tiling_flags == 0) {
+    if ((accel_state->dst_obj.tiling_flags & RADEON_TILING_MASK) ==
+	RADEON_TILING_LINEAR) {
 	cb_conf.array_mode = 0;
 	cb_conf.non_disp_tiling = 1;
     }
