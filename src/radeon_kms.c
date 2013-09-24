@@ -489,7 +489,8 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	info->is_fast_fb = TRUE;
     }
 
-    if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL, FALSE) ||
+    if (xf86ReturnOptValBool(info->Options, OPTION_NOACCEL,
+			     info->ChipFamily == CHIP_FAMILY_HAWAII) ||
 	(!RADEONIsAccelWorking(pScrn))) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");

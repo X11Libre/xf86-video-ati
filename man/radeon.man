@@ -205,6 +205,9 @@ KAVERI APUs
 .TP 12
 .B KABINI
 KABINI APUs
+.TP 12
+.B HAWAII
+Radeon R9 series
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
