@@ -1450,7 +1450,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int cpp = info->pixel_bytes;
-    int screen_size;
+    uint32_t screen_size;
     int pitch, base_align;
     uint32_t tiling_flags = 0;
     struct radeon_surface surface;
@@ -1600,11 +1600,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     return TRUE;
 }
 
-void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size)
+void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, uint32_t new_fb_size)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    int remain_size_bytes;
+    uint64_t remain_size_bytes;
     int c;
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
@@ -1615,9 +1615,13 @@ void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, int new_fb_size)
 
     remain_size_bytes = info->vram_size - new_fb_size;
     remain_size_bytes = (remain_size_bytes / 10) * 9;
-    radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_VRAM, remain_size_bytes);
+    if (remain_size_bytes > 0xffffffff)
+	remain_size_bytes = 0xffffffff;
+    radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_VRAM,
+			(uint32_t)remain_size_bytes);
 
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VRAM usage limit set to %dK\n", remain_size_bytes / 1024);
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "VRAM usage limit set to %uK\n",
+	       (uint32_t)remain_size_bytes / 1024);
 }
 
 /* Used to disallow modes that are not supported by the hardware */

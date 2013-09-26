@@ -1478,7 +1478,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	ScreenPtr   screen = xf86ScrnToScreen(scrn);
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
-	int screen_size;
+	uint32_t screen_size;
 	int cpp = info->pixel_bytes;
 	struct radeon_bo *front_bo;
 	struct radeon_surface surface;
