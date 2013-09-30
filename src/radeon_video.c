@@ -16,10 +16,6 @@
 #include "xf86.h"
 #include "dixstruct.h"
 
-#ifdef USE_GLAMOR
-#include <glamor.h>
-#endif
-
 /* DPMS */
 #ifdef HAVE_XEXTPROTO_71
 #include <X11/extensions/dpmsconst.h>
@@ -169,18 +165,9 @@ void RADEONInitVideo(ScreenPtr pScreen)
     memcpy(newAdaptors, adaptors, num_adaptors * sizeof(XF86VideoAdaptorPtr));
     adaptors = newAdaptors;
 
-#ifdef USE_GLAMOR
-    if (info->use_glamor) {
-	texturedAdaptor = glamor_xv_init(pScreen, 16);
-	if (texturedAdaptor != NULL) {
-	    adaptors[num_adaptors++] = texturedAdaptor;
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Set up glamor textured video\n");
-	} else
-	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to set up glamor textured video\n");
-    } else
-#endif
-	if ((info->ChipFamily < CHIP_FAMILY_RS400)
-	       || info->directRenderingEnabled) {
+    if ((info->ChipFamily < CHIP_FAMILY_RS400)
+	|| (info->directRenderingEnabled)
+	) {
 	texturedAdaptor = RADEONSetupImageTexturedVideo(pScreen);
 	if (texturedAdaptor != NULL) {
 	    adaptors[num_adaptors++] = texturedAdaptor;

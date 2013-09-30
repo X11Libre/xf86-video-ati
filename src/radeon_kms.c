@@ -1321,7 +1321,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
      */
     /* xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset); */
 #endif
-    if (info->r600_shadow_fb == FALSE) {
+    if (!info->use_glamor && info->r600_shadow_fb == FALSE) {
         /* Init Xv */
         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
                        "Initializing Xv\n");
