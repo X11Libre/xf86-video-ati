@@ -91,7 +91,7 @@ static inline Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap) { return 
 
 static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap) { return NULL; }
 
-static inline XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen) { return NULL }
+static inline XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen) { return NULL; }
 #endif
 
 #endif /* RADEON_GLAMOR_H */
