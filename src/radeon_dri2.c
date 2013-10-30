@@ -66,6 +66,10 @@
 
 #define FALLBACK_SWAP_DELAY 16
 
+#ifdef USE_GLAMOR
+#include <glamor.h>
+#endif
+
 typedef DRI2BufferPtr BufferPtr;
 
 struct dri2_buffer_priv {
@@ -89,7 +93,6 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 	PixmapPtr old = get_drawable_pixmap(drawable);
 #ifdef USE_GLAMOR
 	ScreenPtr screen = drawable->pScreen;
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
 	GCPtr gc;
 
@@ -118,20 +121,12 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 	}
 
 	radeon_set_pixmap_private(pixmap, NULL);
-	screen->DestroyPixmap(pixmap);
 
 	/* And redirect the pixmap to the new bo (for 3D). */
+	glamor_egl_exchange_buffers(old, pixmap);
 	radeon_set_pixmap_private(old, priv);
+	screen->DestroyPixmap(pixmap);
 	old->refcnt++;
-
-	/* This creating should not fail, as we already created its
-	 * successfully. But if it happens, we put a warning indicator
-	 * here, and the old pixmap will still be a glamor pixmap, and
-	 * latter the pixmap_flink will get a 0 name, then the X server
-	 * will pass a BadAlloc to the client.*/
-	if (!radeon_glamor_create_textured_pixmap(old))
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "Failed to get DRI drawable for glamor pixmap.\n");
 
 	screen->ModifyPixmapHeader(old,
 				   old->drawable.width,
