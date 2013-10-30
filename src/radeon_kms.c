@@ -860,17 +860,17 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	Bool colorTilingDefault =
 	    xorgGetVersion() >= XORG_VERSION_NUMERIC(1,9,4,901,0) &&
 	    info->ChipFamily >= CHIP_FAMILY_R300 &&
-	    /* this ARUBA check could be removed sometime after a big mesa release
+	    /* this check could be removed sometime after a big mesa release
 	     * with proper bit, in the meantime you need to set tiling option in
 	     * xorg configuration files
 	     */
-	    info->ChipFamily <= CHIP_FAMILY_ARUBA &&
+	    info->ChipFamily <= CHIP_FAMILY_HAINAN &&
 	    !info->is_fast_fb;
 
 	/* 2D color tiling */
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		info->allowColorTiling2D = xf86ReturnOptValBool(info->Options, OPTION_COLOR_TILING_2D,
-                                                                info->ChipFamily <= CHIP_FAMILY_ARUBA);
+                                                                info->ChipFamily <= CHIP_FAMILY_HAINAN);
 	}
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
