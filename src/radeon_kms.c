@@ -607,7 +607,7 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 		      dev->domain, dev->bus, dev->dev, dev->func);
 #endif
 
-    info->dri2.drm_fd = drmOpen("radeon", busid);
+    info->dri2.drm_fd = drmOpen(NULL, busid);
     if (info->dri2.drm_fd == -1) {
 
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
