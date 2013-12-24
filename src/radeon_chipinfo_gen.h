@@ -380,7 +380,7 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x9645, CHIP_FAMILY_SUMO2, 1, 1, 0, 0, 1 },
  { 0x9647, CHIP_FAMILY_SUMO, 1, 1, 0, 0, 1 },
  { 0x9648, CHIP_FAMILY_SUMO, 1, 1, 0, 0, 1 },
- { 0x9649, CHIP_FAMILY_SUMO, 1, 1, 0, 0, 1 },
+ { 0x9649, CHIP_FAMILY_SUMO2, 1, 1, 0, 0, 1 },
  { 0x964A, CHIP_FAMILY_SUMO, 0, 1, 0, 0, 1 },
  { 0x964B, CHIP_FAMILY_SUMO, 0, 1, 0, 0, 1 },
  { 0x964C, CHIP_FAMILY_SUMO, 0, 1, 0, 0, 1 },
