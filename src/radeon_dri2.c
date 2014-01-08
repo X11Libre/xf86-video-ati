@@ -890,7 +890,7 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int nominal_frame_rate = drmmode_crtc->dpms_last_fps;
     CARD64 last_vblank_ust = drmmode_crtc->dpms_last_ust;
-    int last_vblank_seq = drmmode_crtc->dpms_last_seq;
+    uint32_t last_vblank_seq = drmmode_crtc->dpms_last_seq;
     int interpolated_vblanks = drmmode_crtc->interpolated_vblanks;
     int target_seq;
     CARD64 now, target_time, delta_t;
