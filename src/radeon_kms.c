@@ -781,6 +781,9 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     uint32_t tiling = 0;
     int cpp;
 
+    if (flags & PROBE_DETECT)
+        return TRUE;
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
     if (pScrn->numEntities != 1) return FALSE;
