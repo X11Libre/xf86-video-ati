@@ -1939,19 +1939,23 @@ static void drmmode_load_palette(ScrnInfoPtr pScrn, int numColors,
 
 Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 {
+    xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
                   "Initializing kms color map\n");
-    if (!miCreateDefColormap(pScreen))
-        return FALSE;
-    /* all radeons support 10 bit CLUTs */
-    if (!xf86HandleColormaps(pScreen, 256, 10,
-                             drmmode_load_palette, NULL,
-                             CMAP_PALETTED_TRUECOLOR
+    if (xf86_config->num_crtc) {
+	if (!miCreateDefColormap(pScreen))
+	    return FALSE;
+	/* all radeons support 10 bit CLUTs */
+	if (!xf86HandleColormaps(pScreen, 256, 10,
+				 drmmode_load_palette, NULL,
+				 CMAP_PALETTED_TRUECOLOR
 #if 0 /* This option messes up text mode! (eich@suse.de) */
-                             | CMAP_LOAD_EVEN_IF_OFFSCREEN
+				 | CMAP_LOAD_EVEN_IF_OFFSCREEN
 #endif
-                             | CMAP_RELOAD_ON_MODE_SWITCH))
-         return FALSE;
+				 | CMAP_RELOAD_ON_MODE_SWITCH))
+	    return FALSE;
+    }
     return TRUE;
 }
 
