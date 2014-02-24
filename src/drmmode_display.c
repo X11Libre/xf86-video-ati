@@ -1941,9 +1941,9 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-                  "Initializing kms color map\n");
     if (xf86_config->num_crtc) {
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Initializing kms color map\n");
 	if (!miCreateDefColormap(pScreen))
 	    return FALSE;
 	/* all radeons support 10 bit CLUTs */
