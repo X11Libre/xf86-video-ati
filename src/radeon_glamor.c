@@ -93,10 +93,15 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 	if (s && strcasecmp(s, "glamor") != 0)
 		return FALSE;
 
-	if (info->ChipFamily < CHIP_FAMILY_R600) {
-		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
-			   "glamor requires R600 or newer GPU, disabling.\n");
+	if (info->ChipFamily < CHIP_FAMILY_R300) {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "glamor requires R300 or higher GPU, disabling.\n");
 		return FALSE;
+	}
+
+	if (info->ChipFamily < CHIP_FAMILY_RV515) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "glamor may not work (well) with GPUs < RV515.\n");
 	}
 
 	if (scrn->depth < 24) {

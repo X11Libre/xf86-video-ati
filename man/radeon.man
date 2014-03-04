@@ -271,9 +271,9 @@ Pageflipping is supported on all radeon hardware.
 .BI "Option \*qAccelMethod\*q \*q" "string" \*q
 Chooses between available acceleration architectures.  Valid values are
 .B EXA
-and
-.B glamor.
-The default is
+(for pre-TAHITI GPUs) and
+.B glamor
+(for R300 or higher). The default is
 .B glamor
 as of TAHITI, otherwise
 .B EXA.
