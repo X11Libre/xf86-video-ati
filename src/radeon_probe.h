@@ -42,6 +42,7 @@
 #include "randrstr.h"
 
 #include "xf86Crtc.h"
+#include "xf86platformBus.h"
 
 #include "compat-api.h"
 #include "exa.h"
@@ -136,6 +137,7 @@ typedef struct
     int fd_ref;
     unsigned long     fd_wakeup_registered; /* server generation for which fd has been registered for wakeup handling */
     int fd_wakeup_ref;
+    struct xf86_platform_device *platform_dev;
 } RADEONEntRec, *RADEONEntPtr;
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);
