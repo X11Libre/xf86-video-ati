@@ -868,13 +868,13 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	     * with proper bit, in the meantime you need to set tiling option in
 	     * xorg configuration files
 	     */
-	    info->ChipFamily <= CHIP_FAMILY_HAINAN &&
+	    info->ChipFamily <= CHIP_FAMILY_HAWAII &&
 	    !info->is_fast_fb;
 
 	/* 2D color tiling */
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		info->allowColorTiling2D = xf86ReturnOptValBool(info->Options, OPTION_COLOR_TILING_2D,
-                                                                info->ChipFamily <= CHIP_FAMILY_HAINAN);
+                                                                info->ChipFamily <= CHIP_FAMILY_HAWAII);
 	}
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
