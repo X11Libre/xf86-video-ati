@@ -581,23 +581,12 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
     return TRUE;
 }
 
-static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     struct pci_device *dev = info->PciInfo;
     char *busid;
-    drmSetVersion sv;
-    int err;
-
-    if (pRADEONEnt->fd) {
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   " reusing fd for second head\n");
-
-	info->drmmode.fd = info->dri2.drm_fd = pRADEONEnt->fd;
-	pRADEONEnt->fd_ref++;
-	return TRUE;
-    }
+    int fd;
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
     XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
@@ -607,16 +596,35 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 		      dev->domain, dev->bus, dev->dev, dev->func);
 #endif
 
-    info->dri2.drm_fd = drmOpen(NULL, busid);
-    if (info->dri2.drm_fd == -1) {
-
+    fd = drmOpen(NULL, busid);
+    if (fd == -1)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[drm] Failed to open DRM device for %s: %s\n",
 		   busid, strerror(errno));
-	free(busid);
-	return FALSE;
-    }
+
     free(busid);
+    return fd;
+}
+
+static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
+{
+    RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    drmSetVersion sv;
+    int err;
+
+    if (pRADEONEnt->fd) {
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   " reusing fd for second head\n");
+
+	info->drmmode.fd = info->dri2.drm_fd = pRADEONEnt->fd;
+	pRADEONEnt->fd_ref++;
+        return TRUE;
+    }
+
+    info->dri2.drm_fd = radeon_get_drm_master_fd(pScrn);
+    if (info->dri2.drm_fd == -1)
+	return FALSE;
 
     /* Check that what we opened was a master or a master-capable FD,
      * by setting the version of the interface we'll use to talk to it.
