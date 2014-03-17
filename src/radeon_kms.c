@@ -594,9 +594,9 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   " reusing fd for second head\n");
 
-	info->dri2.drm_fd = pRADEONEnt->fd;
+	info->drmmode.fd = info->dri2.drm_fd = pRADEONEnt->fd;
 	pRADEONEnt->fd_ref++;
-	goto out;
+	return TRUE;
     }
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
@@ -638,7 +638,6 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 
     pRADEONEnt->fd = info->dri2.drm_fd;
     pRADEONEnt->fd_ref = 1;
- out:
     info->drmmode.fd = info->dri2.drm_fd;
     return TRUE;
 }
