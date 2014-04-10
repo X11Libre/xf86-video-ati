@@ -172,11 +172,13 @@ Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap)
 	return priv && priv->bo;
 }
 
-#ifdef CREATE_PIXMAP_USAGE_SHARED
-#define RADEON_CREATE_PIXMAP_SHARED (CREATE_PIXMAP_USAGE_SHARED | RADEON_CREATE_PIXMAP_DRI2)
-#else
-#define RADEON_CREATE_PIXMAP_SHARED RADEON_CREATE_PIXMAP_DRI2
+#ifndef CREATE_PIXMAP_USAGE_SHARED
+#define CREATE_PIXMAP_USAGE_SHARED RADEON_CREATE_PIXMAP_DRI2
 #endif
+
+#define RADEON_CREATE_PIXMAP_SHARED(usage) \
+	(((usage) & ~RADEON_CREATE_PIXMAP_TILING_FLAGS) == RADEON_CREATE_PIXMAP_DRI2 || \
+	 (usage) == CREATE_PIXMAP_USAGE_SHARED)
 
 static PixmapPtr
 radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
@@ -186,7 +188,7 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	struct radeon_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
 
-	if (!(usage & RADEON_CREATE_PIXMAP_SHARED)) {
+	if (!RADEON_CREATE_PIXMAP_SHARED(usage)) {
 		pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
 		if (pixmap)
 			return pixmap;
@@ -229,7 +231,7 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	return pixmap;
 
 fallback_glamor:
-	if (usage & RADEON_CREATE_PIXMAP_SHARED) {
+	if (RADEON_CREATE_PIXMAP_SHARED(usage)) {
 	/* XXX need further work to handle the DRI2 failure case.
 	 * Glamor don't know how to handle a BO only pixmap. Put
 	 * a warning indicator here.
