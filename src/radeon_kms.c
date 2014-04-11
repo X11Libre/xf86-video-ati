@@ -593,7 +593,7 @@ static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
     char *busid;
     int fd;
 
-#if defined(ODEV_ATTRIB_FD)
+#ifdef XF86_PDEV_SERVER_FD
     if (pRADEONEnt->platform_dev) {
         fd = xf86_get_platform_device_int_attrib(pRADEONEnt->platform_dev,
                                                  ODEV_ATTRIB_FD, -1);
