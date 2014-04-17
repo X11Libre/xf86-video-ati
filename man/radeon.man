@@ -208,6 +208,9 @@ KABINI APUs
 .TP 12
 .B HAWAII
 Radeon R9 series
+.TP 12
+.B MULLINS
+MULLINS APUs
 .PD
 .SH CONFIGURATION DETAILS
 Please refer to __xconfigfile__(__filemansuffix__) for general configuration
