@@ -958,8 +958,8 @@ drmmode_output_destroy(xf86OutputPtr output)
 	}
 	for (i = 0; i < drmmode_output->mode_output->count_encoders; i++) {
 		drmModeFreeEncoder(drmmode_output->mode_encoders[i]);
-		free(drmmode_output->mode_encoders);
 	}
+	free(drmmode_output->mode_encoders);
 	free(drmmode_output->props);
 	drmModeFreeConnector(drmmode_output->mode_output);
 	free(drmmode_output);
