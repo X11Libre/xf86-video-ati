@@ -590,11 +590,7 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,902,0)
-static Bool
-#else
 static void
-#endif
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
@@ -609,10 +605,6 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 
 	for (i = 0; i < cursor_size; i++)
 		ptr[i] = cpu_to_le32(image[i]);
-
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,902,0)
-	return TRUE;
-#endif
 }
 
 
