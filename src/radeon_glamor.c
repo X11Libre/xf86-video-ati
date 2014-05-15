@@ -90,8 +90,13 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 	if (s == NULL && info->ChipFamily < CHIP_FAMILY_TAHITI)
 		return FALSE;
 
-	if (s && strcasecmp(s, "glamor") != 0)
-		return FALSE;
+	if (s && strcasecmp(s, "glamor") != 0) {
+		if (info->ChipFamily >= CHIP_FAMILY_TAHITI)
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "EXA not supported, using glamor\n");
+		else
+			return FALSE;
+	}
 
 	if (info->ChipFamily < CHIP_FAMILY_R300) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
