@@ -225,12 +225,12 @@ are supported:
 Selects software cursor.  The default is
 .B off.
 .TP
-.BI "Option \*qNoAccel\*q \*q" boolean \*q
+.BI "Option \*qAccel\*q \*q" boolean \*q
 Enables or disables all hardware acceleration.
 .br
-The default is to
-.B enable
-hardware acceleration.
+The default is
+.B on
+except for HAWAII.
 .TP
 .BI "Option \*qZaphodHeads\*q \*q" string \*q
 Specify the RandR output(s) to use with zaphod mode for a particular driver
