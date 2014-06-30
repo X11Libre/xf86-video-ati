@@ -247,7 +247,7 @@ int drmmode_get_current_ust(int drm_fd, CARD64 *ust)
 }
 
 static void
-drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
+drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	ScrnInfoPtr scrn = crtc->scrn;
@@ -306,6 +306,12 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		}
 	}
 	drmmode_crtc->dpms_mode = mode;
+}
+
+static void
+drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
+{
+	/* Nothing to do. drmmode_do_crtc_dpms() is called as appropriate */
 }
 
 static PixmapPtr
@@ -973,9 +979,14 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 
+	if (mode != DPMSModeOn && output->crtc)
+		drmmode_do_crtc_dpms(output->crtc, mode);
+
 	drmModeConnectorSetProperty(drmmode->fd, koutput->connector_id,
 				    drmmode_output->dpms_enum_id, mode);
-	return;
+
+	if (mode == DPMSModeOn && output->crtc)
+		drmmode_do_crtc_dpms(output->crtc, mode);
 }
 
 
@@ -1833,6 +1844,7 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 		/* Skip disabled CRTCs */
 		if (!crtc->enabled) {
+			drmmode_do_crtc_dpms(crtc, DPMSModeOff);
 			drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				       0, 0, 0, NULL, 0, NULL);
 			continue;
