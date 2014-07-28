@@ -106,12 +106,13 @@ AC_ARG_ENABLE(glamor,
 	      [GLAMOR=yes])
 
 if test "x$GLAMOR" != "xno"; then
-	AC_CHECK_HEADERS([glamor.h], [GLAMOR_H="yes"], [GLAMOR_H="no"], [])
+	AC_CHECK_HEADERS([glamor.h], [GLAMOR_H="yes"], [GLAMOR_H="no"], [#include "xorg-server.h"])
 
 	if test "x$GLAMOR_H" = xyes; then
 		AC_CHECK_DECL(GLAMOR_NO_DRI3,
 			      [GLAMOR_XSERVER="yes"], [GLAMOR_XSERVER="no"],
-			      [#include "glamor.h"])
+			      [#include "xorg-server.h"
+			       #include "glamor.h"])
 	fi
 
 	if test "x$GLAMOR_XSERVER" != xyes; then
