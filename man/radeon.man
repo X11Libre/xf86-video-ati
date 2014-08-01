@@ -229,8 +229,7 @@ Selects software cursor.  The default is
 Enables or disables all hardware acceleration.
 .br
 The default is
-.B on
-except for HAWAII.
+.B on.
 .TP
 .BI "Option \*qZaphodHeads\*q \*q" string \*q
 Specify the RandR output(s) to use with zaphod mode for a particular driver
