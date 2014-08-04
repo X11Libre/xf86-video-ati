@@ -333,9 +333,6 @@ static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
     int r;
     uint32_t tmp = 0;
 
-#ifndef RADEON_INFO_FASTFB_WORKING
-#define RADEON_INFO_FASTFB_WORKING 0x14
-#endif
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_FASTFB_WORKING;
     ginfo.value = (uintptr_t)&tmp;
@@ -355,9 +352,6 @@ static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
     int r;
     uint32_t tmp;
 
-#ifndef RADEON_INFO_FUSION_GART_WORKING
-#define RADEON_INFO_FUSION_GART_WORKING 0x0c
-#endif
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_FUSION_GART_WORKING;
     ginfo.value = (uintptr_t)&tmp;
@@ -376,13 +370,6 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     struct drm_radeon_info ginfo;
     int r;
     uint32_t tmp;
-
-#ifndef RADEON_INFO_ACCEL_WORKING
-#define RADEON_INFO_ACCEL_WORKING 0x03
-#endif
-#ifndef RADEON_INFO_ACCEL_WORKING2
-#define RADEON_INFO_ACCEL_WORKING2 0x05
-#endif
 
     memset(&ginfo, 0, sizeof(ginfo));
     if (info->dri2.pKernelDRMVersion->version_minor >= 5)
@@ -679,10 +666,6 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 
     if (info->ChipFamily < CHIP_FAMILY_R600)
 	return FALSE;
-
-#ifndef RADEON_INFO_TILING_CONFIG
-#define RADEON_INFO_TILING_CONFIG 0x6
-#endif
 
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_TILING_CONFIG;
