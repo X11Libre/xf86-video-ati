@@ -37,7 +37,6 @@
 #include "evergreen_reg.h"
 #include "evergreen_state.h"
 
-#include "radeon_drm.h"
 #include "radeon_vbo.h"
 #include "radeon_exa_shared.h"
 
