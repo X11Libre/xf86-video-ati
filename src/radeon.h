@@ -820,5 +820,7 @@ RADEONLog2(int val)
 #endif
 }
 
+#define RADEON_TILING_MASK				0xff
+#define RADEON_TILING_LINEAR				0x0
 
 #endif /* _RADEON_H_ */
