@@ -584,7 +584,9 @@ static Bool RADEONPreInitChipType_KMS(ScrnInfoPtr pScrn)
 static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
+#ifdef XF86_PDEV_SERVER_FD
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+#endif
     struct pci_device *dev = info->PciInfo;
     char *busid;
     int fd;
@@ -1116,7 +1118,9 @@ static Bool RADEONSaveScreen_KMS(ScreenPtr pScreen, int mode)
 static Bool radeon_set_drm_master(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+#ifdef XF86_PDEV_SERVER_FD
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+#endif
     int err;
 
 #ifdef XF86_PDEV_SERVER_FD
@@ -1135,9 +1139,9 @@ static Bool radeon_set_drm_master(ScrnInfoPtr pScrn)
 static void radeon_drop_drm_master(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+#ifdef XF86_PDEV_SERVER_FD
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-#ifdef XF86_PDEV_SERVER_FD
     if (pRADEONEnt->platform_dev &&
             (pRADEONEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
         return;
