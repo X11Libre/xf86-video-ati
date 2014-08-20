@@ -132,16 +132,6 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 			"Incompatible glamor version, required >= 0.3.0.\n");
 			return FALSE;
 		} else {
-			/* This prevents the Gallium radeon winsys from spawning
-			 * a separate thread for submitting command streams to
-			 * the kernel. Improves scores of at least gtkperf and
-			 * x11perf -putimage/-shmput/-getimage/-shmget, probably
-			 * because glamor causes too many command stream flushes
-			 * / too much synchronization with pending command
-			 * streams for the separate thread to pay off.
-			 */
-			setenv("RADEON_THREAD", "0", 0);
-
 			if (glamor_egl_init(scrn, info->dri2.drm_fd)) {
 				xf86DrvMsg(scrn->scrnIndex, X_INFO,
 					   "glamor detected, initialising EGL layer.\n");
