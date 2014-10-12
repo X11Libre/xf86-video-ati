@@ -1608,7 +1608,12 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
         dri2_info.ScheduleWaitMSC = radeon_dri2_schedule_wait_msc;
         dri2_info.numDrivers = RADEON_ARRAY_SIZE(driverNames);
         dri2_info.driverNames = driverNames;
-        driverNames[0] = driverNames[1] = dri2_info.driverName;
+        driverNames[0] = dri2_info.driverName;
+
+        if (info->ChipFamily >= CHIP_FAMILY_R300)
+            driverNames[1] = driverNames[0];
+        else
+            driverNames[1] = NULL; /* no VDPAU support */
 
 	if (DRI2InfoCnt == 0) {
 #if HAS_DIXREGISTERPRIVATEKEY
