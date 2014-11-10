@@ -51,6 +51,8 @@ typedef struct {
 #endif
   drmEventContext event_context;
   int count_crtcs;
+
+  Bool delete_dp_12_displays;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
