@@ -1581,7 +1581,7 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 	scheduling_works = FALSE;
     }
 
-    if (scheduling_works && info->drmmode.mode_res->count_crtcs > 2) {
+    if (scheduling_works && info->drmmode.count_crtcs > 2) {
 #ifdef DRM_CAP_VBLANK_HIGH_CRTC
 	uint64_t cap_value;
 

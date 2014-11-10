@@ -850,7 +850,7 @@ void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 }
 
 static void
-drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
+drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num)
 {
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
@@ -860,7 +860,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num)
 		return;
 
 	drmmode_crtc = xnfcalloc(sizeof(drmmode_crtc_private_rec), 1);
-	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, drmmode->mode_res->crtcs[num]);
+	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
 	crtc->driver_private = drmmode_crtc;
 	drmmode_crtc_hw_id(crtc);
@@ -1195,7 +1195,7 @@ const char *output_names[] = { "None",
 #define NUM_OUTPUT_NAMES (sizeof(output_names) / sizeof(output_names[0]))
 
 static void
-drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num, int *num_dvi, int *num_hdmi)
+drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num, int *num_dvi, int *num_hdmi)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	xf86OutputPtr output;
@@ -1207,7 +1207,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num, int *num_dv
 	int i;
 	const char *s;
 
-	koutput = drmModeGetConnector(drmmode->fd, drmmode->mode_res->connectors[num]);
+	koutput = drmModeGetConnector(drmmode->fd, mode_res->connectors[num]);
 	if (!koutput)
 		return;
 
@@ -1285,7 +1285,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int num, int *num_dv
 		goto out_free_encoders;
 	}
 
-	drmmode_output->output_id = drmmode->mode_res->connectors[num];
+	drmmode_output->output_id = mode_res->connectors[num];
 	drmmode_output->mode_output = koutput;
 	drmmode_output->mode_encoders = kencoders;
 	drmmode_output->drmmode = drmmode;
@@ -1354,7 +1354,7 @@ uint32_t find_clones(ScrnInfoPtr scrn, xf86OutputPtr output)
 
 
 static void
-drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode)
+drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, drmModeResPtr mode_res)
 {
 	int i, j;
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
@@ -1369,8 +1369,8 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 		for (j = 0; j < drmmode_output->mode_output->count_encoders; j++)
 		{
 			int k;
-			for (k = 0; k < drmmode->mode_res->count_encoders; k++) {
-				if (drmmode->mode_res->encoders[k] == drmmode_output->mode_encoders[j]->encoder_id)
+			for (k = 0; k < mode_res->count_encoders; k++) {
+				if (mode_res->encoders[k] == drmmode_output->mode_encoders[j]->encoder_id)
 					drmmode_output->enc_mask |= (1 << k);
 			}
 
@@ -1730,25 +1730,27 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
 	int i, num_dvi = 0, num_hdmi = 0;
+	drmModeResPtr mode_res;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 
 	drmmode->scrn = pScrn;
 	drmmode->cpp = cpp;
-	drmmode->mode_res = drmModeGetResources(drmmode->fd);
-	if (!drmmode->mode_res)
+	mode_res = drmModeGetResources(drmmode->fd);
+	if (!mode_res)
 		return FALSE;
 
-	xf86CrtcSetSizeRange(pScrn, 320, 200, drmmode->mode_res->max_width, drmmode->mode_res->max_height);
-	for (i = 0; i < drmmode->mode_res->count_crtcs; i++)
+	drmmode->count_crtcs = mode_res->count_crtcs;
+	xf86CrtcSetSizeRange(pScrn, 320, 200, mode_res->max_width, mode_res->max_height);
+	for (i = 0; i < mode_res->count_crtcs; i++)
 		if (!xf86IsEntityShared(pScrn->entityList[0]) || pScrn->confScreen->device->screen == i)
-			drmmode_crtc_init(pScrn, drmmode, i);
+			drmmode_crtc_init(pScrn, drmmode, mode_res, i);
 
-	for (i = 0; i < drmmode->mode_res->count_connectors; i++)
-		drmmode_output_init(pScrn, drmmode, i, &num_dvi, &num_hdmi);
+	for (i = 0; i < mode_res->count_connectors; i++)
+		drmmode_output_init(pScrn, drmmode, mode_res, i, &num_dvi, &num_hdmi);
 
 	/* workout clones */
-	drmmode_clones_init(pScrn, drmmode);
+	drmmode_clones_init(pScrn, drmmode, mode_res);
 
 #ifdef RADEON_PIXMAP_SHARING
 	xf86ProviderSetup(pScrn, NULL, "radeon");
@@ -1760,6 +1762,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode->event_context.vblank_handler = drmmode_vblank_handler;
 	drmmode->event_context.page_flip_handler = drmmode_flip_handler;
 
+	drmModeFreeResources(mode_res);
 	return TRUE;
 }
 

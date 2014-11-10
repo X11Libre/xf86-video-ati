@@ -41,7 +41,6 @@
 typedef struct {
   int fd;
   unsigned fb_id;
-  drmModeResPtr mode_res;
   drmModeFBPtr mode_fb;
   int cpp;
   struct radeon_bo_manager *bufmgr;
@@ -51,6 +50,7 @@ typedef struct {
   InputHandlerProc uevent_handler;
 #endif
   drmEventContext event_context;
+  int count_crtcs;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
