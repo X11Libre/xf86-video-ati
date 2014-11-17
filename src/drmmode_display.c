@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include "cursorstr.h"
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "radeon.h"
@@ -634,6 +635,22 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	uint32_t handle = drmmode_crtc->cursor_bo->handle;
+	static Bool use_set_cursor2 = TRUE;
+
+	if (use_set_cursor2) {
+	    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
+	    CursorPtr cursor = xf86_config->cursor;
+	    int ret;
+
+	    ret =
+		drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+				  handle, info->cursor_w, info->cursor_h,
+				  cursor->bits->xhot, cursor->bits->yhot);
+	    if (ret == -EINVAL)
+		use_set_cursor2 = FALSE;
+	    else
+		return;
+	}
 
 	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, handle,
 			 info->cursor_w, info->cursor_h);
