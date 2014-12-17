@@ -420,7 +420,6 @@ typedef struct {
 
     Bool              directRenderingEnabled;
     struct radeon_dri2  dri2;
-    Bool              accelDFS;
 
     /* accel */
     Bool              RenderAccel; /* Render */
