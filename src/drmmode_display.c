@@ -37,7 +37,6 @@
 #include "xf86cmap.h"
 #include "radeon.h"
 #include "radeon_reg.h"
-#include "sarea.h"
 
 #include "drmmode_display.h"
 
