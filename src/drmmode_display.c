@@ -576,6 +576,7 @@ done:
 	else
 		crtc->active = TRUE;
 #endif
+	free(output_ids);
 
 	return ret;
 }
@@ -1374,8 +1375,10 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 			drmmode_output = output->driver_private;
 			drmmode_output->output_id = mode_res->connectors[num];
 			drmmode_output->mode_output = koutput;
-			koutput = NULL;
-			goto out_free_encoders;
+			for (i = 0; i < koutput->count_encoders; i++)
+				drmModeFreeEncoder(kencoders[i]);
+			free(kencoders);
+			return;
 		}
 	}
 
