@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 /* Driver data structures */
 #include "radeon.h"
+#include "radeon_drm_queue.h"
 #include "radeon_reg.h"
 #include "radeon_probe.h"
 #include "micmap.h"
@@ -876,6 +877,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
 
+    radeon_drm_queue_init();
+
     info->allowColorTiling2D = FALSE;
 
     RADEONSetupCapabilities(pScrn);
@@ -1173,6 +1176,7 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 		   "RADEONCloseScreen\n");
 
     drmmode_uevent_fini(pScrn, &info->drmmode);
+    radeon_drm_queue_close(pScrn);
     radeon_cs_flush_indirect(pScrn);
 
     DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
