@@ -245,6 +245,33 @@ int drmmode_get_current_ust(int drm_fd, CARD64 *ust)
 	return 0;
 }
 
+/*
+ * Get current frame count and frame count timestamp of the crtc.
+ */
+int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
+{
+    ScrnInfoPtr scrn = crtc->scrn;
+    RADEONInfoPtr info = RADEONPTR(scrn);
+    drmVBlank vbl;
+    int ret;
+
+    vbl.request.type = DRM_VBLANK_RELATIVE;
+    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
+    vbl.request.sequence = 0;
+
+    ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+    if (ret) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		   "get vblank counter failed: %s\n", strerror(errno));
+	return ret;
+    }
+
+    *ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
+    *msc = vbl.reply.sequence;
+
+    return Success;
+}
+
 static void
 drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {

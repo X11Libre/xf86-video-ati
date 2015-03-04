@@ -132,6 +132,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			struct radeon_bo *new_front, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort);
+int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc);
 int drmmode_get_current_ust(int drm_fd, CARD64 *ust);
 
 #endif

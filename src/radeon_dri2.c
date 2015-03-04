@@ -952,17 +952,13 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
 }
 
 /*
- * Get current frame count and frame count timestamp, based on drawable's
- * crtc.
+ * Get current interpolated frame count and frame count timestamp, based on
+ * drawable's crtc.
  */
 static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
-    ScreenPtr screen = draw->pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONInfoPtr info = RADEONPTR(scrn);
-    drmVBlank vbl;
-    int ret;
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
+    int ret;
 
     /* Drawable not displayed, make up a value */
     if (crtc == NULL) {
@@ -970,25 +966,20 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         *msc = 0;
         return TRUE;
     }
+
     if (radeon_crtc_is_enabled(crtc)) {
 	/* CRTC is running, read vblank counter and timestamp */
-	vbl.request.type = DRM_VBLANK_RELATIVE;
-	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-	vbl.request.sequence = 0;
+	ret = drmmode_crtc_get_ust_msc(crtc, ust, msc);
 
-	ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
-	if (ret) {
-	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		       "get vblank counter failed: %s\n", strerror(errno));
-	    return FALSE;
+	if (ret != Success) {
+	    *msc += radeon_get_interpolated_vblanks(crtc);
+	    *msc &= 0xffffffff;
 	}
-
-	*ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-	*msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
-	*msc &= 0xffffffff;
     } else {
 	/* CRTC is not running, extrapolate MSC and timestamp */
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	ScrnInfoPtr scrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(scrn);
 	CARD64 now, delta_t, delta_seq;
 
 	if (!drmmode_crtc->dpms_last_ust)
@@ -1011,7 +1002,8 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 	*msc += delta_seq;
 	*msc &= 0xffffffff;
     }
-    return TRUE;
+
+    return ret == Success;
 }
 
 static
