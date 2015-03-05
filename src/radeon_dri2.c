@@ -42,7 +42,6 @@
 
 #include "radeon_version.h"
 
-#if HAVE_LIST_H
 #include "list.h"
 #if !HAVE_XORG_LIST
 #define xorg_list			list
@@ -51,14 +50,8 @@
 #define xorg_list_del			list_del
 #define xorg_list_for_each_entry	list_for_each_entry
 #endif
-#endif
-
 
 #include "radeon_bo_gem.h"
-
-#if DRI2INFOREC_VERSION >= 4 && HAVE_LIST_H
-#define USE_DRI2_SCHEDULING
-#endif
 
 #if DRI2INFOREC_VERSION >= 9
 #define USE_DRI2_PRIME
@@ -489,8 +482,6 @@ radeon_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
     return radeon_dri2_copy_region2(pDraw->pScreen, pDraw, pRegion,
 				     pDstBuffer, pSrcBuffer);
 }
-
-#ifdef USE_DRI2_SCHEDULING
 
 enum DRI2FrameEventType {
     DRI2_SWAP,
@@ -1537,8 +1528,6 @@ blit_fallback:
     return TRUE;
 }
 
-#endif /* USE_DRI2_SCHEDULING */
-
 
 Bool
 radeon_dri2_screen_init(ScreenPtr pScreen)
@@ -1546,10 +1535,8 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     DRI2InfoRec dri2_info = { 0 };
-#ifdef USE_DRI2_SCHEDULING
     const char *driverNames[2];
     Bool scheduling_works = TRUE;
-#endif
 
     if (!info->dri2.available)
         return FALSE;
@@ -1574,7 +1561,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     dri2_info.DestroyBuffer = radeon_dri2_destroy_buffer;
     dri2_info.CopyRegion = radeon_dri2_copy_region;
 
-#ifdef USE_DRI2_SCHEDULING
     if (info->dri2.pKernelDRMVersion->version_minor < 4) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for "
 		   "sync extension\n");
@@ -1637,7 +1623,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 
 	DRI2InfoCnt++;
     }
-#endif
 
 #if DRI2INFOREC_VERSION >= 9
     dri2_info.version = 9;
@@ -1655,10 +1640,8 @@ void radeon_dri2_close_screen(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-#ifdef USE_DRI2_SCHEDULING
     if (--DRI2InfoCnt == 0)
     	DeleteCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
-#endif
 
     DRI2CloseScreen(pScreen);
     drmFree(info->dri2.device_name);
