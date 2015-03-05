@@ -40,8 +40,6 @@ Bool radeon_glamor_init(ScreenPtr screen);
 Bool radeon_glamor_create_screen_resources(ScreenPtr screen);
 void radeon_glamor_free_screen(int scrnIndex, int flags);
 
-void radeon_glamor_flush(ScrnInfoPtr pScrn);
-
 Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap);
 void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 
@@ -55,8 +53,6 @@ static inline Bool radeon_glamor_pre_init(ScrnInfoPtr scrn) { return FALSE; }
 static inline Bool radeon_glamor_init(ScreenPtr screen) { return FALSE; }
 static inline Bool radeon_glamor_create_screen_resources(ScreenPtr screen) { return FALSE; }
 static inline void radeon_glamor_free_screen(int scrnIndex, int flags) { }
-
-static inline void radeon_glamor_flush(ScrnInfoPtr pScrn) { }
 
 static inline Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap) { return TRUE; }
 

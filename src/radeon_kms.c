@@ -84,11 +84,20 @@ const OptionInfoRec *RADEONOptionsWeak(void) { return RADEONOptions_KMS; }
 void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info = RADEONPTR(pScrn);
-    struct radeon_accel_state *accel_state = info->accel_state;
+    struct radeon_accel_state *accel_state;
     int ret;
+
+#ifdef USE_GLAMOR
+    if (info->use_glamor) {
+	glamor_block_handler(pScrn->pScreen);
+	return;
+    }
+#endif
 
     if (!info->cs->cdw)
 	return;
+
+    accel_state = info->accel_state;
 
     /* release the current VBO so we don't block on mapping it later */
     if (info->accel_state->vbo.vb_offset && info->accel_state->vbo.vb_bo) {
@@ -307,9 +316,6 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
-    if (info->use_glamor)
-	radeon_glamor_flush(pScrn);
-
     radeon_cs_flush_indirect(pScrn);
 #ifdef RADEON_PIXMAP_SHARING
     radeon_dirty_update(pScreen);
@@ -322,10 +328,8 @@ radeon_flush_callback(CallbackListPtr *list,
 {
     ScrnInfoPtr pScrn = user_data;
 
-    if (pScrn->vtSema) {
+    if (pScrn->vtSema)
         radeon_cs_flush_indirect(pScrn);
-	radeon_glamor_flush(pScrn);
-    }
 }
 
 static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
