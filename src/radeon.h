@@ -90,6 +90,8 @@
 #include "simple_list.h"
 #include "atipcirename.h"
 
+typedef struct _SyncFence SyncFence;
+
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
@@ -445,6 +447,9 @@ typedef struct {
 
     void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
 
+    void              (*CreateFence) (ScreenPtr pScreen, SyncFence *pFence,
+				      Bool initially_triggered);
+
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
     Bool              dac6bits;         /* Use 6 bit DAC?                    */
 
@@ -543,6 +548,10 @@ extern Bool EVERGREENDrawInit(ScreenPtr pScreen);
 extern Bool RADEONGetDatatypeBpp(int bpp, uint32_t *type);
 extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 				       uint32_t *pitch_offset);
+
+/* radeon_sync.c */
+extern Bool radeon_sync_init(ScreenPtr screen);
+extern void radeon_sync_close(ScreenPtr screen);
 
 /* radeon_video.c */
 extern void RADEONInitVideo(ScreenPtr pScreen);

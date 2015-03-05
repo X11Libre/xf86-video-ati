@@ -1192,6 +1192,8 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 	info->accel_state->exa = NULL;
     }
 
+    radeon_sync_close(pScreen);
+
     if (info->accel_state->use_vbos)
         radeon_vbo_free_lists(pScrn);
 
@@ -1337,6 +1339,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 	PictureSetSubpixelOrder (pScreen, subPixelOrder);
     }
 #endif
+
+    radeon_sync_init(pScreen);
 
     pScrn->vtSema = TRUE;
     xf86SetBackingStore(pScreen);
