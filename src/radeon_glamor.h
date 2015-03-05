@@ -30,6 +30,9 @@
 #include "xf86xv.h"
 #ifdef USE_GLAMOR
 
+#define GLAMOR_FOR_XORG  1
+#include <glamor.h>
+
 #include "radeon_surface.h"
 
 Bool radeon_glamor_pre_init(ScrnInfoPtr scrn);
@@ -45,34 +48,6 @@ void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap);
 
 XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
-
-struct radeon_pixmap {
-	struct radeon_surface surface;
-	struct radeon_bo *bo;
-
-	uint32_t tiling_flags;
-	int stride;
-};
-
-#if HAS_DEVPRIVATEKEYREC
-extern DevPrivateKeyRec glamor_pixmap_index;
-#else
-extern int glamor_pixmap_index;
-#endif
-
-static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap)
-{
-#if HAS_DEVPRIVATEKEYREC
-	return dixGetPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
-#else
-	return dixLookupPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
-#endif
-}
-
-static inline void radeon_set_pixmap_private(PixmapPtr pixmap, struct radeon_pixmap *priv)
-{
-	dixSetPrivate(&pixmap->devPrivates, &glamor_pixmap_index, priv);
-}
 
 #else
 

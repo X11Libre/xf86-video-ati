@@ -33,6 +33,7 @@
 /* Driver data structures */
 #include "radeon.h"
 #include "radeon_drm_queue.h"
+#include "radeon_glamor.h"
 #include "radeon_reg.h"
 #include "radeon_probe.h"
 #include "micmap.h"

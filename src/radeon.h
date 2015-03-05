@@ -51,8 +51,6 @@
 
 #include "exa.h"
 
-#include "radeon_glamor.h"
-
 				/* Exa and Cursor Support */
 #include "xf86Cursor.h"
 
@@ -241,6 +239,40 @@ typedef enum {
 
 #define CURSOR_WIDTH_CIK	128
 #define CURSOR_HEIGHT_CIK	128
+
+
+#ifdef USE_GLAMOR
+
+struct radeon_pixmap {
+	struct radeon_surface surface;
+	struct radeon_bo *bo;
+
+	uint32_t tiling_flags;
+	int stride;
+};
+
+#if HAS_DEVPRIVATEKEYREC
+extern DevPrivateKeyRec glamor_pixmap_index;
+#else
+extern int glamor_pixmap_index;
+#endif
+
+static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap)
+{
+#if HAS_DEVPRIVATEKEYREC
+	return dixGetPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
+#else
+	return dixLookupPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
+#endif
+}
+
+static inline void radeon_set_pixmap_private(PixmapPtr pixmap, struct radeon_pixmap *priv)
+{
+	dixSetPrivate(&pixmap->devPrivates, &glamor_pixmap_index, priv);
+}
+
+#endif /* USE_GLAMOR */
+
 
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;

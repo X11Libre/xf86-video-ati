@@ -29,11 +29,10 @@
 #endif
 
 #include <xf86.h>
-#define GLAMOR_FOR_XORG  1
-#include <glamor.h>
 
 #include "radeon.h"
 #include "radeon_bo_helper.h"
+#include "radeon_glamor.h"
 
 #if HAS_DEVPRIVATEKEYREC
 DevPrivateKeyRec glamor_pixmap_index;

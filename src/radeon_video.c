@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include "radeon.h"
+#include "radeon_glamor.h"
 #include "radeon_reg.h"
 #include "radeon_probe.h"
 #include "radeon_video.h"

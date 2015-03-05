@@ -36,6 +36,7 @@
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "radeon.h"
+#include "radeon_glamor.h"
 #include "radeon_reg.h"
 
 #include "drmmode_display.h"

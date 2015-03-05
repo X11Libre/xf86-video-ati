@@ -53,9 +53,7 @@
 
 #define FALLBACK_SWAP_DELAY 16
 
-#ifdef USE_GLAMOR
-#include <glamor.h>
-#endif
+#include "radeon_glamor.h"
 
 typedef DRI2BufferPtr BufferPtr;
 
