@@ -303,7 +303,6 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 	priv = radeon_get_pixmap_private(pixmap);
 	priv->stride = pixmap->devKind;
 	priv->surface = surface;
-	priv->tiling_flags = 0;
 
 	if (!radeon_glamor_create_textured_pixmap(pixmap)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
