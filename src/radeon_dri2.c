@@ -41,15 +41,7 @@
 #include <errno.h>
 
 #include "radeon_version.h"
-
-#include "list.h"
-#if !HAVE_XORG_LIST
-#define xorg_list			list
-#define xorg_list_init			list_init
-#define xorg_list_add			list_add
-#define xorg_list_del			list_del
-#define xorg_list_for_each_entry	list_for_each_entry
-#endif
+#include "radeon_list.h"
 
 #include "radeon_bo_gem.h"
 
