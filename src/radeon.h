@@ -549,6 +549,9 @@ extern Bool RADEONGetDatatypeBpp(int bpp, uint32_t *type);
 extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 				       uint32_t *pitch_offset);
 
+/* radeon_present.c */
+Bool radeon_present_screen_init(ScreenPtr screen);
+
 /* radeon_sync.c */
 extern Bool radeon_sync_init(ScreenPtr screen);
 extern void radeon_sync_close(ScreenPtr screen);

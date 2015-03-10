@@ -1340,7 +1340,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
 #endif
 
-    radeon_sync_init(pScreen);
+    if (radeon_sync_init(pScreen))
+	radeon_present_screen_init(pScreen);
 
     pScrn->vtSema = TRUE;
     xf86SetBackingStore(pScreen);
