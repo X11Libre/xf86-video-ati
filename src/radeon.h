@@ -150,6 +150,7 @@ typedef enum {
     OPTION_ZAPHOD_HEADS,
     OPTION_SWAPBUFFERS_WAIT,
     OPTION_DELETE_DP12,
+    OPTION_DRI3,
 } RADEONOpts;
 
 
@@ -548,6 +549,9 @@ extern Bool EVERGREENDrawInit(ScreenPtr pScreen);
 extern Bool RADEONGetDatatypeBpp(int bpp, uint32_t *type);
 extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 				       uint32_t *pitch_offset);
+
+/* radeon_dri3.c */
+Bool radeon_dri3_screen_init(ScreenPtr screen);
 
 /* radeon_present.c */
 Bool radeon_present_screen_init(ScreenPtr screen);

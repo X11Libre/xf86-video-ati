@@ -143,6 +143,10 @@ AC_CHECK_HEADERS([present.h], [], [],
 		 #include <X11/X.h>
 		 #include "xorg-server.h"])
 
+AC_CHECK_HEADERS([dri3.h], [], [],
+		 [#include <X11/Xmd.h>
+		 #include <xorg-server.h>])
+
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 PKG_CHECK_MODULES([PCIACCESS], [pciaccess >= 0.8.0])

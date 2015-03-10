@@ -267,6 +267,10 @@ The default value is
 for R/RV6XX, R/RV7XX, RS780, RS880, EVERGREEN, CAYMAN, ARUBA, Southern Islands, and
 Sea Islands.
 .TP
+.BI "Option \*qDRI3\*q \*q" boolean \*q
+Enable the DRI3 extension. The default is
+.B off.
+.TP
 .BI "Option \*qEnablePageFlip\*q \*q" boolean \*q
 Enable DRI2 page flipping.  The default is
 .B on.

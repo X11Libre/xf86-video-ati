@@ -29,8 +29,9 @@
 ati_drv_la_LIBADD = $(PCIACCESS_LIBS)
 radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS) $(PCIACCESS_LIBS)
 
-RADEON_KMS_SRCS=radeon_dri2.c radeon_drm_queue.c radeon_kms.c radeon_present.c \
-	radeon_sync.c radeon_vbo.c radeon_bo_helper.c drmmode_display.c
+RADEON_KMS_SRCS=radeon_dri2.c radeon_dri3.c radeon_drm_queue.c radeon_kms.c \
+	radeon_present.c radeon_sync.c radeon_vbo.c radeon_bo_helper.c \
+	drmmode_display.c
 
 RADEON_EXA_SOURCES = radeon_exa.c r600_exa.c r6xx_accel.c r600_textured_videofuncs.c r600_shader.c radeon_exa_shared.c \
 	evergreen_exa.c evergreen_accel.c evergreen_shader.c evergreen_textured_videofuncs.c cayman_accel.c cayman_shader.c

@@ -76,6 +76,7 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_ZAPHOD_HEADS,   "ZaphodHeads",      OPTV_STRING,  {0}, FALSE },
     { OPTION_SWAPBUFFERS_WAIT,"SwapbuffersWait", OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_DELETE_DP12,    "DeleteUnusedDP12Displays", OPTV_BOOLEAN, {0}, FALSE},
+    { OPTION_DRI3,           "DRI3",             OPTV_BOOLEAN, {0}, FALSE },
     { -1,                    NULL,               OPTV_NONE,    {0}, FALSE }
 };
 
@@ -1230,6 +1231,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            subPixelOrder = SubPixelUnknown;
+    MessageType from;
+    Bool have_present = FALSE, value;
     const char *s;
     void *front_ptr;
 
@@ -1341,7 +1344,23 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 #endif
 
     if (radeon_sync_init(pScreen))
-	radeon_present_screen_init(pScreen);
+	have_present = radeon_present_screen_init(pScreen);
+
+    if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
+	from = X_CONFIG;
+    else
+	from = X_DEFAULT;
+
+    if (value) {
+	if (have_present)
+	    value = radeon_dri3_screen_init(pScreen);
+	else
+	    value = FALSE;
+
+	if (!value)
+	    from = X_WARNING;
+    }
+    xf86DrvMsg(pScrn->scrnIndex, from, "DRI3 %sabled\n", value ? "en" : "dis");
 
     pScrn->vtSema = TRUE;
     xf86SetBackingStore(pScreen);
