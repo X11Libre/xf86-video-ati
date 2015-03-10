@@ -45,6 +45,8 @@
 
 #include "radeon_bo_gem.h"
 
+#include <xf86Priv.h>
+
 #if DRI2INFOREC_VERSION >= 9
 #define USE_DRI2_PRIME
 #endif
@@ -485,66 +487,19 @@ typedef struct _DRI2FrameEvent {
     XID drawable_id;
     ClientPtr client;
     enum DRI2FrameEventType type;
-    int frame;
+    unsigned frame;
     xf86CrtcPtr crtc;
+    OsTimerPtr timer;
+    struct radeon_drm_queue_entry *drm_queue;
 
     /* for swaps & flips only */
     DRI2SwapEventPtr event_complete;
     void *event_data;
     DRI2BufferPtr front;
     DRI2BufferPtr back;
-
-    Bool valid;
-
-    struct xorg_list link;
 } DRI2FrameEventRec, *DRI2FrameEventPtr;
 
-typedef struct _DRI2ClientEvents {
-    struct xorg_list   reference_list;
-} DRI2ClientEventsRec, *DRI2ClientEventsPtr;
-
-#if HAS_DEVPRIVATEKEYREC
-
 static int DRI2InfoCnt;
-
-static DevPrivateKeyRec DRI2ClientEventsPrivateKeyRec;
-#define DRI2ClientEventsPrivateKey (&DRI2ClientEventsPrivateKeyRec)
-
-#else
-
-static int DRI2ClientEventsPrivateKeyIndex;
-DevPrivateKey DRI2ClientEventsPrivateKey = &DRI2ClientEventsPrivateKeyIndex;
-
-#endif /* HAS_DEVPRIVATEKEYREC */
-
-#define GetDRI2ClientEvents(pClient)	((DRI2ClientEventsPtr) \
-    dixLookupPrivate(&(pClient)->devPrivates, DRI2ClientEventsPrivateKey))
-
-static int
-ListAddDRI2ClientEvents(ClientPtr client, struct xorg_list *entry)
-{
-    DRI2ClientEventsPtr pClientPriv;
-    pClientPriv = GetDRI2ClientEvents(client);
-
-    if (!pClientPriv) {
-        return BadAlloc;
-    }
-
-    xorg_list_add(entry, &pClientPriv->reference_list);
-    return 0;
-}
-
-static void
-ListDelDRI2ClientEvents(ClientPtr client, struct xorg_list *entry)
-{
-    DRI2ClientEventsPtr pClientPriv;
-    pClientPriv = GetDRI2ClientEvents(client);
-
-    if (!pClientPriv) {
-        return;
-    }
-    xorg_list_del(entry);
-}
 
 static void
 radeon_dri2_ref_buffer(BufferPtr buffer)
@@ -565,28 +520,13 @@ radeon_dri2_unref_buffer(BufferPtr buffer)
 static void
 radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer data, pointer calldata)
 {
-    DRI2ClientEventsPtr pClientEventsPriv;
-    DRI2FrameEventPtr ref;
     NewClientInfoRec *clientinfo = calldata;
     ClientPtr pClient = clientinfo->client;
-    pClientEventsPriv = GetDRI2ClientEvents(pClient);
 
     switch (pClient->clientState) {
-    case ClientStateInitial:
-        xorg_list_init(&pClientEventsPriv->reference_list);
-        break;
-    case ClientStateRunning:
-        break;
-
     case ClientStateRetained:
     case ClientStateGone:
-        if (pClientEventsPriv) {
-            xorg_list_for_each_entry(ref, &pClientEventsPriv->reference_list, link) {
-                ref->valid = FALSE;
-                radeon_dri2_unref_buffer(ref->front);
-                radeon_dri2_unref_buffer(ref->back);
-            }
-        }
+        radeon_drm_abort_client(pClient);
         break;
     default:
         break;
@@ -613,35 +553,40 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 	return NULL;
 }
 
-void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
-				    unsigned int tv_usec, void *event_data)
+static void
+radeon_dri2_flip_event_abort(ScrnInfoPtr scrn, void *event_data)
+{
+    free(event_data);
+}
+
+static void
+radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
+			       void *event_data)
 {
     DRI2FrameEventPtr flip = event_data;
+    unsigned tv_sec, tv_usec;
     DrawablePtr drawable;
     ScreenPtr screen;
-    ScrnInfoPtr scrn;
     int status;
     PixmapPtr pixmap;
 
     status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
 			       M_ANY, DixWriteAccess);
-    if (status != Success) {
-	free(flip);
-	return;
-    }
-    if (!flip->crtc) {
-	free(flip);
-	return;
-    }
+    if (status != Success)
+	goto abort;
+
+    if (!flip->crtc)
+	goto abort;
     frame += radeon_get_interpolated_vblanks(flip->crtc);
 
-    screen = drawable->pScreen;
-    scrn = xf86ScreenToScrn(screen);
-
+    screen = scrn->pScreen;
     pixmap = screen->GetScreenPixmap(screen);
     xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "%s:%d fevent[%p] width %d pitch %d (/4 %d)\n",
 		   __func__, __LINE__, flip, pixmap->drawable.width, pixmap->devKind, pixmap->devKind/4);
+
+    tv_sec = usec / 1000000;
+    tv_usec = usec % 1000000;
 
     /* We assume our flips arrive in order, so we don't check the frame */
     switch (flip->type) {
@@ -652,8 +597,8 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	 */
 	if ((frame < flip->frame) && (flip->frame - frame < 5)) {
 	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		       "%s: Pageflip completion event has impossible msc %d < target_msc %d\n",
-		        __func__, frame, flip->frame);
+		       "%s: Pageflip completion event has impossible msc %u < target_msc %u\n",
+		       __func__, frame, flip->frame);
 	    /* All-Zero values signal failure of (msc, ust) timestamping to client. */
 	    frame = tv_sec = tv_usec = 0;
 	}
@@ -668,7 +613,8 @@ void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
 	break;
     }
 
-    free(flip);
+abort:
+    radeon_dri2_flip_event_abort(scrn, event_data);
 }
 
 static Bool
@@ -703,7 +649,10 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     back_priv = back->driverPrivate;
     bo = radeon_get_pixmap_bo(back_priv->pixmap);
 
-    return radeon_do_pageflip(scrn, bo, flip_info, ref_crtc_hw_id);
+    return radeon_do_pageflip(scrn, client, bo, RADEON_DRM_QUEUE_ID_DEFAULT,
+			      flip_info, ref_crtc_hw_id,
+			      radeon_dri2_flip_event_handler,
+			      radeon_dri2_flip_event_abort);
 }
 
 static Bool
@@ -825,31 +774,36 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
     DamageRegionProcessPending(&front_priv->pixmap->drawable);
 }
 
-void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
-                                     unsigned int tv_usec, void *event_data)
+static void radeon_dri2_frame_event_abort(ScrnInfoPtr scrn, void *event_data)
+{
+    DRI2FrameEventPtr event = event_data;
+
+    TimerCancel(event->timer);
+    TimerFree(event->timer);
+    radeon_dri2_unref_buffer(event->front);
+    radeon_dri2_unref_buffer(event->back);
+    free(event);
+}
+
+static void radeon_dri2_frame_event_handler(ScrnInfoPtr scrn, uint32_t seq,
+					    uint64_t usec, void *event_data)
 {
     DRI2FrameEventPtr event = event_data;
     DrawablePtr drawable;
-    ScreenPtr screen;
-    ScrnInfoPtr scrn;
     int status;
     int swap_type;
     BoxRec box;
     RegionRec region;
 
-    if (!event->valid)
+    if (!event->crtc)
 	goto cleanup;
 
     status = dixLookupDrawable(&drawable, event->drawable_id, serverClient,
                                M_ANY, DixWriteAccess);
     if (status != Success)
         goto cleanup;
-    if (!event->crtc)
-	goto cleanup;
-    frame += radeon_get_interpolated_vblanks(event->crtc);
 
-    screen = drawable->pScreen;
-    scrn = xf86ScreenToScrn(screen);
+    seq += radeon_get_interpolated_vblanks(event->crtc);
 
     switch (event->type) {
     case DRI2_FLIP:
@@ -881,12 +835,14 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
 	    swap_type = DRI2_BLIT_COMPLETE;
 	}
 
-        DRI2SwapComplete(event->client, drawable, frame, tv_sec, tv_usec,
-                swap_type, event->event_complete, event->event_data);
+        DRI2SwapComplete(event->client, drawable, seq, usec / 1000000,
+			 usec % 1000000, swap_type, event->event_complete,
+			 event->event_data);
 
         break;
     case DRI2_WAITMSC:
-        DRI2WaitMSCComplete(event->client, drawable, frame, tv_sec, tv_usec);
+        DRI2WaitMSCComplete(event->client, drawable, seq, usec / 1000000,
+			    usec % 1000000);
         break;
     default:
         /* Unknown type */
@@ -896,12 +852,7 @@ void radeon_dri2_frame_event_handler(unsigned int frame, unsigned int tv_sec,
     }
 
 cleanup:
-    if (event->valid) {
-        radeon_dri2_unref_buffer(event->front);
-        radeon_dri2_unref_buffer(event->back);
-        ListDelDRI2ClientEvents(event->client, &event->link);
-    }
-    free(event);
+    radeon_dri2_frame_event_abort(scrn, event_data);
 }
 
 drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc)
@@ -1067,17 +1018,13 @@ static
 CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
 {
     DRI2FrameEventPtr event_info = (DRI2FrameEventPtr)data;
-    DrawablePtr drawable;
-    ScreenPtr screen;
+    xf86CrtcPtr crtc = event_info->crtc;
     ScrnInfoPtr scrn;
     RADEONInfoPtr info;
-    int status;
     CARD64 drm_now;
     int ret;
-    unsigned int tv_sec, tv_usec;
     CARD64 delta_t, delta_seq, frame;
     drmmode_crtc_private_ptr drmmode_crtc;
-    TimerFree(timer);
 
     /*
      * This is emulated event, so its time is current time, which we
@@ -1088,28 +1035,26 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
      */
     if (!event_info->crtc) {
 	ErrorF("%s no crtc\n", __func__);
-	radeon_dri2_frame_event_handler(0, 0, 0, data);
+	if (event_info->drm_queue)
+	    radeon_drm_abort_entry(event_info->drm_queue);
+	else
+	    radeon_dri2_frame_event_abort(NULL, data);
 	return 0;
     }
-    status = dixLookupDrawable(&drawable, event_info->drawable_id, serverClient,
-			       M_ANY, DixWriteAccess);
-    if (status != Success) {
-	ErrorF("%s cannot lookup drawable\n", __func__);
-	radeon_dri2_frame_event_handler(0, 0, 0, data);
-	return 0;
-    }
-    screen = drawable->pScreen;
-    scrn = xf86ScreenToScrn(screen);
+
+    scrn = crtc->scrn;
     info = RADEONPTR(scrn);
     ret = drmmode_get_current_ust(info->dri2.drm_fd, &drm_now);
     if (ret) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "%s cannot get current time\n", __func__);
-	radeon_dri2_frame_event_handler(0, 0, 0, data);
+	if (event_info->drm_queue)
+	    radeon_drm_queue_handler(info->dri2.drm_fd, 0, 0, 0,
+				     event_info->drm_queue);
+	else
+	    radeon_dri2_frame_event_handler(scrn, 0, 0, data);
 	return 0;
     }
-    tv_sec = (unsigned int)(drm_now / 1000000);
-    tv_usec = (unsigned int)(drm_now - (CARD64)tv_sec * 1000000);
     /*
      * calculate the frame number from current time
      * that would come from CRTC if it were running
@@ -1119,20 +1064,22 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
     delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
     delta_seq /= 1000000;
     frame = (CARD64)drmmode_crtc->dpms_last_seq + delta_seq;
-    frame &= 0xffffffff;
-    radeon_dri2_frame_event_handler((unsigned int)frame, tv_sec, tv_usec, data);
+    if (event_info->drm_queue)
+	radeon_drm_queue_handler(info->dri2.drm_fd, frame, drm_now / 1000000,
+				 drm_now % 1000000, event_info->drm_queue);
+    else
+	radeon_dri2_frame_event_handler(scrn, frame, drm_now, data);
     return 0;
 }
 
 static
-void radeon_dri2_schedule_event(CARD32 delay, pointer arg)
+void radeon_dri2_schedule_event(CARD32 delay, DRI2FrameEventPtr event_info)
 {
-    OsTimerPtr timer;
-
-    timer = TimerSet(NULL, 0, delay, radeon_dri2_deferred_event, arg);
+    event_info->timer = TimerSet(NULL, 0, delay, radeon_dri2_deferred_event,
+				 event_info);
     if (delay == 0) {
 	CARD32 now = GetTimeInMillis();
-	radeon_dri2_deferred_event(timer, now, arg);
+	radeon_dri2_deferred_event(event_info->timer, now, event_info);
     }
 }
 
@@ -1150,6 +1097,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr wait_info = NULL;
+    struct radeon_drm_queue_entry *wait = NULL;
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     drmVBlank vbl;
     int ret;
@@ -1172,16 +1120,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     wait_info->drawable_id = draw->id;
     wait_info->client = client;
     wait_info->type = DRI2_WAITMSC;
-    wait_info->valid = TRUE;
     wait_info->crtc = crtc;
-
-    if (ListAddDRI2ClientEvents(client, &wait_info->link)) {
-        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                "add events to client private failed.\n");
-        free(wait_info);
-        wait_info = NULL;
-        goto out_complete;
-    }
 
     /*
      * CRTC is in DPMS off state, calculate wait time from current time,
@@ -1210,6 +1149,16 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     current_msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
     current_msc &= 0xffffffff;
 
+    wait = radeon_drm_queue_alloc(scrn, client, RADEON_DRM_QUEUE_ID_DEFAULT,
+				  wait_info, radeon_dri2_frame_event_handler,
+				  radeon_dri2_frame_event_abort);
+    if (!wait) {
+        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		   "Allocating DRM queue event entry failed.\n");
+        goto out_complete;
+    }
+    wait_info->drm_queue = wait;
+
     /*
      * If divisor is zero, or current_msc is smaller than target_msc,
      * we just need to make sure target_msc passes  before waking up the
@@ -1228,7 +1177,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
         vbl.request.sequence = target_msc;
 	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
-        vbl.request.signal = (unsigned long)wait_info;
+        vbl.request.signal = (unsigned long)wait;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1260,7 +1209,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         vbl.request.sequence += divisor;
     vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
 
-    vbl.request.signal = (unsigned long)wait_info;
+    vbl.request.signal = (unsigned long)wait;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1273,11 +1222,8 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     return TRUE;
 
 out_complete:
-    if (wait_info) {
-        ListDelDRI2ClientEvents(wait_info->client, &wait_info->link);
-        free(wait_info);
-    }
-    DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
+    if (wait_info)
+	radeon_dri2_deferred_event(NULL, 0, wait_info);
     return TRUE;
 }
 
@@ -1314,6 +1260,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     drmVBlank vbl;
     int ret, flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
+    struct radeon_drm_queue_entry *swap;
     CARD64 current_msc;
     BoxRec box;
     RegionRec region;
@@ -1346,15 +1293,17 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     swap_info->event_data = data;
     swap_info->front = front;
     swap_info->back = back;
-    swap_info->valid = TRUE;
     swap_info->crtc = crtc;
-    if (ListAddDRI2ClientEvents(client, &swap_info->link)) {
+
+    swap = radeon_drm_queue_alloc(scrn, client, RADEON_DRM_QUEUE_ID_DEFAULT,
+				  swap_info, radeon_dri2_frame_event_handler,
+				  radeon_dri2_frame_event_abort);
+    if (!swap) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                "add events to client private failed.\n");
-        free(swap_info);
-        swap_info = NULL;
+		   "Allocating DRM queue entry failed.\n");
         goto blit_fallback;
     }
+    swap_info->drm_queue = swap;
 
     /*
      * CRTC is in DPMS off state, fallback to blit, but calculate
@@ -1421,7 +1370,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
         vbl.request.sequence = *target_msc;
 	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
-        vbl.request.signal = (unsigned long)swap_info;
+        vbl.request.signal = (unsigned long)swap;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1468,7 +1417,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     /* Account for 1 frame extra pageflip delay if flip > 0 */
     vbl.request.sequence -= flip;
 
-    vbl.request.signal = (unsigned long)swap_info;
+    vbl.request.signal = (unsigned long)swap;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1581,22 +1530,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
             driverNames[1] = NULL; /* no VDPAU support */
 
 	if (DRI2InfoCnt == 0) {
-#if HAS_DIXREGISTERPRIVATEKEY
-	    if (!dixRegisterPrivateKey(DRI2ClientEventsPrivateKey,
-				       PRIVATE_CLIENT, sizeof(DRI2ClientEventsRec))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 registering "
-			   "private key to client failed\n");
-		return FALSE;
-	    }
-#else
-	    if (!dixRequestPrivate(DRI2ClientEventsPrivateKey,
-				   sizeof(DRI2ClientEventsRec))) {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "DRI2 requesting "
-			   "private key to client failed\n");
-		return FALSE;
-	    }
-#endif
-
 	    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 	}
 

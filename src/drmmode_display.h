@@ -32,6 +32,7 @@
 #include "libudev.h"
 #endif
 
+#include "radeon_drm_queue.h"
 #include "radeon_probe.h"
 
 #ifndef DRM_CAP_TIMESTAMP_MONOTONIC
@@ -61,13 +62,14 @@ typedef struct {
   int flip_count;
   void *event_data;
   unsigned int fe_frame;
-  unsigned int fe_tv_sec;
-  unsigned int fe_tv_usec;
+  uint64_t fe_usec;
 } drmmode_flipdata_rec, *drmmode_flipdata_ptr;
 
 typedef struct {
   drmmode_flipdata_ptr flipdata;
   Bool dispatch_me;
+  radeon_drm_handler_proc handler;
+  radeon_drm_abort_proc abort;
 } drmmode_flipevtcarrier_rec, *drmmode_flipevtcarrier_ptr;
 
 typedef struct {
@@ -121,11 +123,15 @@ extern Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn);
 extern void drmmode_uevent_init(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 extern void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 
+extern int drmmode_get_crtc_id(xf86CrtcPtr crtc);
 extern int drmmode_get_height_align(ScrnInfoPtr scrn, uint32_t tiling);
 extern int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 
-Bool radeon_do_pageflip(ScrnInfoPtr scrn, struct radeon_bo *new_front, void *data, int ref_crtc_hw_id);
+Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
+			struct radeon_bo *new_front, uint64_t id, void *data,
+			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
+			radeon_drm_abort_proc abort);
 int drmmode_get_current_ust(int drm_fd, CARD64 *ust);
 
 #endif
