@@ -613,6 +613,64 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 	return NULL;
 }
 
+void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
+				    unsigned int tv_usec, void *event_data)
+{
+    DRI2FrameEventPtr flip = event_data;
+    DrawablePtr drawable;
+    ScreenPtr screen;
+    ScrnInfoPtr scrn;
+    int status;
+    PixmapPtr pixmap;
+
+    status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
+			       M_ANY, DixWriteAccess);
+    if (status != Success) {
+	free(flip);
+	return;
+    }
+    if (!flip->crtc) {
+	free(flip);
+	return;
+    }
+    frame += radeon_get_interpolated_vblanks(flip->crtc);
+
+    screen = drawable->pScreen;
+    scrn = xf86ScreenToScrn(screen);
+
+    pixmap = screen->GetScreenPixmap(screen);
+    xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "%s:%d fevent[%p] width %d pitch %d (/4 %d)\n",
+		   __func__, __LINE__, flip, pixmap->drawable.width, pixmap->devKind, pixmap->devKind/4);
+
+    /* We assume our flips arrive in order, so we don't check the frame */
+    switch (flip->type) {
+    case DRI2_SWAP:
+	/* Check for too small vblank count of pageflip completion, taking wraparound
+	 * into account. This usually means some defective kms pageflip completion,
+	 * causing wrong (msc, ust) return values and possible visual corruption.
+	 */
+	if ((frame < flip->frame) && (flip->frame - frame < 5)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "%s: Pageflip completion event has impossible msc %d < target_msc %d\n",
+		        __func__, frame, flip->frame);
+	    /* All-Zero values signal failure of (msc, ust) timestamping to client. */
+	    frame = tv_sec = tv_usec = 0;
+	}
+
+	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
+			 DRI2_FLIP_COMPLETE, flip->event_complete,
+			 flip->event_data);
+	break;
+    default:
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: unknown vblank event received\n", __func__);
+	/* Unknown type */
+	break;
+    }
+
+    free(flip);
+}
+
 static Bool
 radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 			  DrawablePtr draw, DRI2BufferPtr front,
@@ -1221,64 +1279,6 @@ out_complete:
     }
     DRI2WaitMSCComplete(client, draw, target_msc, 0, 0);
     return TRUE;
-}
-
-void radeon_dri2_flip_event_handler(unsigned int frame, unsigned int tv_sec,
-				    unsigned int tv_usec, void *event_data)
-{
-    DRI2FrameEventPtr flip = event_data;
-    DrawablePtr drawable;
-    ScreenPtr screen;
-    ScrnInfoPtr scrn;
-    int status;
-    PixmapPtr pixmap;
-
-    status = dixLookupDrawable(&drawable, flip->drawable_id, serverClient,
-			       M_ANY, DixWriteAccess);
-    if (status != Success) {
-	free(flip);
-	return;
-    }
-    if (!flip->crtc) {
-	free(flip);
-	return;
-    }
-    frame += radeon_get_interpolated_vblanks(flip->crtc);
-
-    screen = drawable->pScreen;
-    scrn = xf86ScreenToScrn(screen);
-
-    pixmap = screen->GetScreenPixmap(screen);
-    xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "%s:%d fevent[%p] width %d pitch %d (/4 %d)\n",
-		   __func__, __LINE__, flip, pixmap->drawable.width, pixmap->devKind, pixmap->devKind/4);
-
-    /* We assume our flips arrive in order, so we don't check the frame */
-    switch (flip->type) {
-    case DRI2_SWAP:
-	/* Check for too small vblank count of pageflip completion, taking wraparound
-	 * into account. This usually means some defective kms pageflip completion,
-	 * causing wrong (msc, ust) return values and possible visual corruption.
-	 */
-	if ((frame < flip->frame) && (flip->frame - frame < 5)) {
-	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		       "%s: Pageflip completion event has impossible msc %d < target_msc %d\n",
-		        __func__, frame, flip->frame);
-	    /* All-Zero values signal failure of (msc, ust) timestamping to client. */
-	    frame = tv_sec = tv_usec = 0;
-	}
-
-	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
-			 DRI2_FLIP_COMPLETE, flip->event_complete,
-			 flip->event_data);
-	break;
-    default:
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: unknown vblank event received\n", __func__);
-	/* Unknown type */
-	break;
-    }
-
-    free(flip);
 }
 
 /*
