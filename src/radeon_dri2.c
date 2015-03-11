@@ -1133,7 +1133,6 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 	CARD32 delay;
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, &target_msc,
 						  divisor, remainder);
-	wait_info->frame = target_msc;
 	radeon_dri2_schedule_event(delay, wait_info);
 	DRI2BlockClient(client, draw);
 	return TRUE;
@@ -1179,8 +1178,6 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
             goto out_complete;
         }
 
-        wait_info->frame = vbl.reply.sequence;
-	wait_info->frame += radeon_get_interpolated_vblanks(crtc);
         DRI2BlockClient(client, draw);
         return TRUE;
     }
@@ -1213,8 +1210,6 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         goto out_complete;
     }
 
-    wait_info->frame = vbl.reply.sequence;
-    wait_info->frame += radeon_get_interpolated_vblanks(crtc);
     DRI2BlockClient(client, draw);
 
     return TRUE;
@@ -1370,7 +1365,6 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	CARD32 delay;
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, target_msc,
 						  divisor, remainder);
-	swap_info->frame = *target_msc;
 	radeon_dri2_schedule_event(delay, swap_info);
 	return TRUE;
     }
