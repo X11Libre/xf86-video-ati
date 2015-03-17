@@ -26,13 +26,10 @@
 #include "config.h"
 #endif
 
-#include "xorg-server.h"
-#include "xf86.h"
-#include "fb.h"
+#include "radeon.h"
 
 #ifdef HAVE_DRI3_H
 
-#include "radeon.h"
 #include "radeon_bo_gem.h"
 #include "radeon_glamor.h"
 #include "dri3.h"
