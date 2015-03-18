@@ -35,6 +35,10 @@
 
 #include "radeon_surface.h"
 
+#ifndef GLAMOR_NO_DRI3
+#define glamor_fd_from_pixmap glamor_dri3_fd_from_pixmap
+#endif
+
 Bool radeon_glamor_pre_init(ScrnInfoPtr scrn);
 Bool radeon_glamor_init(ScreenPtr screen);
 Bool radeon_glamor_create_screen_resources(ScreenPtr screen);
