@@ -96,6 +96,16 @@ static PixmapPtr radeon_dri3_pixmap_from_fd(ScreenPtr screen,
 {
 	PixmapPtr pixmap;
 
+#ifdef USE_GLAMOR
+	/* Avoid generating a GEM flink name if possible */
+	if (RADEONPTR(xf86ScreenToScrn(screen))->use_glamor) {
+		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
+					       stride, depth, bpp);
+		if (pixmap)
+			return pixmap;
+	}
+#endif
+
 	if (depth < 8)
 		return NULL;
 

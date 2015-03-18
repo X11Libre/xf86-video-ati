@@ -252,6 +252,10 @@ struct radeon_pixmap {
 
 	uint32_t tiling_flags;
 	int stride;
+
+	/* GEM handle for glamor-only pixmaps shared via DRI3 */
+	Bool handle_valid;
+	uint32_t handle;
 };
 
 #if HAS_DEVPRIVATEKEYREC
