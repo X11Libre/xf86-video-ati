@@ -678,7 +678,7 @@ static inline struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
     {
 	struct radeon_exa_pixmap_priv *driver_priv;
 	driver_priv = exaGetPixmapDriverPrivate(pPix);
-	return driver_priv->bo;
+	return driver_priv ? driver_priv->bo : NULL;
     }
 
     return NULL;
