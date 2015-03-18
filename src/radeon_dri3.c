@@ -108,11 +108,12 @@ static PixmapPtr radeon_dri3_pixmap_from_fd(ScreenPtr screen,
 		return NULL;
 	}
 
-	pixmap = fbCreatePixmap(screen, 0, 0, depth, 0);
+	pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
 	if (!pixmap)
 		return NULL;
 
-	if (!screen->ModifyPixmapHeader(pixmap, width, height, 0, 0, stride, NULL))
+	if (!screen->ModifyPixmapHeader(pixmap, width, height, 0, bpp, stride,
+					NULL))
 		goto free_pixmap;
 
 	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)fd))
