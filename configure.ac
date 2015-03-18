@@ -131,11 +131,11 @@ AC_CHECK_DECL(xorg_list_init,
 	      #include "xorg-server.h"
 	      #include "list.h"])
 
-AC_CHECK_HEADERS([misyncshm.h], [], [],
+AC_CHECK_HEADERS([misync.h], [], [],
                  [#include <X11/Xdefs.h>
 	          #include <X11/Xfuncproto.h>
-	          #include "screenint.h"
-	          #include "xorg-server.h"])
+	          #include <xorg-server.h>
+	          #include <pixmap.h>])
 
 AC_CHECK_HEADERS([present.h], [], [],
 		 [#include <X11/Xmd.h>
