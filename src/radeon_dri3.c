@@ -41,10 +41,7 @@
 
 
 static int
-radeon_dri3_open_client(ClientPtr client,
-			ScreenPtr screen,
-			RRProviderPtr provider,
-			int *out)
+radeon_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	RADEONInfoPtr info = RADEONPTR(scrn);
@@ -162,9 +159,9 @@ static int radeon_dri3_fd_from_pixmap(ScreenPtr screen,
 }
 
 static dri3_screen_info_rec radeon_dri3_screen_info = {
-	.version = 1,
+	.version = 0,
 
-	.open_client = radeon_dri3_open_client,
+	.open = radeon_dri3_open,
 	.pixmap_from_fd = radeon_dri3_pixmap_from_fd,
 	.fd_from_pixmap = radeon_dri3_fd_from_pixmap
 };
