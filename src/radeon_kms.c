@@ -1346,6 +1346,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     if (radeon_sync_init(pScreen))
 	have_present = radeon_present_screen_init(pScreen);
 
+    value = FALSE;
     if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
 	from = X_CONFIG;
     else
