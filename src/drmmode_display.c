@@ -33,6 +33,7 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include "cursorstr.h"
+#include "damagestr.h"
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "radeon.h"
@@ -489,6 +490,26 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 
 }
 
+void
+drmmode_scanout_free(ScrnInfoPtr scrn)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	int c;
+
+	for (c = 0; c < xf86_config->num_crtc; c++) {
+		drmmode_crtc_private_ptr drmmode_crtc =
+			xf86_config->crtc[c]->driver_private;
+
+		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+					     &drmmode_crtc->scanout);
+
+		if (drmmode_crtc->scanout_damage) {
+			DamageDestroy(drmmode_crtc->scanout_damage);
+			drmmode_crtc->scanout_damage = NULL;
+		}
+	}
+}
+
 static void *
 drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 			      struct drmmode_scanout *scanout,
@@ -508,6 +529,13 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Rotation requires acceleration!\n");
 		return NULL;
+	}
+
+	if (scanout->bo) {
+		if (scanout->width == width && scanout->height == height)
+			return scanout->bo->ptr;
+
+		drmmode_crtc_scanout_destroy(drmmode, scanout);
 	}
 
 	rotate_pitch =
@@ -531,6 +559,8 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 	if (ret)
 		ErrorF("failed to add scanout fb\n");
 
+	scanout->width = width;
+	scanout->height = height;
 	return scanout->bo->ptr;
 }
 
@@ -542,6 +572,13 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	unsigned long rotate_pitch;
+
+	if (scanout->pixmap) {
+		if (scanout->width == width && scanout->height == height)
+			return scanout->pixmap;
+
+		drmmode_crtc_scanout_destroy(drmmode, scanout);
+	}
 
 	if (!data)
 		data = drmmode_crtc_scanout_allocate(crtc, scanout, width, height);
@@ -560,6 +597,14 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 			   "Couldn't allocate scanout pixmap for CRTC\n");
 
 	return scanout->pixmap;
+}
+
+static void
+radeon_screen_damage_report(DamagePtr damage, RegionPtr region, void *closure)
+{
+	/* Only keep track of the extents */
+	RegionUninit(&damage->damage);
+	damage->damage.data = NULL;
 }
 
 static Bool
@@ -631,6 +676,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 
 	if (mode) {
+		ScreenPtr pScreen = pScrn->pScreen;
+
 		for (i = 0; i < xf86_config->num_output; i++) {
 			xf86OutputPtr output = xf86_config->output[i];
 			drmmode_output_private_ptr drmmode_output;
@@ -656,11 +703,46 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (crtc->randr_crtc && crtc->randr_crtc->scanout_pixmap) {
 			x = drmmode_crtc->prime_pixmap_x;
 			y = 0;
+
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout);
 		} else
 #endif
 		if (drmmode_crtc->rotate.fb_id) {
 			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
+
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout);
+		} else if (info->shadow_primary) {
+			drmmode_crtc_scanout_create(crtc,
+						    &drmmode_crtc->scanout,
+						    NULL, mode->HDisplay,
+						    mode->VDisplay);
+
+			if (drmmode_crtc->scanout.pixmap) {
+				RegionPtr pRegion;
+				BoxPtr pBox;
+
+				if (!drmmode_crtc->scanout_damage) {
+					drmmode_crtc->scanout_damage =
+						DamageCreate(radeon_screen_damage_report,
+							     NULL, DamageReportRawRegion,
+							     TRUE, pScreen, NULL);
+					DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
+						       drmmode_crtc->scanout_damage);
+				}
+
+				pRegion = DamageRegion(drmmode_crtc->scanout_damage);
+				RegionUninit(pRegion);
+				pRegion->data = NULL;
+				pBox = RegionExtents(pRegion);
+				pBox->x1 = min(pBox->x1, x);
+				pBox->y1 = min(pBox->y1, y);
+				pBox->x2 = max(pBox->x2, x + mode->HDisplay);
+				pBox->y2 = max(pBox->y2, y + mode->VDisplay);
+
+				fb_id = drmmode_crtc->scanout.fb_id;
+				x = y = 0;
+			}
 		}
 		ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				     fb_id, x, y, output_ids, output_count, &kmode);
@@ -1689,7 +1771,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	if (front_bo)
 		radeon_bo_wait(front_bo);
 
-	if (info->allowColorTiling) {
+	if (info->allowColorTiling && !info->shadow_primary) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600) {
 			if (info->allowColorTiling2D) {
 				tiling_flags |= RADEON_TILING_MACRO;
@@ -1770,7 +1852,10 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	scrn->virtualY = height;
 	scrn->displayWidth = pitch / cpp;
 
-	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, base_align, RADEON_GEM_DOMAIN_VRAM, 0);
+	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, base_align,
+					info->shadow_primary ?
+					RADEON_GEM_DOMAIN_GTT :
+					RADEON_GEM_DOMAIN_VRAM, 0);
 	if (!info->front_bo)
 		goto fail;
 

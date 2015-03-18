@@ -70,6 +70,7 @@ const OptionInfoRec RADEONOptions_KMS[] = {
     { OPTION_SUBPIXEL_ORDER, "SubPixelOrder",    OPTV_ANYSTR,  {0}, FALSE },
 #ifdef USE_GLAMOR
     { OPTION_ACCELMETHOD,    "AccelMethod",      OPTV_STRING,  {0}, FALSE },
+    { OPTION_SHADOW_PRIMARY, "ShadowPrimary",    OPTV_BOOLEAN, {0}, FALSE },
 #endif
     { OPTION_EXA_VSYNC,      "EXAVSync",         OPTV_BOOLEAN, {0}, FALSE },
     { OPTION_EXA_PIXMAPS,    "EXAPixmaps",	 OPTV_BOOLEAN,   {0}, FALSE },
@@ -308,6 +309,142 @@ radeon_dirty_update(ScreenPtr screen)
 }
 #endif
 
+static Bool
+radeon_scanout_extents_intersect(BoxPtr extents, int x, int y, int w, int h)
+{
+    extents->x1 = max(extents->x1 - x, 0);
+    extents->y1 = max(extents->y1 - y, 0);
+    extents->x2 = min(extents->x2 - x, w);
+    extents->y2 = min(extents->y2 - y, h);
+
+    return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
+}
+
+static void
+radeon_scanout_update_abort(ScrnInfoPtr scrn, void *event_data)
+{
+    xf86CrtcPtr xf86_crtc = event_data;
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+
+    drmmode_crtc->scanout_update_pending = FALSE;
+}
+
+static void
+radeon_scanout_update_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
+			      void *event_data)
+{
+    xf86CrtcPtr xf86_crtc = event_data;
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    DamagePtr pDamage;
+    RegionPtr pRegion;
+    DrawablePtr pDraw;
+    ScreenPtr pScreen;
+    GCPtr gc;
+    BoxRec extents;
+    RADEONInfoPtr info;
+    Bool force;
+
+    if (!drmmode_crtc->scanout.pixmap ||
+	drmmode_crtc->dpms_mode != DPMSModeOn)
+	goto out;
+
+    pDamage = drmmode_crtc->scanout_damage;
+    if (!pDamage)
+	goto out;
+
+    pRegion = DamageRegion(pDamage);
+    if (!RegionNotEmpty(pRegion))
+	goto out;
+
+    pDraw = &drmmode_crtc->scanout.pixmap->drawable;
+    extents = *RegionExtents(pRegion);
+    if (!radeon_scanout_extents_intersect(&extents, xf86_crtc->x, xf86_crtc->y,
+					  pDraw->width, pDraw->height))
+	goto clear_damage;
+
+    pScreen = pDraw->pScreen;
+    gc = GetScratchGC(pDraw->depth, pScreen);
+    info = RADEONPTR(scrn);
+    force = info->accel_state->force;
+    info->accel_state->force = TRUE;
+
+    ValidateGC(pDraw, gc);
+    (*gc->ops->CopyArea)(&pScreen->GetScreenPixmap(pScreen)->drawable,
+			 pDraw, gc,
+			 xf86_crtc->x + extents.x1, xf86_crtc->y + extents.y1,
+			 extents.x2 - extents.x1, extents.y2 - extents.y1,
+			 extents.x1, extents.y1);
+    FreeScratchGC(gc);
+
+    info->accel_state->force = force;
+
+    radeon_cs_flush_indirect(scrn);
+
+clear_damage:
+    RegionEmpty(pRegion);
+
+out:
+    drmmode_crtc->scanout_update_pending = FALSE;
+}
+
+static void
+radeon_scanout_update(xf86CrtcPtr xf86_crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    struct radeon_drm_queue_entry *drm_queue_entry;
+    ScrnInfoPtr scrn;
+    drmVBlank vbl;
+    DamagePtr pDamage;
+    RegionPtr pRegion;
+    DrawablePtr pDraw;
+    BoxRec extents;
+
+    if (drmmode_crtc->scanout_update_pending ||
+	!drmmode_crtc->scanout.pixmap ||
+	drmmode_crtc->dpms_mode != DPMSModeOn)
+	return;
+
+    pDamage = drmmode_crtc->scanout_damage;
+    if (!pDamage)
+	return;
+
+    pRegion = DamageRegion(pDamage);
+    if (!RegionNotEmpty(pRegion))
+	return;
+
+    pDraw = &drmmode_crtc->scanout.pixmap->drawable;
+    extents = *RegionExtents(pRegion);
+    if (!radeon_scanout_extents_intersect(&extents, xf86_crtc->x, xf86_crtc->y,
+					  pDraw->width, pDraw->height))
+	return;
+
+    scrn = xf86_crtc->scrn;
+    drm_queue_entry = radeon_drm_queue_alloc(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+					     RADEON_DRM_QUEUE_ID_DEFAULT,
+					     xf86_crtc,
+					     radeon_scanout_update_handler,
+					     radeon_scanout_update_abort);
+    if (!drm_queue_entry) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		   "radeon_drm_queue_alloc failed for scanout update\n");
+	return;
+    }
+
+    vbl.request.type = DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT;
+    vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
+    vbl.request.sequence = 1;
+    vbl.request.signal = (unsigned long)drm_queue_entry;
+    if (drmWaitVBlank(RADEONPTR(scrn)->dri2.drm_fd, &vbl)) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		   "drmWaitVBlank failed for scanout update: %s\n",
+		   strerror(errno));
+	radeon_drm_abort_entry(drm_queue_entry);
+	return;
+    }
+
+    drmmode_crtc->scanout_update_pending = TRUE;
+}
+
 static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
@@ -318,7 +455,16 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
+    if (info->shadow_primary) {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	int c;
+
+	for (c = 0; c < xf86_config->num_crtc; c++)
+	    radeon_scanout_update(xf86_config->crtc[c]);
+    }
+
     radeon_cs_flush_indirect(pScrn);
+
 #ifdef RADEON_PIXMAP_SHARING
     radeon_dirty_update(pScreen);
 #endif
@@ -936,11 +1082,32 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 	 "KMS Color Tiling 2D: %sabled\n", info->allowColorTiling2D ? "en" : "dis");
 
+#if USE_GLAMOR
+    if (info->use_glamor) {
+	info->shadow_primary = xf86ReturnOptValBool(info->Options,
+						   OPTION_SHADOW_PRIMARY, FALSE);
+
+	if (info->shadow_primary)
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "ShadowPrimary enabled\n");
+    }
+#endif
+
     if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP, TRUE);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
+#if USE_GLAMOR
+	if (info->shadow_primary) {
+	    xf86DrvMsg(pScrn->scrnIndex,
+		       info->allowPageFlip ? X_WARNING : X_DEFAULT,
+		       "KMS Pageflipping: disabled%s\n",
+		       info->allowPageFlip ? " because of ShadowPrimary" : "");
+	    info->allowPageFlip = FALSE;
+	} else
+#endif
+	{
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
+	}
     }
 
     info->swapBuffersWait = xf86ReturnOptValBool(info->Options,
@@ -1506,6 +1673,7 @@ void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
     radeon_drop_drm_master(pScrn);
 
     xf86RotateFreeShadow(pScrn);
+    drmmode_scanout_free(pScrn);
 
     xf86_hide_cursors (pScrn);
     info->accel_state->XInited3D = FALSE;
@@ -1556,7 +1724,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	}
     }
 
-    if (info->allowColorTiling) {
+    if (info->allowColorTiling && !info->shadow_primary) {
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		if (info->allowColorTiling2D) {
 			tiling_flags |= RADEON_TILING_MACRO;
@@ -1659,7 +1827,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 
     if (info->front_bo == NULL) {
         info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size,
-                                        base_align, RADEON_GEM_DOMAIN_VRAM, 0);
+                                        base_align,
+                                        info->shadow_primary ?
+                                        RADEON_GEM_DOMAIN_GTT :
+                                        RADEON_GEM_DOMAIN_VRAM, 0);
         if (info->r600_shadow_fb == TRUE) {
             if (radeon_bo_map(info->front_bo, 1)) {
                 ErrorF("Failed to map cursor buffer memory\n");

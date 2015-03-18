@@ -125,6 +125,16 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
+AC_CHECK_DECL(fbGlyphs,
+	      [AC_DEFINE(HAVE_FBGLYPHS, 1, [Have fbGlyphs API])], [],
+	      [#include <X11/Xmd.h>
+	       #include <X11/Xfuncproto.h>
+	       #include <X11/extensions/renderproto.h>
+	       #include <xorg-server.h>
+	       #include <picture.h>
+	       #include <glyphstr.h>
+	       #include <fbpict.h>])
+
 AC_CHECK_DECL(xorg_list_init,
 	      [AC_DEFINE(HAVE_XORG_LIST, 1, [Have xorg_list API])], [],
 	      [#include <X11/Xdefs.h>

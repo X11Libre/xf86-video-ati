@@ -151,6 +151,7 @@ typedef enum {
     OPTION_SWAPBUFFERS_WAIT,
     OPTION_DELETE_DP12,
     OPTION_DRI3,
+    OPTION_SHADOW_PRIMARY,
 } RADEONOpts;
 
 
@@ -476,6 +477,7 @@ typedef struct {
     struct radeon_accel_state *accel_state;
     Bool              accelOn;
     Bool              use_glamor;
+    Bool              shadow_primary;
     Bool	      exa_pixmaps;
     Bool              exa_force_create;
     XF86ModReqInfo    exaReq;

@@ -166,26 +166,24 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_pixmap *pri
 						 priv->stride);
 }
 
-#ifndef CREATE_PIXMAP_USAGE_SHARED
-#define CREATE_PIXMAP_USAGE_SHARED RADEON_CREATE_PIXMAP_DRI2
-#endif
-
-#define RADEON_CREATE_PIXMAP_SHARED(usage) \
-	(((usage) & ~RADEON_CREATE_PIXMAP_TILING_FLAGS) == RADEON_CREATE_PIXMAP_DRI2 || \
-	 (usage) == CREATE_PIXMAP_USAGE_SHARED)
-
 static PixmapPtr
 radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			unsigned usage)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
 	struct radeon_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
 
 	if (!RADEON_CREATE_PIXMAP_SHARED(usage)) {
-		pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
-		if (pixmap)
-			return pixmap;
+		if (info->shadow_primary) {
+			if (usage != CREATE_PIXMAP_USAGE_BACKING_PIXMAP)
+				return fbCreatePixmap(screen, w, h, depth, usage);
+		} else {
+			pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+			if (pixmap)
+			    return pixmap;
+		}
 	}
 
 	if (w > 32767 || h > 32767)
@@ -220,6 +218,8 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		if (!radeon_glamor_create_textured_pixmap(pixmap, priv))
 			goto fallback_glamor;
+
+		pixmap->devPrivate.ptr = NULL;
 	}
 
 	return pixmap;
@@ -258,6 +258,13 @@ fallback_pixmap:
 static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 {
 	if (pixmap->refcnt == 1) {
+		if (pixmap->devPrivate.ptr) {
+			struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+
+			if (bo)
+				radeon_bo_unmap(bo);
+		}
+
 		glamor_egl_destroy_textured_pixmap(pixmap);
 		radeon_set_pixmap_bo(pixmap, NULL);
 	}
@@ -316,6 +323,26 @@ Bool
 radeon_glamor_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+#ifdef RENDER
+#ifdef HAVE_FBGLYPHS
+	UnrealizeGlyphProcPtr SavedUnrealizeGlyph = NULL;
+#endif
+	PictureScreenPtr ps = NULL;
+
+	if (info->shadow_primary) {
+		ps = GetPictureScreenIfSet(screen);
+
+		if (ps) {
+#ifdef HAVE_FBGLYPHS
+			SavedUnrealizeGlyph = ps->UnrealizeGlyph;
+#endif
+			info->glamor.SavedGlyphs = ps->Glyphs;
+			info->glamor.SavedTriangles = ps->Triangles;
+			info->glamor.SavedTrapezoids = ps->Trapezoids;
+		}
+	}
+#endif /* RENDER */
 
 	if (!glamor_init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
 			 GLAMOR_USE_PICTURE_SCREEN | GLAMOR_INVERTED_Y_AXIS |
@@ -337,6 +364,17 @@ radeon_glamor_init(ScreenPtr screen)
 	if (!dixRequestPrivate(&glamor_pixmap_index, 0))
 #endif
 		return FALSE;
+
+	if (info->shadow_primary)
+		radeon_glamor_screen_init(screen);
+
+#if defined(RENDER) && defined(HAVE_FBGLYPHS)
+	/* For ShadowPrimary, we need fbUnrealizeGlyph instead of
+	 * glamor_unrealize_glyph
+	 */
+	if (ps)
+		ps->UnrealizeGlyph = SavedUnrealizeGlyph;
+#endif
 
 	screen->CreatePixmap = radeon_glamor_create_pixmap;
 	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;

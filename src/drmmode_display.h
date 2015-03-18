@@ -76,6 +76,7 @@ struct drmmode_scanout {
     struct radeon_bo *bo;
     PixmapPtr pixmap;
     unsigned fb_id;
+    int width, height;
 };
 
 typedef struct {
@@ -84,6 +85,9 @@ typedef struct {
     int hw_id;
     struct radeon_bo *cursor_bo;
     struct drmmode_scanout rotate;
+    struct drmmode_scanout scanout;
+    DamagePtr scanout_damage;
+    Bool scanout_update_pending;
     int dpms_mode;
     CARD64 dpms_last_ust;
     uint32_t dpms_last_seq;
@@ -124,6 +128,8 @@ void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y);
 extern Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
 extern void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
 extern Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn);
+
+extern void drmmode_scanout_free(ScrnInfoPtr scrn);
 
 extern void drmmode_uevent_init(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 extern void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode);

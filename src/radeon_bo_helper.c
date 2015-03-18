@@ -88,12 +88,15 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 	if (usage_hint & RADEON_CREATE_PIXMAP_DEPTH)
 		tiling |= RADEON_TILING_MACRO | RADEON_TILING_MICRO;
 
+	if ((usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP &&
+	     info->shadow_primary)
 #ifdef CREATE_PIXMAP_USAGE_SHARED
-	if ((usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED) {
+	    || (usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED
+#endif
+	    ) {
 		tiling = 0;
 		domain = RADEON_GEM_DOMAIN_GTT;
 	}
-#endif
     }
 
     /* Small pixmaps must not be macrotiled on R300, hw cannot sample them

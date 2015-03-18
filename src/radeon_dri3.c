@@ -101,8 +101,17 @@ static PixmapPtr radeon_dri3_pixmap_from_fd(ScreenPtr screen,
 	if (RADEONPTR(xf86ScreenToScrn(screen))->use_glamor) {
 		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
 					       stride, depth, bpp);
-		if (pixmap)
-			return pixmap;
+		if (pixmap) {
+			struct radeon_pixmap *priv =
+				calloc(1, sizeof(struct radeon_pixmap));
+
+			if (priv) {
+				radeon_set_pixmap_private(pixmap, priv);
+				return pixmap;
+			}
+
+			screen->DestroyPixmap(pixmap);
+		}
 	}
 #endif
 
@@ -118,7 +127,7 @@ static PixmapPtr radeon_dri3_pixmap_from_fd(ScreenPtr screen,
 		return NULL;
 	}
 
-	pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
+	pixmap = screen->CreatePixmap(screen, 0, 0, depth, RADEON_CREATE_PIXMAP_DRI2);
 	if (!pixmap)
 		return NULL;
 

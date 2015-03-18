@@ -35,6 +35,16 @@
 
 #include "radeon_surface.h"
 
+#ifndef CREATE_PIXMAP_USAGE_SHARED
+#define CREATE_PIXMAP_USAGE_SHARED RADEON_CREATE_PIXMAP_DRI2
+#endif
+
+#define RADEON_CREATE_PIXMAP_SHARED(usage) \
+	(((usage) & ~RADEON_CREATE_PIXMAP_TILING_FLAGS) == RADEON_CREATE_PIXMAP_DRI2 || \
+	 (usage) == CREATE_PIXMAP_USAGE_SHARED)
+
+struct radeon_pixmap;
+
 #ifndef GLAMOR_NO_DRI3
 #define GLAMOR_NO_DRI3 0
 #define glamor_fd_from_pixmap glamor_dri3_fd_from_pixmap
