@@ -85,7 +85,7 @@ typedef struct {
     int dpms_last_fps;
     uint32_t interpolated_vblanks;
     uint16_t lut_r[256], lut_g[256], lut_b[256];
-    int scanout_pixmap_x;
+    int prime_pixmap_x;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
