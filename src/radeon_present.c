@@ -216,6 +216,19 @@ get_drmmode_crtc(ScrnInfoPtr scrn, RRCrtcPtr crtc)
     return NULL;
 }
 
+static Bool
+radeon_present_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
+{
+    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+
+    if (bo) {
+	*handle = bo->handle;
+	return TRUE;
+    }
+
+    return FALSE;
+}
+
 /*
  * Test to see if page flipping is possible on the target crtc
  */
@@ -282,7 +295,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     struct radeon_present_vblank_event *event;
     drmmode_crtc_private_ptr drmmode_crtc = get_drmmode_crtc(scrn, crtc);
     int crtc_id = drmmode_crtc->mode_crtc->crtc_id;
-    struct radeon_bo *bo;
+    uint32_t handle;
     Bool ret;
 
     if (!sync_flip)
@@ -291,8 +304,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     if (!radeon_present_check_flip(crtc, screen->root, pixmap, sync_flip))
 	return FALSE;
 
-    bo = radeon_get_pixmap_bo(pixmap);
-    if (!bo)
+    if (!radeon_present_get_pixmap_handle(pixmap, &handle))
 	return FALSE;
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));
@@ -301,7 +313,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 
     event->event_id = event_id;
 
-    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, bo->handle,
+    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, crtc_id,
 			     radeon_present_flip_event,
 			     radeon_present_flip_abort);
@@ -320,14 +332,13 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     struct radeon_present_vblank_event *event;
     PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-    struct radeon_bo *bo;
+    uint32_t handle;
     Bool ret;
 
     if (!radeon_present_check_flip(NULL, screen->root, pixmap, TRUE))
 	return;
 
-    bo = radeon_get_pixmap_bo(pixmap);
-    if (!bo)
+    if (!radeon_present_get_pixmap_handle(pixmap, &handle))
 	return;
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));
@@ -336,7 +347,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 
     event->event_id = event_id;
 
-    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, bo->handle,
+    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, -1, radeon_present_flip_event,
 			     radeon_present_flip_abort);
     if (!ret)
