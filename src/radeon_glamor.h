@@ -59,8 +59,6 @@ void radeon_glamor_free_screen(int scrnIndex, int flags);
 Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap);
 void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 
-Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap);
-
 XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
 
 #else
@@ -73,8 +71,6 @@ static inline void radeon_glamor_free_screen(int scrnIndex, int flags) { }
 static inline Bool radeon_glamor_create_textured_pixmap(PixmapPtr pixmap) { return TRUE; }
 
 static inline void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst) {}
-
-static inline Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap) { return FALSE; }
 
 static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap) { return NULL; }
 

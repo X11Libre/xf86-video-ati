@@ -170,12 +170,6 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap)
 		return FALSE;
 }
 
-Bool radeon_glamor_pixmap_is_offscreen(PixmapPtr pixmap)
-{
-	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
-	return priv && priv->bo;
-}
-
 #ifndef CREATE_PIXMAP_USAGE_SHARED
 #define CREATE_PIXMAP_USAGE_SHARED RADEON_CREATE_PIXMAP_DRI2
 #endif
