@@ -149,7 +149,8 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 		}
 	}
 
-	if (!radeon_glamor_create_textured_pixmap(pixmap)) {
+	if (!radeon_glamor_create_textured_pixmap(pixmap,
+						  radeon_get_pixmap_private(pixmap))) {
 		pScreen->DestroyPixmap(pixmap);
 	  	return NULL;
 	}
