@@ -647,8 +647,9 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     back_priv = back->driverPrivate;
     bo = radeon_get_pixmap_bo(back_priv->pixmap);
 
-    return radeon_do_pageflip(scrn, client, bo, RADEON_DRM_QUEUE_ID_DEFAULT,
-			      flip_info, ref_crtc_hw_id,
+    return radeon_do_pageflip(scrn, client, bo->handle,
+			      RADEON_DRM_QUEUE_ID_DEFAULT, flip_info,
+			      ref_crtc_hw_id,
 			      radeon_dri2_flip_event_handler,
 			      radeon_dri2_flip_event_abort);
 }

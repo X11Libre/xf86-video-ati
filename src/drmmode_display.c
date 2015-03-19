@@ -2265,7 +2265,7 @@ void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 }
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
-			struct radeon_bo *new_front, uint64_t id, void *data,
+			uint32_t new_front_handle, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort)
 {
@@ -2301,7 +2301,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	old_fb_id = drmmode->fb_id;
 	if (drmModeAddFB(drmmode->fd, scrn->virtualX, height,
 			 scrn->depth, scrn->bitsPerPixel, pitch,
-			 new_front->handle, &drmmode->fb_id))
+			 new_front_handle, &drmmode->fb_id))
 		goto error_out;
 
         flipdata = calloc(1, sizeof(drmmode_flipdata_rec));

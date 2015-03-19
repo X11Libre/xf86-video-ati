@@ -129,7 +129,7 @@ extern int drmmode_get_pitch_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
-			struct radeon_bo *new_front, uint64_t id, void *data,
+			uint32_t new_front_handle, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort);
 int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc);
