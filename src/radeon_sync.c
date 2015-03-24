@@ -23,7 +23,7 @@
 
 #include "radeon.h"
 
-#ifdef HAVE_MISYNC_H
+#ifdef HAVE_MISYNCSHM_H
 
 #include "misync.h"
 #include "misyncshm.h"
@@ -125,13 +125,13 @@ radeon_sync_close(ScreenPtr screen)
 	info->CreateFence = NULL;
 }
 
-#else /* !HAVE_MISYNC_H */
+#else /* !HAVE_MISYNCSHM_H */
 
 Bool
 radeon_sync_init(ScreenPtr screen)
 {
 	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
-		   "SYNC extension fences disabled because misync.h not "
+		   "SYNC extension fences disabled because misyncshm.h not "
 		   "available at build time\n");
 
 	return FALSE;
