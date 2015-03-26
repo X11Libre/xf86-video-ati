@@ -327,11 +327,9 @@ radeon_glamor_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 
-	if (!glamor_init(screen, GLAMOR_INVERTED_Y_AXIS | GLAMOR_USE_EGL_SCREEN |
-#ifdef GLAMOR_NO_DRI3
-			 GLAMOR_NO_DRI3 |
-#endif
-			 GLAMOR_USE_SCREEN | GLAMOR_USE_PICTURE_SCREEN)) {
+	if (!glamor_init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
+			 GLAMOR_USE_PICTURE_SCREEN | GLAMOR_INVERTED_Y_AXIS |
+			 GLAMOR_NO_DRI3)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to initialize glamor.\n");
 		return FALSE;
