@@ -1836,9 +1836,6 @@ drmmode_flip_free(drmmode_flipevtcarrier_ptr flipcarrier)
 	if (--flipdata->flip_count > 0)
 		return;
 
-	/* Release framebuffer */
-	drmModeRmFB(flipdata->drmmode->fd, flipdata->old_fb_id);
-
 	free(flipdata);
 }
 
@@ -1867,10 +1864,16 @@ drmmode_flip_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec, void *even
 		flipdata->fe_usec = usec;
 	}
 
-	/* Deliver cached msc, ust from reference crtc to flip event handler */
-	if (flipdata->event_data && flipdata->flip_count == 1)
-		flipcarrier->handler(scrn, flipdata->fe_frame, flipdata->fe_usec,
-				     flipdata->event_data);
+	if (flipdata->flip_count == 1) {
+		/* Deliver cached msc, ust from reference crtc to flip event handler */
+		if (flipdata->event_data)
+			flipcarrier->handler(scrn, flipdata->fe_frame,
+					     flipdata->fe_usec,
+					     flipdata->event_data);
+
+		/* Release framebuffer */
+		drmModeRmFB(flipdata->drmmode->fd, flipdata->old_fb_id);
+	}
 
 	drmmode_flip_free(flipcarrier);
 }
@@ -2276,10 +2279,10 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	unsigned int pitch;
 	int i, old_fb_id;
 	uint32_t tiling_flags = 0;
-	int height, emitted = 0;
+	int height;
 	drmmode_flipdata_ptr flipdata;
 	drmmode_flipevtcarrier_ptr flipcarrier = NULL;
-	struct radeon_drm_queue_entry *drm_queue = 0;
+	struct radeon_drm_queue_entry *drm_queue = NULL;
 
 	if (info->allowColorTiling) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600)
@@ -2322,6 +2325,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
         flipdata->event_data = data;
         flipdata->drmmode = drmmode;
+        flipdata->old_fb_id = old_fb_id;
 
 	for (i = 0; i < config->num_crtc; i++) {
 		if (!config->crtc[i]->enabled)
@@ -2334,8 +2338,6 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		if (!flipcarrier) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue: carrier alloc failed.\n");
-			if (emitted == 0)
-				free(flipdata);
 			goto error_undo;
 		}
 
@@ -2362,25 +2364,27 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				    drm_queue)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
-			free(flipcarrier);
-			if (emitted == 0)
-				free(flipdata);
 			goto error_undo;
 		}
-		emitted++;
+		flipcarrier = NULL;
+		drm_queue = NULL;
 	}
 
-	flipdata->old_fb_id = old_fb_id;
-	return TRUE;
+	if (flipdata->flip_count > 0)
+		return TRUE;
 
 error_undo:
+	if (!flipdata || flipdata->flip_count <= 1) {
+		drmModeRmFB(drmmode->fd, drmmode->fb_id);
+		drmmode->fb_id = old_fb_id;
+	}
+
 	if (drm_queue)
 		radeon_drm_abort_entry(drm_queue);
-	else
+	else if (flipcarrier)
 		drmmode_flip_abort(scrn, flipcarrier);
-
-	drmModeRmFB(drmmode->fd, drmmode->fb_id);
-	drmmode->fb_id = old_fb_id;
+	else if (flipdata && flipdata->flip_count <= 1)
+		free(flipdata);
 
 error_out:
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
