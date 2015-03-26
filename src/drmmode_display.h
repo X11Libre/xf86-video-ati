@@ -63,13 +63,13 @@ typedef struct {
   void *event_data;
   unsigned int fe_frame;
   uint64_t fe_usec;
+  radeon_drm_handler_proc handler;
+  radeon_drm_abort_proc abort;
 } drmmode_flipdata_rec, *drmmode_flipdata_ptr;
 
 typedef struct {
   drmmode_flipdata_ptr flipdata;
   Bool dispatch_me;
-  radeon_drm_handler_proc handler;
-  radeon_drm_abort_proc abort;
 } drmmode_flipevtcarrier_rec, *drmmode_flipevtcarrier_ptr;
 
 typedef struct {
