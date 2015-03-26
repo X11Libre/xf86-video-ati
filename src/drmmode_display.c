@@ -2277,7 +2277,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	unsigned int pitch;
-	int i, old_fb_id;
+	int i;
 	uint32_t tiling_flags = 0;
 	int height;
 	drmmode_flipdata_ptr flipdata;
@@ -2298,21 +2298,22 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		pitch = info->front_surface.level[0].pitch_bytes;
 	}
 
-	/*
-	 * Create a new handle for the back buffer
-	 */
-	old_fb_id = drmmode->fb_id;
-	if (drmModeAddFB(drmmode->fd, scrn->virtualX, height,
-			 scrn->depth, scrn->bitsPerPixel, pitch,
-			 new_front_handle, &drmmode->fb_id))
-		goto error_out;
-
         flipdata = calloc(1, sizeof(drmmode_flipdata_rec));
         if (!flipdata) {
              xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                         "flip queue: data alloc failed.\n");
-             goto error_undo;
+             goto error;
         }
+
+	/*
+	 * Create a new handle for the back buffer
+	 */
+	flipdata->old_fb_id = drmmode->fb_id;
+	if (drmModeAddFB(drmmode->fd, scrn->virtualX, height,
+			 scrn->depth, scrn->bitsPerPixel, pitch,
+			 new_front_handle, &drmmode->fb_id))
+		goto error;
+
 	/*
 	 * Queue flips on all enabled CRTCs
 	 * Note that if/when we get per-CRTC buffers, we'll have to update this.
@@ -2325,7 +2326,6 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
         flipdata->event_data = data;
         flipdata->drmmode = drmmode;
-        flipdata->old_fb_id = old_fb_id;
 
 	for (i = 0; i < config->num_crtc; i++) {
 		if (!config->crtc[i]->enabled)
@@ -2338,7 +2338,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		if (!flipcarrier) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue: carrier alloc failed.\n");
-			goto error_undo;
+			goto error;
 		}
 
 		/* Only the reference crtc will finally deliver its page flip
@@ -2356,7 +2356,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		if (!drm_queue) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "Allocating DRM queue event entry failed.\n");
-			goto error_undo;
+			goto error;
 		}
 
 		if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
@@ -2364,7 +2364,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				    drm_queue)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
-			goto error_undo;
+			goto error;
 		}
 		flipcarrier = NULL;
 		drm_queue = NULL;
@@ -2373,10 +2373,10 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	if (flipdata->flip_count > 0)
 		return TRUE;
 
-error_undo:
-	if (!flipdata || flipdata->flip_count <= 1) {
+error:
+	if (flipdata && flipdata->flip_count <= 1) {
 		drmModeRmFB(drmmode->fd, drmmode->fb_id);
-		drmmode->fb_id = old_fb_id;
+		drmmode->fb_id = flipdata->old_fb_id;
 	}
 
 	if (drm_queue)
@@ -2386,7 +2386,6 @@ error_undo:
 	else if (flipdata && flipdata->flip_count <= 1)
 		free(flipdata);
 
-error_out:
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
 		   strerror(errno));
 	return FALSE;
