@@ -29,6 +29,9 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 		       struct radeon_surface *new_surface, uint32_t *new_tiling);
 
 extern Bool
+radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle);
+
+extern Bool
 radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p);
 
 extern Bool

@@ -42,6 +42,7 @@
 #include <time.h>
 #include <errno.h>
 
+#include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
 #include "radeon_video.h"
 
@@ -217,54 +218,6 @@ get_drmmode_crtc(ScrnInfoPtr scrn, RRCrtcPtr crtc)
     return NULL;
 }
 
-static Bool
-radeon_present_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
-{
-    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
-#ifdef USE_GLAMOR
-    ScreenPtr screen = pixmap->drawable.pScreen;
-    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
-#endif
-
-    if (bo) {
-	*handle = bo->handle;
-	return TRUE;
-    }
-
-#ifdef USE_GLAMOR
-    if (info->use_glamor) {
-	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
-	CARD16 stride;
-	CARD32 size;
-	int fd, r;
-
-	if (!priv) {
-	    priv = calloc(1, sizeof(*priv));
-	    radeon_set_pixmap_private(pixmap, priv);
-	}
-
-	if (priv->handle_valid) {
-	    *handle = priv->handle;
-	    return TRUE;
-	}
-
-	fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
-	if (fd < 0)
-	    return FALSE;
-
-	r = drmPrimeFDToHandle(info->dri2.drm_fd, fd, &priv->handle);
-	close(fd);
-	if (r == 0) {
-	    priv->handle_valid = TRUE;
-	    *handle = priv->handle;
-	    return TRUE;
-	}
-    }
-#endif
-
-    return FALSE;
-}
-
 /*
  * Test to see if page flipping is possible on the target crtc
  */
@@ -340,7 +293,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     if (!radeon_present_check_flip(crtc, screen->root, pixmap, sync_flip))
 	return FALSE;
 
-    if (!radeon_present_get_pixmap_handle(pixmap, &handle))
+    if (!radeon_get_pixmap_handle(pixmap, &handle))
 	return FALSE;
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));
@@ -374,7 +327,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     if (!radeon_present_check_flip(NULL, screen->root, pixmap, TRUE))
 	return;
 
-    if (!radeon_present_get_pixmap_handle(pixmap, &handle))
+    if (!radeon_get_pixmap_handle(pixmap, &handle))
 	return;
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));

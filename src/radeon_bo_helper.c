@@ -25,6 +25,7 @@
 #endif
 
 #include "radeon.h"
+#include "radeon_glamor.h"
 
 #ifdef RADEON_PIXMAP_SHARING
 #include "radeon_bo_gem.h"
@@ -185,6 +186,54 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     *new_surface = surface;
     *new_pitch = pitch;
     return bo;
+}
+
+/* Get GEM handle for the pixmap */
+Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
+{
+    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+#ifdef USE_GLAMOR
+    ScreenPtr screen = pixmap->drawable.pScreen;
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
+#endif
+
+    if (bo) {
+	*handle = bo->handle;
+	return TRUE;
+    }
+
+#ifdef USE_GLAMOR
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
+	CARD16 stride;
+	CARD32 size;
+	int fd, r;
+
+	if (!priv) {
+	    priv = calloc(1, sizeof(*priv));
+	    radeon_set_pixmap_private(pixmap, priv);
+	}
+
+	if (priv->handle_valid) {
+	    *handle = priv->handle;
+	    return TRUE;
+	}
+
+	fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
+	if (fd < 0)
+	    return FALSE;
+
+	r = drmPrimeFDToHandle(info->dri2.drm_fd, fd, &priv->handle);
+	close(fd);
+	if (r == 0) {
+	    priv->handle_valid = TRUE;
+	    *handle = priv->handle;
+	    return TRUE;
+	}
+    }
+#endif
+
+    return FALSE;
 }
 
 #ifdef RADEON_PIXMAP_SHARING
