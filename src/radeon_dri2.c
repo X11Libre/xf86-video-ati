@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#include "radeon_bo_helper.h"
 #include "radeon_version.h"
 #include "radeon_list.h"
 
@@ -125,6 +126,26 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 	return old;
 }
 
+/* Get GEM flink name for a pixmap */
+static Bool
+radeon_get_flink_name(RADEONInfoPtr info, PixmapPtr pixmap, uint32_t *name)
+{
+    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+    struct drm_gem_flink flink;
+
+    if (bo)
+	return radeon_gem_get_kernel_name(bo, name) == 0;
+
+    if (radeon_get_pixmap_handle(pixmap, &flink.handle)) {
+	if (drmIoctl(info->dri2.drm_fd, DRM_IOCTL_GEM_FLINK, &flink) != 0)
+	    return FALSE;
+
+	*name = flink.name;
+	return TRUE;
+    }
+
+    return FALSE;
+}
 
 static BufferPtr
 radeon_dri2_create_buffer2(ScreenPtr pScreen,
@@ -137,7 +158,6 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
     BufferPtr buffers;
     struct dri2_buffer_priv *privates;
     PixmapPtr pixmap, depth_pixmap;
-    struct radeon_bo *bo;
     int flags;
     unsigned front_width;
     uint32_t tiling = 0;
@@ -171,10 +191,12 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
     pixmap = depth_pixmap = NULL;
 
     if (attachment == DRI2BufferFrontLeft) {
+	uint32_t handle;
+
         pixmap = get_drawable_pixmap(drawable);
 	if (pScreen != pixmap->drawable.pScreen)
 	    pixmap = NULL;
-	else if (info->use_glamor && !radeon_get_pixmap_bo(pixmap)) {
+	else if (info->use_glamor && !radeon_get_pixmap_handle(pixmap, &handle)) {
 	    is_glamor_pixmap = TRUE;
 	    aligned_width = pixmap->drawable.width;
 	    height = pixmap->drawable.height;
@@ -285,8 +307,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 
 	if (is_glamor_pixmap)
 	    pixmap = fixup_glamor(drawable, pixmap);
-	bo = radeon_get_pixmap_bo(pixmap);
-	if (!bo || radeon_gem_get_kernel_name(bo, &buffers->name) != 0)
+	if (!radeon_get_flink_name(info, pixmap, &buffers->name))
 	    goto error;
     }
 
@@ -657,20 +678,16 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 static Bool
 update_front(DrawablePtr draw, DRI2BufferPtr front)
 {
-    int r;
     PixmapPtr pixmap;
     RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(draw->pScreen));
     struct dri2_buffer_priv *priv = front->driverPrivate;
-    struct radeon_bo *bo;
 
     pixmap = get_drawable_pixmap(draw);
     pixmap->refcnt++;
 
     if (!info->use_glamor)
 	exaMoveInPixmap(pixmap);
-    bo = radeon_get_pixmap_bo(pixmap);
-    r = radeon_gem_get_kernel_name(bo, &front->name);
-    if (r) {
+    if (!radeon_get_flink_name(info, pixmap, &front->name)) {
 	(*draw->pScreen->DestroyPixmap)(pixmap);
 	return FALSE;
     }
