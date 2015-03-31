@@ -1232,7 +1232,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            subPixelOrder = SubPixelUnknown;
     MessageType from;
-    Bool have_present = FALSE, value;
+    Bool value;
     const char *s;
     void *front_ptr;
 
@@ -1343,9 +1343,6 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
 #endif
 
-    if (radeon_sync_init(pScreen))
-	have_present = radeon_present_screen_init(pScreen);
-
     value = FALSE;
     if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
 	from = X_CONFIG;
@@ -1353,10 +1350,9 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 	from = X_DEFAULT;
 
     if (value) {
-	if (have_present)
-	    value = radeon_dri3_screen_init(pScreen);
-	else
-	    value = FALSE;
+	value = radeon_sync_init(pScreen) &&
+	    radeon_present_screen_init(pScreen) &&
+	    radeon_dri3_screen_init(pScreen);
 
 	if (!value)
 	    from = X_WARNING;
