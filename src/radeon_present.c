@@ -218,6 +218,21 @@ get_drmmode_crtc(ScrnInfoPtr scrn, RRCrtcPtr crtc)
     return NULL;
 }
 
+static uint32_t
+radeon_present_get_pixmap_tiling_flags(RADEONInfoPtr info, PixmapPtr pixmap)
+{
+    uint32_t tiling_flags = radeon_get_pixmap_tiling_flags(pixmap);
+
+    /* Micro tiling is always enabled with macro tiling on >= R600, so we
+     * can ignore the micro tiling bit in that case
+     */
+    if ((tiling_flags & RADEON_TILING_MACRO) &&
+	info->ChipFamily >= CHIP_FAMILY_R600)
+	tiling_flags &= ~RADEON_TILING_MICRO;
+
+    return tiling_flags;
+}
+
 /*
  * Test to see if page flipping is possible on the target crtc
  */
@@ -228,11 +243,20 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
     ScreenPtr screen = window->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
+    PixmapPtr screen_pixmap;
 
     if (!scrn->vtSema)
 	return FALSE;
 
     if (!info->allowPageFlip)
+	return FALSE;
+
+    /* The kernel driver doesn't handle flipping between BOs with different
+     * tiling parameters correctly yet
+     */
+    screen_pixmap = screen->GetScreenPixmap(screen);
+    if (radeon_present_get_pixmap_tiling_flags(info, pixmap) !=
+	radeon_present_get_pixmap_tiling_flags(info, screen_pixmap))
 	return FALSE;
 
     if (crtc) {
