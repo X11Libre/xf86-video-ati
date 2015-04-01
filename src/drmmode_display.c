@@ -468,6 +468,98 @@ fallback:
 	radeon_bo_unmap(info->front_bo);
 }
 
+static void
+drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
+			     struct drmmode_scanout *scanout)
+{
+	if (scanout->pixmap) {
+		drmmode_destroy_bo_pixmap(scanout->pixmap);
+		scanout->pixmap = NULL;
+	}
+
+	if (scanout->bo) {
+		drmModeRmFB(drmmode->fd, scanout->fb_id);
+		scanout->fb_id = 0;
+		radeon_bo_unmap(scanout->bo);
+		radeon_bo_unref(scanout->bo);
+		scanout->bo = NULL;
+	}
+
+}
+
+static void *
+drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
+			      struct drmmode_scanout *scanout,
+			      int width, int height)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	int size;
+	int ret;
+	unsigned long rotate_pitch;
+	int base_align;
+
+	/* rotation requires acceleration */
+	if (info->r600_shadow_fb) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Rotation requires acceleration!\n");
+		return NULL;
+	}
+
+	rotate_pitch =
+		RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0))
+		* drmmode->cpp;
+	height = RADEON_ALIGN(height, drmmode_get_height_align(pScrn, 0));
+	base_align = drmmode_get_base_align(pScrn, drmmode->cpp, 0);
+	size = RADEON_ALIGN(rotate_pitch * height, RADEON_GPU_PAGE_SIZE);
+
+	scanout->bo = radeon_bo_open(drmmode->bufmgr, 0, size, base_align,
+				     RADEON_GEM_DOMAIN_VRAM, 0);
+	if (scanout->bo == NULL)
+		return NULL;
+
+	radeon_bo_map(scanout->bo, 1);
+
+	ret = drmModeAddFB(drmmode->fd, width, height, pScrn->depth,
+			   pScrn->bitsPerPixel, rotate_pitch,
+			   scanout->bo->handle,
+			   &scanout->fb_id);
+	if (ret)
+		ErrorF("failed to add scanout fb\n");
+
+	return scanout->bo->ptr;
+}
+
+static PixmapPtr
+drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
+			    void *data, int width, int height)
+{
+	ScrnInfoPtr pScrn = crtc->scrn;
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	unsigned long rotate_pitch;
+
+	if (!data)
+		data = drmmode_crtc_scanout_allocate(crtc, scanout, width, height);
+
+	rotate_pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0))
+		* drmmode->cpp;
+
+	scanout->pixmap = drmmode_create_bo_pixmap(pScrn,
+						 width, height,
+						 pScrn->depth,
+						 pScrn->bitsPerPixel,
+						 rotate_pitch,
+						 0, scanout->bo, NULL);
+	if (scanout->pixmap == NULL)
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate scanout pixmap for CRTC\n");
+
+	return scanout->pixmap;
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
@@ -564,8 +656,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			y = 0;
 		} else
 #endif
-		if (drmmode_crtc->rotate_fb_id) {
-			fb_id = drmmode_crtc->rotate_fb_id;
+		if (drmmode_crtc->rotate.fb_id) {
+			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
 		}
 		ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
@@ -687,73 +779,19 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
-	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int size;
-	struct radeon_bo *rotate_bo;
-	int ret;
-	unsigned long rotate_pitch;
-	int base_align;
 
-	/* rotation requires acceleration */
-	if (info->r600_shadow_fb) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Rotation requires acceleration!\n");
-		return NULL;
-	}
-
-	rotate_pitch =
-		RADEON_ALIGN(width, drmmode_get_pitch_align(crtc->scrn, drmmode->cpp, 0)) * drmmode->cpp;
-	height = RADEON_ALIGN(height, drmmode_get_height_align(crtc->scrn, 0));
-	base_align = drmmode_get_base_align(crtc->scrn, drmmode->cpp, 0);
-	size = RADEON_ALIGN(rotate_pitch * height, RADEON_GPU_PAGE_SIZE);
-
-	rotate_bo = radeon_bo_open(drmmode->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_VRAM, 0);
-	if (rotate_bo == NULL)
-		return NULL;
-
-	radeon_bo_map(rotate_bo, 1);
-
-	ret = drmModeAddFB(drmmode->fd, width, height, crtc->scrn->depth,
-			   crtc->scrn->bitsPerPixel, rotate_pitch,
-			   rotate_bo->handle,
-			   &drmmode_crtc->rotate_fb_id);
-	if (ret) {
-		ErrorF("failed to add rotate fb\n");
-	}
-
-	drmmode_crtc->rotate_bo = rotate_bo;
-	return drmmode_crtc->rotate_bo->ptr;
+	return drmmode_crtc_scanout_allocate(crtc, &drmmode_crtc->rotate,
+					     width, height);
 }
 
 static PixmapPtr
 drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
-	ScrnInfoPtr pScrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned long rotate_pitch;
-	PixmapPtr rotate_pixmap;
 
-	if (!data)
-		data = drmmode_crtc_shadow_allocate (crtc, width, height);
-
-	rotate_pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0)) * drmmode->cpp;
-
-	rotate_pixmap = drmmode_create_bo_pixmap(pScrn,
-						 width, height,
-						 pScrn->depth,
-						 pScrn->bitsPerPixel,
-						 rotate_pitch,
-						 0, drmmode_crtc->rotate_bo, NULL);
-	if (rotate_pixmap == NULL) {
-		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Couldn't allocate shadow pixmap for rotated CRTC\n");
-	}
-	return rotate_pixmap;
-
+	return drmmode_crtc_scanout_create(crtc, &drmmode_crtc->rotate, data,
+					   width, height);
 }
 
 static void
@@ -762,17 +800,7 @@ drmmode_crtc_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr rotate_pixmap, void *dat
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-	if (rotate_pixmap)
-		drmmode_destroy_bo_pixmap(rotate_pixmap);
-
-	if (data) {
-		drmModeRmFB(drmmode->fd, drmmode_crtc->rotate_fb_id);
-		drmmode_crtc->rotate_fb_id = 0;
-		radeon_bo_unmap(drmmode_crtc->rotate_bo);
-		radeon_bo_unref(drmmode_crtc->rotate_bo);
-		drmmode_crtc->rotate_bo = NULL;
-	}
-
+	drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->rotate);
 }
 
 static void

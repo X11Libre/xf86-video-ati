@@ -72,13 +72,18 @@ typedef struct {
   Bool dispatch_me;
 } drmmode_flipevtcarrier_rec, *drmmode_flipevtcarrier_ptr;
 
+struct drmmode_scanout {
+    struct radeon_bo *bo;
+    PixmapPtr pixmap;
+    unsigned fb_id;
+};
+
 typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
     int hw_id;
     struct radeon_bo *cursor_bo;
-    struct radeon_bo *rotate_bo;
-    unsigned rotate_fb_id;
+    struct drmmode_scanout rotate;
     int dpms_mode;
     CARD64 dpms_last_ust;
     uint32_t dpms_last_seq;

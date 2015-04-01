@@ -263,7 +263,7 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
 	drmmode_crtc_private_ptr drmmode_crtc = get_drmmode_crtc(scrn, crtc);
 
 	if (!drmmode_crtc ||
-	    drmmode_crtc->rotate_bo != NULL ||
+	    drmmode_crtc->rotate.bo != NULL ||
 	    drmmode_crtc->dpms_mode != DPMSModeOn)
 	    return FALSE;
     }
