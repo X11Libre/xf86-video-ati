@@ -91,6 +91,7 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
 #ifdef USE_GLAMOR
     if (info->use_glamor) {
 	glamor_block_handler(pScrn->pScreen);
+	info->gpu_flushed++;
 	return;
     }
 #endif

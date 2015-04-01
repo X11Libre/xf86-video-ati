@@ -248,6 +248,10 @@ typedef enum {
 
 struct radeon_pixmap {
 	struct radeon_surface surface;
+
+	uint_fast32_t gpu_read;
+	uint_fast32_t gpu_write;
+
 	struct radeon_bo *bo;
 
 	uint32_t tiling_flags;
@@ -467,6 +471,8 @@ typedef struct {
     Bool              RenderAccel; /* Render */
     Bool              allowColorTiling;
     Bool              allowColorTiling2D;
+    uint_fast32_t     gpu_flushed;
+    uint_fast32_t     gpu_synced;
     struct radeon_accel_state *accel_state;
     Bool              accelOn;
     Bool              use_glamor;
@@ -525,6 +531,30 @@ typedef struct {
     /* cursor size */
     int cursor_w;
     int cursor_h;
+
+#ifdef USE_GLAMOR
+    struct {
+	CreateGCProcPtr SavedCreateGC;
+	RegionPtr (*SavedCopyArea)(DrawablePtr, DrawablePtr, GCPtr, int, int,
+				   int, int, int, int);
+	CloseScreenProcPtr SavedCloseScreen;
+	GetImageProcPtr SavedGetImage;
+	GetSpansProcPtr SavedGetSpans;
+	CreatePixmapProcPtr SavedCreatePixmap;
+	DestroyPixmapProcPtr SavedDestroyPixmap;
+	CopyWindowProcPtr SavedCopyWindow;
+	ChangeWindowAttributesProcPtr SavedChangeWindowAttributes;
+	BitmapToRegionProcPtr SavedBitmapToRegion;
+#ifdef RENDER
+	CompositeProcPtr SavedComposite;
+	TrianglesProcPtr SavedTriangles;
+	GlyphsProcPtr SavedGlyphs;
+	TrapezoidsProcPtr SavedTrapezoids;
+	AddTrapsProcPtr SavedAddTraps;
+	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
+#endif
+    } glamor;
+#endif /* USE_GLAMOR */
 } RADEONInfoRec, *RADEONInfoPtr;
 
 /* radeon_accel.c */
