@@ -98,7 +98,8 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	PixmapPtr pixmap;
 	struct radeon_surface *surface;
 
-	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth, 0);
+	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth,
+					  RADEON_CREATE_PIXMAP_SCANOUT);
 	if (!pixmap)
 		return NULL;
 
