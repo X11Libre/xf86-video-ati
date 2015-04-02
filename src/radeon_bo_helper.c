@@ -226,14 +226,47 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 	r = drmPrimeFDToHandle(info->dri2.drm_fd, fd, &priv->handle);
 	close(fd);
 	if (r == 0) {
+	    struct drm_radeon_gem_set_tiling args = { .handle = priv->handle };
+
 	    priv->handle_valid = TRUE;
 	    *handle = priv->handle;
+
+	    if (drmCommandWriteRead(info->dri2.drm_fd,
+				    DRM_RADEON_GEM_GET_TILING, &args,
+				    sizeof(args)) == 0)
+		priv->tiling_flags = args.tiling_flags;
+
 	    return TRUE;
 	}
     }
 #endif
 
     return FALSE;
+}
+
+uint32_t radeon_get_pixmap_tiling_flags(PixmapPtr pPix)
+{
+#ifdef USE_GLAMOR
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pPix);
+
+	if (!priv || (!priv->bo && !priv->handle_valid)) {
+	    uint32_t handle;
+
+	    radeon_get_pixmap_handle(pPix, &handle);
+	    priv = radeon_get_pixmap_private(pPix);
+	}
+
+	return priv ? priv->tiling_flags : 0;
+    } else
+#endif
+    {
+	struct radeon_exa_pixmap_priv *driver_priv;
+	driver_priv = exaGetPixmapDriverPrivate(pPix);
+	return driver_priv ? driver_priv->tiling_flags : 0;
+    }
 }
 
 #ifdef RADEON_PIXMAP_SHARING
