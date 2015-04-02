@@ -385,7 +385,7 @@ radeon_scanout_update_abort(ScrnInfoPtr scrn, void *event_data)
     drmmode_crtc->scanout_update_pending = FALSE;
 }
 
-static void
+void
 radeon_scanout_update_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 			      void *event_data)
 {

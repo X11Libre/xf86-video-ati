@@ -718,6 +718,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				drmmode_crtc->scanout_id = 0;
 				fb_id = drmmode_crtc->scanout[0].fb_id;
 				x = y = 0;
+
+				radeon_scanout_update_handler(pScrn, 0, 0, crtc);
 			}
 		}
 		ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,

@@ -593,6 +593,10 @@ extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 /* radeon_dri3.c */
 Bool radeon_dri3_screen_init(ScreenPtr screen);
 
+/* radeon_kms.c */
+void radeon_scanout_update_handler(ScrnInfoPtr scrn, uint32_t frame,
+				   uint64_t usec, void *event_data);
+
 /* radeon_present.c */
 Bool radeon_present_screen_init(ScreenPtr screen);
 
