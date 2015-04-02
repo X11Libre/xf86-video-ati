@@ -245,7 +245,7 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	return FALSE;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
+    if (!drmmode_set_desired_modes(pScrn, &info->drmmode, FALSE))
 	return FALSE;
 
     drmmode_uevent_init(pScrn, &info->drmmode);
@@ -533,6 +533,17 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 #ifdef RADEON_PIXMAP_SHARING
     radeon_dirty_update(pScreen);
 #endif
+}
+
+static void RADEONBlockHandler_oneshot(BLOCKHANDLER_ARGS_DECL)
+{
+    SCREEN_PTR(arg);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
+
+    RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS);
 }
 
 static void
@@ -1707,7 +1718,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     pScreen->CloseScreen = RADEONCloseScreen_KMS;
     pScreen->SaveScreen  = RADEONSaveScreen_KMS;
     info->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = RADEONBlockHandler_KMS;
+    pScreen->BlockHandler = RADEONBlockHandler_oneshot;
 
     if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
         return FALSE;
@@ -1765,7 +1776,7 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
 	drmmode_copy_fb(pScrn, &info->drmmode);
 #endif
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
+    if (!drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE))
 	return FALSE;
 
     return TRUE;

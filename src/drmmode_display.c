@@ -395,8 +395,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	ScreenPtr pScreen = pScrn->pScreen;
 	int fbcon_id = 0;
 	int i;
-	int pitch;
-	uint32_t tiling_flags = 0;
 	Bool ret;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
@@ -422,28 +420,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (!src)
 		return;
 
-	if (info->allowColorTiling) {
-		if (info->ChipFamily >= CHIP_FAMILY_R600) {
-			if (info->allowColorTiling2D) {
-				tiling_flags |= RADEON_TILING_MACRO;
-			} else {
-				tiling_flags |= RADEON_TILING_MICRO;
-			}
-		} else
-			tiling_flags |= RADEON_TILING_MACRO;
-	}
-
-	pitch = RADEON_ALIGN(pScrn->displayWidth,
-			     drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
-		info->pixel_bytes;
-
-	dst = drmmode_create_bo_pixmap(pScrn, pScrn->virtualX,
-				       pScrn->virtualY, pScrn->depth,
-				       pScrn->bitsPerPixel, pitch,
-				       tiling_flags, info->front_bo, &info->front_surface);
-	if (!dst)
-		goto out_free_src;
-
+	dst = pScreen->GetScreenPixmap(pScreen);
 	ret = info->accel_state->exa->PrepareCopy (src, dst,
 						   -1, -1, GXcopy, FB_ALLONES);
 	if (!ret)
@@ -454,7 +431,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	radeon_cs_flush_indirect(pScrn);
 
 	pScreen->canDoBGNoneRoot = TRUE;
-	drmmode_destroy_bo_pixmap(dst);
  out_free_src:
 	drmmode_destroy_bo_pixmap(src);
 	return;
@@ -2109,7 +2085,8 @@ void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y)
 	}
 }
 
-Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
+Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
+			       Bool set_hw)
 {
 	xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int c;
@@ -2121,7 +2098,7 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 		int		o;
 
 		/* Skip disabled CRTCs */
-		if (!crtc->enabled) {
+		if (set_hw && !crtc->enabled) {
 			drmmode_do_crtc_dpms(crtc, DPMSModeOff);
 			drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				       0, 0, 0, NULL, 0, NULL);
@@ -2157,9 +2134,16 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 			crtc->desiredY = 0;
 		}
 
-		if (!crtc->funcs->set_mode_major(crtc, &crtc->desiredMode, crtc->desiredRotation,
-						 crtc->desiredX, crtc->desiredY))
-			return FALSE;
+		if (set_hw) {
+			if (!crtc->funcs->set_mode_major(crtc, &crtc->desiredMode, crtc->desiredRotation,
+							 crtc->desiredX, crtc->desiredY))
+				return FALSE;
+		} else {
+			crtc->mode = crtc->desiredMode;
+			crtc->rotation = crtc->desiredRotation;
+			crtc->x = crtc->desiredX;
+			crtc->y = crtc->desiredY;
+		}
 	}
 	return TRUE;
 }
