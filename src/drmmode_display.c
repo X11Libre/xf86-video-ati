@@ -385,6 +385,8 @@ out_free_fb:
 	return pixmap;
 }
 
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+
 void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -397,9 +399,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	uint32_t tiling_flags = 0;
 	Bool ret;
 
-	if (info->accelOn == FALSE || info->use_glamor)
-		goto fallback;
-
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
 
@@ -408,7 +407,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	}
 
 	if (!fbcon_id)
-		goto fallback;
+		return;
 
 	if (fbcon_id == drmmode->fb_id) {
 		/* in some rare case there might be no fbcon and we might already
@@ -421,7 +420,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	src = create_pixmap_for_fbcon(drmmode, pScrn, fbcon_id);
 	if (!src)
-		goto fallback;
+		return;
 
 	if (info->allowColorTiling) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -454,22 +453,14 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	info->accel_state->exa->DoneCopy (dst);
 	radeon_cs_flush_indirect(pScrn);
 
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
 	pScreen->canDoBGNoneRoot = TRUE;
-#endif
 	drmmode_destroy_bo_pixmap(dst);
  out_free_src:
 	drmmode_destroy_bo_pixmap(src);
 	return;
-
-fallback:
-	/* map and memset the bo */
-	if (radeon_bo_map(info->front_bo, 1))
-		return;
-
-	memset(info->front_bo->ptr, 0x00, info->front_bo->size);
-	radeon_bo_unmap(info->front_bo);
 }
+
+#endif /* GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10 */
 
 static void
 drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
@@ -2122,8 +2113,12 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
 	xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
 	int c;
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 
-	drmmode_copy_fb(pScrn, drmmode);
+	if (bgNoneRoot && info->accelOn && !info->use_glamor)
+		drmmode_copy_fb(pScrn, drmmode);
+#endif
 
 	for (c = 0; c < config->num_crtc; c++) {
 		xf86CrtcPtr	crtc = config->crtc[c];
