@@ -475,6 +475,7 @@ typedef struct {
     uint_fast32_t     gpu_flushed;
     uint_fast32_t     gpu_synced;
     struct radeon_accel_state *accel_state;
+    PixmapPtr         fbcon_pixmap;
     Bool              accelOn;
     Bool              use_glamor;
     Bool              shadow_primary;

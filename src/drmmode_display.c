@@ -348,10 +348,14 @@ static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode,
 			ScrnInfoPtr pScrn, int fbcon_id)
 {
-	PixmapPtr pixmap = NULL;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+	PixmapPtr pixmap = info->fbcon_pixmap;
 	struct radeon_bo *bo;
 	drmModeFBPtr fbcon;
 	struct drm_gem_flink flink;
+
+	if (pixmap)
+	    return pixmap;
 
 	fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
 	if (fbcon == NULL)
@@ -379,10 +383,28 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
 					  fbcon->depth, fbcon->bpp,
 					  fbcon->pitch, 0, bo, NULL);
+	info->fbcon_pixmap = pixmap;
 	radeon_bo_unref(bo);
 out_free_fb:
 	drmModeFreeFB(fbcon);
 	return pixmap;
+}
+
+static void
+destroy_pixmap_for_fbcon(ScrnInfoPtr pScrn)
+{
+	RADEONInfoPtr info = RADEONPTR(pScrn);
+
+	/* XXX: The current GPUVM support in the kernel doesn't allow removing
+	 * the virtual address range for this BO, so we need to keep around
+	 * the pixmap to avoid breaking glamor with GPUVM
+	 */
+	if (info->use_glamor && info->ChipFamily >= CHIP_FAMILY_CAYMAN)
+		return;
+
+	if (info->fbcon_pixmap)
+		pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
+	info->fbcon_pixmap = NULL;
 }
 
 #if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
@@ -394,8 +416,9 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	PixmapPtr src, dst;
 	ScreenPtr pScreen = pScrn->pScreen;
 	int fbcon_id = 0;
+	Bool force;
+	GCPtr gc;
 	int i;
-	Bool ret;
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
@@ -421,18 +444,22 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 		return;
 
 	dst = pScreen->GetScreenPixmap(pScreen);
-	ret = info->accel_state->exa->PrepareCopy (src, dst,
-						   -1, -1, GXcopy, FB_ALLONES);
-	if (!ret)
-	  goto out_free_src;
-	info->accel_state->exa->Copy (dst, 0, 0, 0, 0,
-				      pScrn->virtualX, pScrn->virtualY);
-	info->accel_state->exa->DoneCopy (dst);
+
+	gc = GetScratchGC(pScrn->depth, pScreen);
+	ValidateGC(&dst->drawable, gc);
+
+	force = info->accel_state->force;
+	info->accel_state->force = TRUE;
+	(*gc->ops->CopyArea)(&src->drawable, &dst->drawable, gc, 0, 0,
+			     pScrn->virtualX, pScrn->virtualY, 0, 0);
+	info->accel_state->force = force;
+
+	FreeScratchGC(gc);
+
 	radeon_cs_flush_indirect(pScrn);
 
 	pScreen->canDoBGNoneRoot = TRUE;
- out_free_src:
-	drmmode_destroy_bo_pixmap(src);
+	destroy_pixmap_for_fbcon(pScrn);
 	return;
 }
 

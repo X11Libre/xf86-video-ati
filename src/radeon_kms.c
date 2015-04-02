@@ -186,6 +186,9 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 
     info = RADEONPTR(pScrn);
 
+    if (info->fbcon_pixmap)
+	pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
+
     if (info->dri2.drm_fd > 0) {
         DevUnion *pPriv;
         RADEONEntPtr pRADEONEnt;
@@ -1706,7 +1709,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     pScrn->pScreen = pScreen;
 
 #if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-    if (bgNoneRoot && info->accelOn && !info->use_glamor) {
+    if (bgNoneRoot && info->accelOn) {
 	info->CreateWindow = pScreen->CreateWindow;
 	pScreen->CreateWindow = RADEONCreateWindow;
     }
@@ -1772,7 +1775,7 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
     pScrn->vtSema = TRUE;
 
 #if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-    if (bgNoneRoot && info->accelOn && !info->use_glamor)
+    if (bgNoneRoot && info->accelOn)
 	drmmode_copy_fb(pScrn, &info->drmmode);
 #endif
 
