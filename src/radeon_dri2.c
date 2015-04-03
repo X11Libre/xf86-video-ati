@@ -111,15 +111,16 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 	/* And redirect the pixmap to the new bo (for 3D). */
 	glamor_egl_exchange_buffers(old, pixmap);
 	radeon_set_pixmap_private(old, priv);
-	screen->DestroyPixmap(pixmap);
 	old->refcnt++;
 
 	screen->ModifyPixmapHeader(old,
 				   old->drawable.width,
 				   old->drawable.height,
 				   0, 0,
-				   priv->stride,
+				   pixmap->devKind,
 				   NULL);
+
+	screen->DestroyPixmap(pixmap);
 
 #endif /* USE_GLAMOR*/
 

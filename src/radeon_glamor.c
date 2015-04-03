@@ -159,11 +159,8 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_pixmap *pri
 	if ((info->use_glamor) == 0)
 		return TRUE;
 
-	if (!priv->stride)
-		priv->stride = pixmap->devKind;
-
 	return glamor_egl_create_textured_pixmap(pixmap, priv->bo->handle,
-						 priv->stride);
+						 pixmap->devKind);
 }
 
 static PixmapPtr
@@ -200,13 +197,15 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 		return pixmap;
 
 	if (w && h) {
+		int stride;
+
 		priv = calloc(1, sizeof (struct radeon_pixmap));
 		if (priv == NULL)
 			goto fallback_pixmap;
 
 		priv->bo = radeon_alloc_pixmap_bo(scrn, w, h, depth, usage,
 						  pixmap->drawable.bitsPerPixel,
-						  &priv->stride,
+						  &stride,
 						  &priv->surface,
 						  &priv->tiling_flags);
 		if (!priv->bo)
@@ -214,7 +213,7 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		radeon_set_pixmap_private(pixmap, priv);
 
-		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, priv->stride, NULL);
+		screen->ModifyPixmapHeader(pixmap, w, h, 0, 0, stride, NULL);
 
 		if (!radeon_glamor_create_textured_pixmap(pixmap, priv))
 			goto fallback_glamor;
@@ -298,7 +297,6 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 		return FALSE;
 
 	priv = radeon_get_pixmap_private(pixmap);
-	priv->stride = pixmap->devKind;
 	priv->surface = surface;
 
 	if (!radeon_glamor_create_textured_pixmap(pixmap, priv)) {
@@ -310,9 +308,7 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 	screen->ModifyPixmapHeader(pixmap,
 				   pixmap->drawable.width,
 				   pixmap->drawable.height,
-				   0, 0,
-				   priv->stride,
-				   NULL);
+				   0, 0, 0, NULL);
 
 	return TRUE;
 }
