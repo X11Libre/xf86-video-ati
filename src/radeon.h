@@ -152,6 +152,7 @@ typedef enum {
     OPTION_DELETE_DP12,
     OPTION_DRI3,
     OPTION_SHADOW_PRIMARY,
+    OPTION_TEAR_FREE,
 } RADEONOpts;
 
 
@@ -477,6 +478,7 @@ typedef struct {
     Bool              accelOn;
     Bool              use_glamor;
     Bool              shadow_primary;
+    Bool              tear_free;
     Bool	      exa_pixmaps;
     Bool              exa_force_create;
     XF86ModReqInfo    exaReq;

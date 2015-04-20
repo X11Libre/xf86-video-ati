@@ -75,6 +75,7 @@ typedef struct {
 struct drmmode_scanout {
     struct radeon_bo *bo;
     PixmapPtr pixmap;
+    DamagePtr damage;
     unsigned fb_id;
     int width, height;
 };
@@ -85,8 +86,8 @@ typedef struct {
     int hw_id;
     struct radeon_bo *cursor_bo;
     struct drmmode_scanout rotate;
-    struct drmmode_scanout scanout;
-    DamagePtr scanout_damage;
+    struct drmmode_scanout scanout[2];
+    unsigned scanout_id;
     Bool scanout_update_pending;
     int dpms_mode;
     CARD64 dpms_last_ust;

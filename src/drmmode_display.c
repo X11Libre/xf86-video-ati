@@ -488,6 +488,10 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 		scanout->bo = NULL;
 	}
 
+	if (scanout->damage) {
+		DamageDestroy(scanout->damage);
+		scanout->damage = NULL;
+	}
 }
 
 void
@@ -501,12 +505,9 @@ drmmode_scanout_free(ScrnInfoPtr scrn)
 			xf86_config->crtc[c]->driver_private;
 
 		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout);
-
-		if (drmmode_crtc->scanout_damage) {
-			DamageDestroy(drmmode_crtc->scanout_damage);
-			drmmode_crtc->scanout_damage = NULL;
-		}
+					     &drmmode_crtc->scanout[0]);
+		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+					     &drmmode_crtc->scanout[1]);
 	}
 }
 
@@ -704,43 +705,51 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			x = drmmode_crtc->prime_pixmap_x;
 			y = 0;
 
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout);
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
 		} else
 #endif
 		if (drmmode_crtc->rotate.fb_id) {
 			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
 
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout);
-		} else if (info->shadow_primary) {
-			drmmode_crtc_scanout_create(crtc,
-						    &drmmode_crtc->scanout,
-						    NULL, mode->HDisplay,
-						    mode->VDisplay);
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
+			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
+		} else if (info->tear_free || info->shadow_primary) {
+			for (i = 0; i < (info->tear_free ? 2 : 1); i++) {
+				drmmode_crtc_scanout_create(crtc,
+							    &drmmode_crtc->scanout[i],
+							    NULL, mode->HDisplay,
+							    mode->VDisplay);
 
-			if (drmmode_crtc->scanout.pixmap) {
-				RegionPtr pRegion;
-				BoxPtr pBox;
+				if (drmmode_crtc->scanout[i].pixmap) {
+					RegionPtr pRegion;
+					BoxPtr pBox;
 
-				if (!drmmode_crtc->scanout_damage) {
-					drmmode_crtc->scanout_damage =
-						DamageCreate(radeon_screen_damage_report,
-							     NULL, DamageReportRawRegion,
-							     TRUE, pScreen, NULL);
-					DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
-						       drmmode_crtc->scanout_damage);
+					if (!drmmode_crtc->scanout[i].damage) {
+						drmmode_crtc->scanout[i].damage =
+							DamageCreate(radeon_screen_damage_report,
+								     NULL, DamageReportRawRegion,
+								     TRUE, pScreen, NULL);
+						DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
+							       drmmode_crtc->scanout[i].damage);
+					}
+
+					pRegion = DamageRegion(drmmode_crtc->scanout[i].damage);
+					RegionUninit(pRegion);
+					pRegion->data = NULL;
+					pBox = RegionExtents(pRegion);
+					pBox->x1 = min(pBox->x1, x);
+					pBox->y1 = min(pBox->y1, y);
+					pBox->x2 = max(pBox->x2, x + mode->HDisplay);
+					pBox->y2 = max(pBox->y2, y + mode->VDisplay);
 				}
+			}
 
-				pRegion = DamageRegion(drmmode_crtc->scanout_damage);
-				RegionUninit(pRegion);
-				pRegion->data = NULL;
-				pBox = RegionExtents(pRegion);
-				pBox->x1 = min(pBox->x1, x);
-				pBox->y1 = min(pBox->y1, y);
-				pBox->x2 = max(pBox->x2, x + mode->HDisplay);
-				pBox->y2 = max(pBox->y2, y + mode->VDisplay);
-
-				fb_id = drmmode_crtc->scanout.fb_id;
+			if (drmmode_crtc->scanout[0].pixmap &&
+			    (!info->tear_free || drmmode_crtc->scanout[1].pixmap)) {
+				drmmode_crtc->scanout_id = 0;
+				fb_id = drmmode_crtc->scanout[0].fb_id;
 				x = y = 0;
 			}
 		}
