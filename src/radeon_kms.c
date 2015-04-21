@@ -1012,6 +1012,34 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
 #endif
 }
 
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+
+/* When the root window is created, initialize the screen contents from
+ * console if -background none was specified on the command line
+ */
+static Bool RADEONCreateWindow(WindowPtr pWin)
+{
+    ScreenPtr pScreen = pWin->drawable.pScreen;
+    ScrnInfoPtr pScrn;
+    RADEONInfoPtr info;
+    Bool ret;
+
+    if (pWin != pScreen->root)
+	ErrorF("%s called for non-root window %p\n", __func__, pWin);
+
+    pScrn = xf86ScreenToScrn(pScreen);
+    info = RADEONPTR(pScrn);
+    pScreen->CreateWindow = info->CreateWindow;
+    ret = pScreen->CreateWindow(pWin);
+
+    if (ret)
+	drmmode_copy_fb(pScrn, &info->drmmode);
+
+    return ret;
+}
+
+#endif
+
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
@@ -1666,6 +1694,13 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
     pScrn->pScreen = pScreen;
 
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+    if (bgNoneRoot && info->accelOn && !info->use_glamor) {
+	info->CreateWindow = pScreen->CreateWindow;
+	pScreen->CreateWindow = RADEONCreateWindow;
+    }
+#endif
+
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
     info->CloseScreen    = pScreen->CloseScreen;
@@ -1724,6 +1759,11 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
     pScrn->vtSema = TRUE;
+
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
+    if (bgNoneRoot && info->accelOn && !info->use_glamor)
+	drmmode_copy_fb(pScrn, &info->drmmode);
+#endif
 
     if (!drmmode_set_desired_modes(pScrn, &info->drmmode))
 	return FALSE;
