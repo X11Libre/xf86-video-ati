@@ -544,6 +544,7 @@ typedef struct {
 	CreateGCProcPtr SavedCreateGC;
 	RegionPtr (*SavedCopyArea)(DrawablePtr, DrawablePtr, GCPtr, int, int,
 				   int, int, int, int);
+	void (*SavedPolyFillRect)(DrawablePtr, GCPtr, int, xRectangle*);
 	CloseScreenProcPtr SavedCloseScreen;
 	GetImageProcPtr SavedGetImage;
 	GetSpansProcPtr SavedGetSpans;

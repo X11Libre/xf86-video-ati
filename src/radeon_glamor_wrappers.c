@@ -421,8 +421,16 @@ radeon_glamor_poly_fill_rect(DrawablePtr pDrawable, GCPtr pGC,
 			     int nrect, xRectangle *prect)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(pDrawable->pScreen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
 	PixmapPtr pixmap = get_drawable_pixmap(pDrawable);
 	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
+
+	if ((info->accel_state->force || (priv && !priv->bo)) &&
+	    radeon_glamor_prepare_access_gpu(priv)) {
+		info->glamor.SavedPolyFillRect(pDrawable, pGC, nrect, prect);
+		radeon_glamor_finish_access_gpu_rw(info, priv);
+		return;
+	}
 
 	if (radeon_glamor_prepare_access_cpu_rw(scrn, pixmap, priv)) {
 		if (radeon_glamor_prepare_access_gc(scrn, pGC)) {
@@ -622,6 +630,7 @@ radeon_glamor_validate_gc(GCPtr pGC, unsigned long changes, DrawablePtr pDrawabl
 
 	glamor_validate_gc(pGC, changes, pDrawable);
 	info->glamor.SavedCopyArea = pGC->ops->CopyArea;
+	info->glamor.SavedPolyFillRect = pGC->ops->PolyFillRect;
 
 	if (radeon_get_pixmap_private(get_drawable_pixmap(pDrawable)) ||
 	    (pGC->stipple && radeon_get_pixmap_private(pGC->stipple)) ||
