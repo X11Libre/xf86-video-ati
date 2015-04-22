@@ -119,6 +119,7 @@ static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 				   0, 0,
 				   pixmap->devKind,
 				   NULL);
+	old->devPrivate.ptr = NULL;
 
 	screen->DestroyPixmap(pixmap);
 
