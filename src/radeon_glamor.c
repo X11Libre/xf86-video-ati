@@ -153,12 +153,6 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 Bool
 radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_pixmap *priv)
 {
-	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
-	RADEONInfoPtr info = RADEONPTR(scrn);
-
-	if ((info->use_glamor) == 0)
-		return TRUE;
-
 	return glamor_egl_create_textured_pixmap(pixmap, priv->bo->handle,
 						 pixmap->devKind);
 }
