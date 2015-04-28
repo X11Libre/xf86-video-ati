@@ -2145,10 +2145,13 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 		int		o;
 
 		/* Skip disabled CRTCs */
-		if (set_hw && !crtc->enabled) {
-			drmmode_do_crtc_dpms(crtc, DPMSModeOff);
-			drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-				       0, 0, 0, NULL, 0, NULL);
+		if (!crtc->enabled) {
+			if (set_hw) {
+				drmmode_do_crtc_dpms(crtc, DPMSModeOff);
+				drmModeSetCrtc(drmmode->fd,
+					       drmmode_crtc->mode_crtc->crtc_id,
+					       0, 0, 0, NULL, 0, NULL);
+			}
 			continue;
 		}
 
