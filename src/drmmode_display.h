@@ -99,6 +99,9 @@ typedef struct {
     uint32_t interpolated_vblanks;
     uint16_t lut_r[256], lut_g[256], lut_b[256];
     int prime_pixmap_x;
+
+    /* Modeset needed for DPMS on */
+    Bool need_modeset;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {

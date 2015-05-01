@@ -769,6 +769,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		if (crtc->scrn->pScreen)
 			xf86CrtcSetScreenSubpixelOrder(crtc->scrn->pScreen);
+
+		drmmode_crtc->need_modeset = FALSE;
+
 		/* go through all the outputs and force DPMS them back on? */
 		for (i = 0; i < xf86_config->num_output; i++) {
 			xf86OutputPtr output = xf86_config->output[i];
@@ -1153,20 +1156,28 @@ static void
 drmmode_output_dpms(xf86OutputPtr output, int mode)
 {
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	xf86CrtcPtr crtc = output->crtc;
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
 	drmmode_ptr drmmode = drmmode_output->drmmode;
 
 	if (!koutput)
 		return;
 
-	if (mode != DPMSModeOn && output->crtc)
-		drmmode_do_crtc_dpms(output->crtc, mode);
+	if (mode != DPMSModeOn && crtc)
+		drmmode_do_crtc_dpms(crtc, mode);
 
 	drmModeConnectorSetProperty(drmmode->fd, koutput->connector_id,
 				    drmmode_output->dpms_enum_id, mode);
 
-	if (mode == DPMSModeOn && output->crtc)
-		drmmode_do_crtc_dpms(output->crtc, mode);
+	if (mode == DPMSModeOn && crtc) {
+	    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	    if (drmmode_crtc->need_modeset)
+		drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation, crtc->x,
+				       crtc->y);
+	    else
+		drmmode_do_crtc_dpms(crtc, mode);
+	}
 }
 
 
