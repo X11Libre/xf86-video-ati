@@ -50,6 +50,7 @@
 
 struct radeon_present_vblank_event {
     uint64_t event_id;
+    xf86CrtcPtr crtc;
 };
 
 static uint32_t crtc_select(int crtc_id)
@@ -238,6 +239,9 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
     if (!sync_flip)
 	return FALSE;
 
+    if (info->drmmode.dri2_flipping)
+	return FALSE;
+
     /* The kernel driver doesn't handle flipping between BOs with different
      * tiling parameters correctly yet
      */
@@ -266,7 +270,11 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
 static void
 radeon_present_flip_event(ScrnInfoPtr scrn, uint32_t msc, uint64_t ust, void *pageflip_data)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
     struct radeon_present_vblank_event *event = pageflip_data;
+
+    if (!event->crtc)
+	info->drmmode.present_flipping = FALSE;
 
     present_event_notify(event->event_id, ust, msc);
     free(event);
@@ -293,6 +301,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 {
     ScreenPtr screen = crtc->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONInfoPtr info = RADEONPTR(scrn);
     struct radeon_present_vblank_event *event;
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     int crtc_id = xf86_crtc ? drmmode_get_crtc_id(xf86_crtc) : -1;
@@ -310,6 +319,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 	return FALSE;
 
     event->event_id = event_id;
+    event->crtc = xf86_crtc;
 
     ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, crtc_id,
@@ -317,6 +327,8 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 			     radeon_present_flip_abort);
     if (!ret)
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR, "present flip failed\n");
+    else
+	info->drmmode.present_flipping = TRUE;
 
     return ret;
 }
@@ -328,6 +340,7 @@ static void
 radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONInfoPtr info = RADEONPTR(scrn);
     struct radeon_present_vblank_event *event;
     PixmapPtr pixmap = screen->GetScreenPixmap(screen);
     uint32_t handle;
@@ -348,8 +361,10 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, -1, radeon_present_flip_event,
 			     radeon_present_flip_abort);
-    if (!ret)
+    if (!ret) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR, "present unflip failed\n");
+	info->drmmode.present_flipping = FALSE;
+    }
 }
 
 static present_screen_info_rec radeon_present_screen_info = {

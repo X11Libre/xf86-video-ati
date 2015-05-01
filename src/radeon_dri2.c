@@ -584,6 +584,7 @@ static void
 radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 			       void *event_data)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr flip = event_data;
     unsigned tv_sec, tv_usec;
     DrawablePtr drawable;
@@ -627,6 +628,7 @@ radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 			 DRI2_FLIP_COMPLETE, flip->event_complete,
 			 flip->event_data);
+	info->drmmode.dri2_flipping = FALSE;
 	break;
     default:
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: unknown vblank event received\n", __func__);
@@ -644,6 +646,7 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
 			  DRI2BufferPtr back, DRI2SwapEventPtr func,
 			  void *data, unsigned int target_msc)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
     struct dri2_buffer_priv *back_priv;
     struct radeon_bo *bo;
     DRI2FrameEventPtr flip_info;
@@ -670,11 +673,16 @@ radeon_dri2_schedule_flip(ScrnInfoPtr scrn, ClientPtr client,
     back_priv = back->driverPrivate;
     bo = radeon_get_pixmap_bo(back_priv->pixmap);
 
-    return radeon_do_pageflip(scrn, client, bo->handle,
-			      RADEON_DRM_QUEUE_ID_DEFAULT, flip_info,
-			      ref_crtc_hw_id,
-			      radeon_dri2_flip_event_handler,
-			      radeon_dri2_flip_event_abort);
+    if (radeon_do_pageflip(scrn, client, bo->handle,
+			   RADEON_DRM_QUEUE_ID_DEFAULT, flip_info,
+			   ref_crtc_hw_id,
+			   radeon_dri2_flip_event_handler,
+			   radeon_dri2_flip_event_abort)) {
+	info->drmmode.dri2_flipping = TRUE;
+	return TRUE;
+    }
+
+    return FALSE;
 }
 
 static Bool
@@ -742,8 +750,11 @@ static Bool
 can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
 	 DRI2BufferPtr front, DRI2BufferPtr back)
 {
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
     return draw->type == DRAWABLE_WINDOW &&
-	   RADEONPTR(pScrn)->allowPageFlip &&
+	   info->allowPageFlip &&
+	   !info->drmmode.present_flipping &&
 	   pScrn->vtSema &&
 	   DRI2CanFlip(draw) &&
 	   can_exchange(pScrn, draw, front, back);

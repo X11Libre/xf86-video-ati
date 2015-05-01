@@ -54,6 +54,9 @@ typedef struct {
   int count_crtcs;
 
   Bool delete_dp_12_displays;
+
+  Bool dri2_flipping;
+  Bool present_flipping;
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
