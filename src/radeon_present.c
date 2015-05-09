@@ -251,6 +251,9 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
     if (!info->allowPageFlip)
 	return FALSE;
 
+    if (!sync_flip)
+	return FALSE;
+
     /* The kernel driver doesn't handle flipping between BOs with different
      * tiling parameters correctly yet
      */
@@ -310,9 +313,6 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     int crtc_id = drmmode_crtc->mode_crtc->crtc_id;
     uint32_t handle;
     Bool ret;
-
-    if (!sync_flip)
-	return FALSE;
 
     if (!radeon_present_check_flip(crtc, screen->root, pixmap, sync_flip))
 	return FALSE;
