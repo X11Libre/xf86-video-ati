@@ -309,8 +309,8 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     ScreenPtr screen = crtc->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     struct radeon_present_vblank_event *event;
-    drmmode_crtc_private_ptr drmmode_crtc = get_drmmode_crtc(scrn, crtc);
-    int crtc_id = drmmode_crtc->mode_crtc->crtc_id;
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    int crtc_id = xf86_crtc ? drmmode_get_crtc_id(xf86_crtc) : -1;
     uint32_t handle;
     Bool ret;
 
