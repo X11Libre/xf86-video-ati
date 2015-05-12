@@ -113,6 +113,12 @@ if test "x$GLAMOR" != "xno"; then
 			      [GLAMOR_XSERVER="yes"], [GLAMOR_XSERVER="no"],
 			      [#include "xorg-server.h"
 			       #include "glamor.h"])
+
+		AC_CHECK_DECL(glamor_glyphs_init,
+			      [AC_DEFINE(HAVE_GLAMOR_GLYPHS_INIT, 1,
+					 [Have glamor_glyphs_init API])], [],
+			      [#include "xorg-server.h"
+			       #include "glamor.h"])
 	fi
 
 	if test "x$GLAMOR_XSERVER" != xyes; then

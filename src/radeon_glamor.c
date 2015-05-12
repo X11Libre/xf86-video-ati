@@ -60,8 +60,10 @@ radeon_glamor_create_screen_resources(ScreenPtr screen)
 	if (!info->use_glamor)
 		return TRUE;
 
+#ifdef HAVE_GLAMOR_GLYPHS_INIT
 	if (!glamor_glyphs_init(screen))
 		return FALSE;
+#endif
 
 	if (!glamor_egl_create_textured_screen_ext(screen,
 						   info->front_bo->handle,
