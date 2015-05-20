@@ -90,7 +90,7 @@
 #include "simple_list.h"
 #include "atipcirename.h"
 
-typedef struct _SyncFence SyncFence;
+struct _SyncFence;
 
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -457,7 +457,7 @@ typedef struct {
 
     void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
 
-    void              (*CreateFence) (ScreenPtr pScreen, SyncFence *pFence,
+    void              (*CreateFence) (ScreenPtr pScreen, struct _SyncFence *pFence,
 				      Bool initially_triggered);
 
     int               pix24bpp;         /* Depth of pixmap for 24bpp fb      */
