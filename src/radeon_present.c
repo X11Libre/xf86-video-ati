@@ -202,22 +202,6 @@ radeon_present_flush(WindowPtr window)
     radeon_cs_flush_indirect(xf86ScreenToScrn(window->drawable.pScreen));
 }
 
-static drmmode_crtc_private_ptr
-get_drmmode_crtc(ScrnInfoPtr scrn, RRCrtcPtr crtc)
-{
-    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-    int i;
-
-    for (i = 0; i < config->num_crtc; i++) {
-	xf86CrtcPtr xf86crtc = config->crtc[i];
-
-	if (xf86crtc->randr_crtc == crtc)
-	    return xf86crtc->driver_private;
-    }
-
-    return NULL;
-}
-
 static uint32_t
 radeon_present_get_pixmap_tiling_flags(RADEONInfoPtr info, PixmapPtr pixmap)
 {
@@ -263,7 +247,8 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
 	return FALSE;
 
     if (crtc) {
-	drmmode_crtc_private_ptr drmmode_crtc = get_drmmode_crtc(scrn, crtc);
+	xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+	drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
 
 	if (!drmmode_crtc ||
 	    drmmode_crtc->rotate.bo != NULL ||
