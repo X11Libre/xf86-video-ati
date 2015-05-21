@@ -988,11 +988,11 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     if (radeon_crtc_is_enabled(crtc)) {
 	/* CRTC is running, read vblank counter and timestamp */
 	ret = drmmode_crtc_get_ust_msc(crtc, ust, msc);
+	if (ret != Success)
+	    return FALSE;
 
-	if (ret != Success) {
-	    *msc += radeon_get_interpolated_vblanks(crtc);
-	    *msc &= 0xffffffff;
-	}
+	*msc += radeon_get_interpolated_vblanks(crtc);
+	*msc &= 0xffffffff;
     } else {
 	/* CRTC is not running, extrapolate MSC and timestamp */
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
