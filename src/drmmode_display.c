@@ -756,7 +756,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				fb_id = drmmode_crtc->scanout[0].fb_id;
 				x = y = 0;
 
-				radeon_scanout_update_handler(pScrn, 0, 0, crtc);
+				radeon_scanout_update_handler(crtc, 0, 0, drmmode_crtc);
 				radeon_bo_wait(drmmode_crtc->scanout[0].bo);
 			}
 		}
@@ -2022,55 +2022,43 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 };
 
 static void
-drmmode_flip_free(drmmode_flipevtcarrier_ptr flipcarrier)
+drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
-	drmmode_flipdata_ptr flipdata = flipcarrier->flipdata;
+	drmmode_flipdata_ptr flipdata = event_data;
 
-	free(flipcarrier);
-
-	if (--flipdata->flip_count > 0)
-		return;
-
-	free(flipdata);
+	if (--flipdata->flip_count == 0) {
+		if (flipdata->fe_crtc)
+			crtc = flipdata->fe_crtc;
+		flipdata->abort(crtc, flipdata->event_data);
+		free(flipdata);
+	}
 }
 
 static void
-drmmode_flip_abort(ScrnInfoPtr scrn, void *event_data)
+drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *event_data)
 {
-	drmmode_flipevtcarrier_ptr flipcarrier = event_data;
-	drmmode_flipdata_ptr flipdata = flipcarrier->flipdata;
-
-	if (flipdata->flip_count == 1)
-		flipdata->abort(scrn, flipdata->event_data);
-
-	drmmode_flip_free(flipcarrier);
-}
-
-static void
-drmmode_flip_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec, void *event_data)
-{
-	drmmode_flipevtcarrier_ptr flipcarrier = event_data;
-	drmmode_flipdata_ptr flipdata = flipcarrier->flipdata;
+	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+	drmmode_flipdata_ptr flipdata = event_data;
 
 	/* Is this the event whose info shall be delivered to higher level? */
-	if (flipcarrier->dispatch_me) {
+	if (crtc == flipdata->fe_crtc) {
 		/* Yes: Cache msc, ust for later delivery. */
 		flipdata->fe_frame = frame;
 		flipdata->fe_usec = usec;
 	}
 
-	if (flipdata->flip_count == 1) {
+	if (--flipdata->flip_count == 0) {
 		/* Deliver cached msc, ust from reference crtc to flip event handler */
-		if (flipdata->event_data)
-			flipdata->handler(scrn, flipdata->fe_frame,
-					  flipdata->fe_usec,
-					  flipdata->event_data);
+		if (flipdata->fe_crtc)
+			crtc = flipdata->fe_crtc;
+		flipdata->handler(crtc, flipdata->fe_frame, flipdata->fe_usec,
+				  flipdata->event_data);
 
 		/* Release framebuffer */
-		drmModeRmFB(flipdata->drmmode->fd, flipdata->old_fb_id);
-	}
+		drmModeRmFB(info->drmmode.fd, flipdata->old_fb_id);
 
-	drmmode_flip_free(flipcarrier);
+		free(flipdata);
+	}
 }
 
 
@@ -2510,13 +2498,13 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 {
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	xf86CrtcPtr crtc = NULL;
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	unsigned int pitch;
 	int i;
 	uint32_t tiling_flags = 0;
 	drmmode_flipdata_ptr flipdata;
-	drmmode_flipevtcarrier_ptr flipcarrier = NULL;
 	struct radeon_drm_queue_entry *drm_queue = NULL;
 
 	if (info->allowColorTiling) {
@@ -2559,32 +2547,26 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	 */
 
         flipdata->event_data = data;
-        flipdata->drmmode = drmmode;
         flipdata->handler = handler;
         flipdata->abort = abort;
 
 	for (i = 0; i < config->num_crtc; i++) {
-		if (!config->crtc[i]->enabled)
+		crtc = config->crtc[i];
+
+		if (!crtc->enabled)
 			continue;
 
 		flipdata->flip_count++;
-		drmmode_crtc = config->crtc[i]->driver_private;
-
-		flipcarrier = calloc(1, sizeof(drmmode_flipevtcarrier_rec));
-		if (!flipcarrier) {
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "flip queue: carrier alloc failed.\n");
-			goto error;
-		}
+		drmmode_crtc = crtc->driver_private;
 
 		/* Only the reference crtc will finally deliver its page flip
 		 * completion event. All other crtc's events will be discarded.
 		 */
-		flipcarrier->dispatch_me = (drmmode_crtc->hw_id == ref_crtc_hw_id);
-		flipcarrier->flipdata = flipdata;
+		if (drmmode_crtc->hw_id == ref_crtc_hw_id)
+			flipdata->fe_crtc = crtc;
 
-		drm_queue = radeon_drm_queue_alloc(scrn, client, id,
-						   flipcarrier,
+		drm_queue = radeon_drm_queue_alloc(crtc, client, id,
+						   flipdata,
 						   drmmode_flip_handler,
 						   drmmode_flip_abort);
 		if (!drm_queue) {
@@ -2600,7 +2582,6 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				   "flip queue failed: %s\n", strerror(errno));
 			goto error;
 		}
-		flipcarrier = NULL;
 		drm_queue = NULL;
 	}
 
@@ -2615,8 +2596,8 @@ error:
 
 	if (drm_queue)
 		radeon_drm_abort_entry(drm_queue);
-	else if (flipcarrier)
-		drmmode_flip_abort(scrn, flipcarrier);
+	else if (crtc)
+		drmmode_flip_abort(crtc, flipdata);
 	else if (flipdata && flipdata->flip_count <= 1)
 		free(flipdata);
 

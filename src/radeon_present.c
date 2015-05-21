@@ -50,7 +50,7 @@
 
 struct radeon_present_vblank_event {
     uint64_t event_id;
-    xf86CrtcPtr crtc;
+    Bool unflip;
 };
 
 static uint32_t crtc_select(int crtc_id)
@@ -124,7 +124,7 @@ radeon_present_flush_drm_events(ScreenPtr screen)
  * Called when the queued vblank event has occurred
  */
 static void
-radeon_present_vblank_handler(ScrnInfoPtr scrn, unsigned int msc,
+radeon_present_vblank_handler(xf86CrtcPtr crtc, unsigned int msc,
 			      uint64_t usec, void *data)
 {
     struct radeon_present_vblank_event *event = data;
@@ -137,7 +137,7 @@ radeon_present_vblank_handler(ScrnInfoPtr scrn, unsigned int msc,
  * Called when the queued vblank is aborted
  */
 static void
-radeon_present_vblank_abort(ScrnInfoPtr scrn, void *data)
+radeon_present_vblank_abort(xf86CrtcPtr crtc, void *data)
 {
     struct radeon_present_vblank_event *event = data;
 
@@ -165,7 +165,7 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
     if (!event)
 	return BadAlloc;
     event->event_id = event_id;
-    queue = radeon_drm_queue_alloc(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+    queue = radeon_drm_queue_alloc(xf86_crtc, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 				   event_id, event,
 				   radeon_present_vblank_handler,
 				   radeon_present_vblank_abort);
@@ -280,12 +280,12 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
  * extension code telling it when that happened
  */
 static void
-radeon_present_flip_event(ScrnInfoPtr scrn, uint32_t msc, uint64_t ust, void *pageflip_data)
+radeon_present_flip_event(xf86CrtcPtr crtc, uint32_t msc, uint64_t ust, void *pageflip_data)
 {
-    RADEONInfoPtr info = RADEONPTR(scrn);
+    RADEONInfoPtr info = RADEONPTR(crtc->scrn);
     struct radeon_present_vblank_event *event = pageflip_data;
 
-    if (!event->crtc)
+    if (event->unflip)
 	info->drmmode.present_flipping = FALSE;
 
     present_event_notify(event->event_id, ust, msc);
@@ -296,7 +296,7 @@ radeon_present_flip_event(ScrnInfoPtr scrn, uint32_t msc, uint64_t ust, void *pa
  * The flip has been aborted, free the structure
  */
 static void
-radeon_present_flip_abort(ScrnInfoPtr scrn, void *pageflip_data)
+radeon_present_flip_abort(xf86CrtcPtr crtc, void *pageflip_data)
 {
     struct radeon_present_vblank_event *event = pageflip_data;
 
@@ -331,7 +331,6 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 	return FALSE;
 
     event->event_id = event_id;
-    event->crtc = xf86_crtc;
 
     ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, crtc_id,
@@ -375,6 +374,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     }
 
     event->event_id = event_id;
+    event->unflip = TRUE;
 
     if (radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			   event_id, event, -1, radeon_present_flip_event,

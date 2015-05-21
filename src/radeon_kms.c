@@ -401,21 +401,20 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 }
 
 static void
-radeon_scanout_update_abort(ScrnInfoPtr scrn, void *event_data)
+radeon_scanout_update_abort(xf86CrtcPtr crtc, void *event_data)
 {
-    xf86CrtcPtr xf86_crtc = event_data;
-    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
     drmmode_crtc->scanout_update_pending = FALSE;
 }
 
 void
-radeon_scanout_update_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
+radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 			      void *event_data)
 {
-    radeon_scanout_do_update(event_data, 0);
+    radeon_scanout_do_update(crtc, 0);
 
-    radeon_scanout_update_abort(scrn, event_data);
+    radeon_scanout_update_abort(crtc, event_data);
 }
 
 static void
@@ -451,9 +450,10 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 	return;
 
     scrn = xf86_crtc->scrn;
-    drm_queue_entry = radeon_drm_queue_alloc(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+    drm_queue_entry = radeon_drm_queue_alloc(xf86_crtc,
+					     RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					     RADEON_DRM_QUEUE_ID_DEFAULT,
-					     xf86_crtc,
+					     drmmode_crtc,
 					     radeon_scanout_update_handler,
 					     radeon_scanout_update_abort);
     if (!drm_queue_entry) {
@@ -478,7 +478,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 }
 
 static void
-radeon_scanout_flip_abort(ScrnInfoPtr scrn, void *event_data)
+radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
@@ -502,7 +502,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
 
     scrn = xf86_crtc->scrn;
-    drm_queue_entry = radeon_drm_queue_alloc(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+    drm_queue_entry = radeon_drm_queue_alloc(xf86_crtc,
+					     RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					     RADEON_DRM_QUEUE_ID_DEFAULT,
 					     drmmode_crtc, NULL,
 					     radeon_scanout_flip_abort);

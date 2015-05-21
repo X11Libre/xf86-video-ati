@@ -34,14 +34,14 @@
 
 struct radeon_drm_queue_entry;
 
-typedef void (*radeon_drm_handler_proc)(ScrnInfoPtr scrn, uint32_t seq,
+typedef void (*radeon_drm_handler_proc)(xf86CrtcPtr crtc, uint32_t seq,
 					uint64_t usec, void *data);
-typedef void (*radeon_drm_abort_proc)(ScrnInfoPtr scrn, void *data);
+typedef void (*radeon_drm_abort_proc)(xf86CrtcPtr crtc, void *data);
 
 void radeon_drm_queue_handler(int fd, unsigned int frame,
 			      unsigned int tv_sec, unsigned int tv_usec,
 			      void *user_ptr);
-struct radeon_drm_queue_entry *radeon_drm_queue_alloc(ScrnInfoPtr scrn,
+struct radeon_drm_queue_entry *radeon_drm_queue_alloc(xf86CrtcPtr crtc,
 						      ClientPtr client,
 						      uint64_t id,
 						      void *data,
