@@ -113,7 +113,7 @@ radeon_glamor_prepare_access_cpu_ro(ScrnInfoPtr scrn, PixmapPtr pixmap,
 		return TRUE;
 
 	info = RADEONPTR(scrn);
-	need_sync = radeon_glamor_gpu_pending(info->gpu_synced, priv->gpu_read);
+	need_sync = radeon_glamor_gpu_pending(info->gpu_synced, priv->gpu_write);
 	return radeon_glamor_prepare_access_cpu(scrn, RADEONPTR(scrn), pixmap,
 						priv, need_sync);
 }
