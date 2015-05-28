@@ -87,7 +87,13 @@ radeon_present_get_crtc(WindowPtr window)
 static int
 radeon_present_get_ust_msc(RRCrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 {
-    return drmmode_crtc_get_ust_msc(crtc->devPrivate, ust, msc);
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+
+    if (drmmode_crtc->dpms_mode != DPMSModeOn)
+	return BadAlloc;
+
+    return drmmode_crtc_get_ust_msc(xf86_crtc, ust, msc);
 }
 
 /*
