@@ -1012,15 +1012,16 @@ void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 	drmmode_crtc->hw_id = tmp;
 }
 
-static void
+static unsigned int
 drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num)
 {
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
 	crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
 	if (crtc == NULL)
-		return;
+		return 0;
 
 	drmmode_crtc = xnfcalloc(sizeof(drmmode_crtc_private_rec), 1);
 	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, mode_res->crtcs[num]);
@@ -1028,7 +1029,12 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	crtc->driver_private = drmmode_crtc;
 	drmmode_crtc_hw_id(crtc);
 
-	return;
+	/* Mark num'th crtc as in use on this device. */
+	pRADEONEnt->assigned_crtcs |= (1 << num);
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Allocated crtc nr. %d to this screen.\n", num);
+
+	return 1;
 }
 
 static xf86OutputStatus
@@ -1461,7 +1467,7 @@ drmmode_create_name(ScrnInfoPtr pScrn, drmModeConnectorPtr koutput, char *name,
 	}
 }
 
-static void
+static unsigned int
 drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num, int *num_dvi, int *num_hdmi, int dynamic)
 {
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
@@ -1478,7 +1484,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 
 	koutput = drmModeGetConnector(drmmode->fd, mode_res->connectors[num]);
 	if (!koutput)
-		return;
+		return 0;
 
 	for (i = 0; i < koutput->count_props; i++) {
 		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
@@ -1524,7 +1530,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 			for (i = 0; i < koutput->count_encoders; i++)
 				drmModeFreeEncoder(kencoders[i]);
 			free(kencoders);
-			return;
+			return 0;
 		}
 	}
 
@@ -1587,7 +1593,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 		drmmode_output_create_resources(output);
 	}
 
-	return;
+	return 1;
 out_free_encoders:
 	if (kencoders){
 		for (i = 0; i < koutput->count_encoders; i++)
@@ -1595,7 +1601,7 @@ out_free_encoders:
 		free(kencoders);
 	}
 	drmModeFreeConnector(koutput);
-	
+	return 0;
 }
 
 uint32_t find_clones(ScrnInfoPtr scrn, xf86OutputPtr output)
@@ -2030,8 +2036,10 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	int i, num_dvi = 0, num_hdmi = 0;
 	drmModeResPtr mode_res;
+	unsigned int crtcs_needed = 0;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 
@@ -2041,14 +2049,26 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	if (!mode_res)
 		return FALSE;
 
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "Initializing outputs ...\n");
+	for (i = 0; i < mode_res->count_connectors; i++)
+		crtcs_needed += drmmode_output_init(pScrn, drmmode, mode_res,
+						    i, &num_dvi, &num_hdmi, 0);
+	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		       "%d crtcs needed for screen.\n", crtcs_needed);
+
 	drmmode->count_crtcs = mode_res->count_crtcs;
 	xf86CrtcSetSizeRange(pScrn, 320, 200, mode_res->max_width, mode_res->max_height);
 	for (i = 0; i < mode_res->count_crtcs; i++)
-		if (!xf86IsEntityShared(pScrn->entityList[0]) || pScrn->confScreen->device->screen == i)
-			drmmode_crtc_init(pScrn, drmmode, mode_res, i);
+		if (!xf86IsEntityShared(pScrn->entityList[0]) ||
+		    (crtcs_needed && !(pRADEONEnt->assigned_crtcs & (1 << i))))
+			crtcs_needed -= drmmode_crtc_init(pScrn, drmmode, mode_res, i);
 
-	for (i = 0; i < mode_res->count_connectors; i++)
-		drmmode_output_init(pScrn, drmmode, mode_res, i, &num_dvi, &num_hdmi, 0);
+	/* All ZaphodHeads outputs provided with matching crtcs? */
+	if (xf86IsEntityShared(pScrn->entityList[0]) && (crtcs_needed > 0))
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "%d ZaphodHeads crtcs unavailable. Some outputs will stay off.\n",
+			   crtcs_needed);
 
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode, mode_res);

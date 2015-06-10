@@ -1457,9 +1457,13 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONCloseScreen\n");
+
+    /* Clear mask of assigned crtc's in this generation */
+    pRADEONEnt->assigned_crtcs = 0;
 
     drmmode_uevent_fini(pScrn, &info->drmmode);
     radeon_drm_queue_close(pScrn);
