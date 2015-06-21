@@ -1842,7 +1842,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			tiling_flags |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
 			tiling_flags |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
 			tiling_flags |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
-			tiling_flags |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
+			if (surface.tile_split)
+				tiling_flags |= eg_tile_split(surface.tile_split)
+						<< RADEON_TILING_EG_TILE_SPLIT_SHIFT;
 			break;
 		case RADEON_SURF_MODE_1D:
 			tiling_flags |= RADEON_TILING_MICRO;

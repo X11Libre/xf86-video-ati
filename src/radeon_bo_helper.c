@@ -168,7 +168,8 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 				tiling |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
 				tiling |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
 				tiling |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
-				tiling |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
+				if (surface.tile_split)
+					tiling |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
 				tiling |= eg_tile_split(surface.stencil_tile_split) << RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT;
 				break;
 			case RADEON_SURF_MODE_1D:
