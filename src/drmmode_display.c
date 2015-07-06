@@ -346,14 +346,12 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	/* Disable unused CRTCs */
-	if (!crtc->enabled || mode != DPMSModeOn) {
+	if (!crtc->enabled || mode != DPMSModeOn)
 		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			       0, 0, 0, NULL, 0, NULL);
-		return;
-	}
-
-	crtc->funcs->set_mode_major(crtc, &crtc->mode, crtc->rotation,
-				    crtc->x, crtc->y);
+	else if (drmmode_crtc->dpms_mode != DPMSModeOn)
+		crtc->funcs->set_mode_major(crtc, &crtc->mode, crtc->rotation,
+					    crtc->x, crtc->y);
 }
 
 static PixmapPtr
