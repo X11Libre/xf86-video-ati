@@ -27,7 +27,7 @@
 # TODO: -nostdlib/-Bstatic/-lgcc platform magic, not installing the .a, etc.
 
 ati_drv_la_LIBADD = $(PCIACCESS_LIBS)
-radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS) $(PCIACCESS_LIBS)
+radeon_drv_la_LIBADD = $(LIBDRM_RADEON_LIBS)
 
 RADEON_KMS_SRCS=radeon_dri2.c radeon_dri3.c radeon_drm_queue.c radeon_kms.c \
 	radeon_present.c radeon_sync.c radeon_vbo.c radeon_bo_helper.c \
