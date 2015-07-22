@@ -169,10 +169,8 @@ radeon_get_scrninfo(int entity_num, void *pci_dev)
         if (!pPriv->ptr) {
             pPriv->ptr = xnfcalloc(sizeof(RADEONEntRec), 1);
             pRADEONEnt = pPriv->ptr;
-            pRADEONEnt->HasSecondary = FALSE;
         } else {
             pRADEONEnt = pPriv->ptr;
-            pRADEONEnt->HasSecondary = TRUE;
         }
     }
 
@@ -271,10 +269,8 @@ radeon_platform_probe(DriverPtr pDriver,
         if (!pPriv->ptr) {
             pPriv->ptr = xnfcalloc(sizeof(RADEONEntRec), 1);
             pRADEONEnt = pPriv->ptr;
-            pRADEONEnt->HasSecondary = FALSE;
         } else {
             pRADEONEnt = pPriv->ptr;
-            pRADEONEnt->HasSecondary = TRUE;
         }
         pRADEONEnt->platform_dev = dev;
     }

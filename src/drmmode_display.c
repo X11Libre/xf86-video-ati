@@ -1561,7 +1561,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 			if (!RADEONZaphodStringMatches(pScrn, s, name))
 				goto out_free_encoders;
 		} else {
-			if (info->IsPrimary && (num != 0))
+			if (!info->IsSecondary && (num != 0))
 				goto out_free_encoders;
 			else if (info->IsSecondary && (num != 1))
 				goto out_free_encoders;

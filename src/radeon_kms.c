@@ -1079,7 +1079,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info               = RADEONPTR(pScrn);
     info->IsSecondary  = FALSE;
-    info->IsPrimary = FALSE;
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     if (info->pEnt->location.type != BUS_PCI
 #ifdef XSERVER_PLATFORM_BUS
@@ -1097,14 +1096,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
         if(xf86IsPrimInitDone(pScrn->entityList[0]))
         {
             info->IsSecondary = TRUE;
-            pRADEONEnt->pSecondaryScrn = pScrn;
         }
         else
         {
-	    info->IsPrimary = TRUE;
             xf86SetPrimInitDone(pScrn->entityList[0]);
-            pRADEONEnt->pPrimaryScrn = pScrn;
-            pRADEONEnt->HasSecondary = FALSE;
         }
     }
 

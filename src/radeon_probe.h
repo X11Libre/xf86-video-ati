@@ -132,11 +132,7 @@ typedef struct {
 
 typedef struct
 {
-    Bool HasSecondary;
     Bool              HasCRTC2;         /* All cards except original Radeon  */
-
-    ScrnInfoPtr pSecondaryScrn;    
-    ScrnInfoPtr pPrimaryScrn;
 
     int fd;                             /* for sharing across zaphod heads   */
     int fd_ref;
