@@ -28,6 +28,9 @@
 #define RADEON_GLAMOR_H
 
 #include "xf86xv.h"
+
+struct radeon_pixmap;
+
 #ifdef USE_GLAMOR
 
 #define GLAMOR_FOR_XORG  1
@@ -42,8 +45,6 @@
 #define RADEON_CREATE_PIXMAP_SHARED(usage) \
 	(((usage) & ~RADEON_CREATE_PIXMAP_TILING_FLAGS) == RADEON_CREATE_PIXMAP_DRI2 || \
 	 (usage) == CREATE_PIXMAP_USAGE_SHARED)
-
-struct radeon_pixmap;
 
 #ifndef GLAMOR_NO_DRI3
 #define GLAMOR_NO_DRI3 0
@@ -73,8 +74,6 @@ void radeon_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
 
 #else
-
-struct radeon_pixmap;
 
 static inline Bool radeon_glamor_pre_init(ScrnInfoPtr scrn) { return FALSE; }
 static inline Bool radeon_glamor_init(ScreenPtr screen) { return FALSE; }
