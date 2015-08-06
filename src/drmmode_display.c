@@ -467,6 +467,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	FreeScratchGC(gc);
 
 	radeon_cs_flush_indirect(pScrn);
+	radeon_bo_wait(info->front_bo);
 
 	pScreen->canDoBGNoneRoot = TRUE;
 	destroy_pixmap_for_fbcon(pScrn);
@@ -757,6 +758,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				x = y = 0;
 
 				radeon_scanout_update_handler(pScrn, 0, 0, crtc);
+				radeon_bo_wait(drmmode_crtc->scanout[0].bo);
 			}
 		}
 		ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
@@ -1959,6 +1961,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	FreeScratchGC(gc);
 	info->accel_state->force = force;
 	radeon_cs_flush_indirect(scrn);
+	radeon_bo_wait(info->front_bo);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
