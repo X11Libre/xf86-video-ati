@@ -1037,7 +1037,7 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
 /* When the root window is created, initialize the screen contents from
  * console if -background none was specified on the command line
  */
-static Bool RADEONCreateWindow(WindowPtr pWin)
+static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
     ScrnInfoPtr pScrn;
@@ -1714,9 +1714,9 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     pScrn->pScreen = pScreen;
 
 #if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-    if (bgNoneRoot && info->accelOn) {
+    if (serverGeneration == 1 && bgNoneRoot && info->accelOn) {
 	info->CreateWindow = pScreen->CreateWindow;
-	pScreen->CreateWindow = RADEONCreateWindow;
+	pScreen->CreateWindow = RADEONCreateWindow_oneshot;
     }
 #endif
 
@@ -1778,11 +1778,6 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
     pScrn->vtSema = TRUE;
-
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-    if (bgNoneRoot && info->accelOn)
-	drmmode_copy_fb(pScrn, &info->drmmode);
-#endif
 
     if (!drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE))
 	return FALSE;
