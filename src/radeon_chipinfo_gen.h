@@ -612,6 +612,7 @@ static RADEONCardInfo RADEONCards[] = {
  { 0x6610, CHIP_FAMILY_OLAND, 0, 0, 0, 0, 0 },
  { 0x6611, CHIP_FAMILY_OLAND, 0, 0, 0, 0, 0 },
  { 0x6613, CHIP_FAMILY_OLAND, 0, 0, 0, 0, 0 },
+ { 0x6617, CHIP_FAMILY_OLAND, 1, 0, 0, 0, 0 },
  { 0x6620, CHIP_FAMILY_OLAND, 1, 0, 0, 0, 0 },
  { 0x6621, CHIP_FAMILY_OLAND, 1, 0, 0, 0, 0 },
  { 0x6623, CHIP_FAMILY_OLAND, 1, 0, 0, 0, 0 },
