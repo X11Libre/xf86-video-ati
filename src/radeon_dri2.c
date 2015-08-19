@@ -65,6 +65,28 @@ struct dri2_buffer_priv {
 };
 
 
+struct dri2_window_priv {
+    xf86CrtcPtr crtc;
+    int vblank_delta;
+};
+
+#if HAS_DEVPRIVATEKEYREC
+
+static DevPrivateKeyRec dri2_window_private_key_rec;
+#define dri2_window_private_key (&dri2_window_private_key_rec)
+
+#else
+
+static int dri2_window_private_key_index;
+DevPrivateKey dri2_window_private_key = &dri2_window_private_key_index;
+
+#endif /* HAS_DEVPRIVATEKEYREC */
+
+#define get_dri2_window_priv(window) \
+    ((struct dri2_window_priv*) \
+     dixLookupPrivate(&(window)->devPrivates, dri2_window_private_key))
+
+
 static PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
 {
     if (drawable->type == DRAWABLE_PIXMAP)
@@ -554,17 +576,80 @@ radeon_dri2_client_state_changed(CallbackListPtr *ClientStateCallback, pointer d
     }
 }
 
+/*
+ * Get current frame count delta for the specified drawable and CRTC
+ */
+static uint32_t radeon_get_msc_delta(DrawablePtr pDraw, xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    if (pDraw && pDraw->type == DRAWABLE_WINDOW)
+	return drmmode_crtc->interpolated_vblanks +
+	    get_dri2_window_priv((WindowPtr)pDraw)->vblank_delta;
+
+    return drmmode_crtc->interpolated_vblanks;
+}
+
+/*
+ * Get current frame count and timestamp of the specified CRTC
+ */
+static Bool radeon_dri2_get_crtc_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
+{
+    if (!radeon_crtc_is_enabled(crtc) ||
+	 drmmode_crtc_get_ust_msc(crtc, ust, msc) != Success) {
+	/* CRTC is not running, extrapolate MSC and timestamp */
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	ScrnInfoPtr scrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	CARD64 now, delta_t, delta_seq;
+
+	if (!drmmode_crtc->dpms_last_ust)
+	    return FALSE;
+
+	if (drmmode_get_current_ust(info->dri2.drm_fd, &now) != 0) {
+	    xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+		       "%s cannot get current time\n", __func__);
+	    return FALSE;
+	}
+
+	delta_t = now - drmmode_crtc->dpms_last_ust;
+	delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
+	delta_seq /= 1000000;
+	*ust = drmmode_crtc->dpms_last_ust;
+	delta_t = delta_seq * 1000000;
+	delta_t /= drmmode_crtc->dpms_last_fps;
+	*ust += delta_t;
+	*msc = drmmode_crtc->dpms_last_seq;
+	*msc += delta_seq;
+    }
+
+    return TRUE;
+}
+
 static
 xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    xf86CrtcPtr crtc = radeon_pick_best_crtc(pScrn, consider_disabled,
+					      pDraw->x, pDraw->x + pDraw->width,
+					      pDraw->y, pDraw->y + pDraw->height);
 
-    return radeon_pick_best_crtc(pScrn, consider_disabled,
-				 pDraw->x,
-				 pDraw->x + pDraw->width,
-				 pDraw->y,
-				 pDraw->y + pDraw->height);
+    if (crtc && pDraw->type == DRAWABLE_WINDOW) {
+	struct dri2_window_priv *priv = get_dri2_window_priv((WindowPtr)pDraw);
+
+	if (priv->crtc && priv->crtc != crtc) {
+	    CARD64 ust, mscold, mscnew;
+
+	    radeon_dri2_get_crtc_msc(priv->crtc, &ust, &mscold);
+	    radeon_dri2_get_crtc_msc(crtc, &ust, &mscnew);
+	    priv->vblank_delta += mscold - mscnew;
+	}
+
+	priv->crtc = crtc;
+    }
+
+    return crtc;
 }
 
 static void
@@ -592,7 +677,7 @@ radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 
     if (!flip->crtc)
 	goto abort;
-    frame += radeon_get_interpolated_vblanks(flip->crtc);
+    frame += radeon_get_msc_delta(drawable, flip->crtc);
 
     screen = scrn->pScreen;
     pixmap = screen->GetScreenPixmap(screen);
@@ -825,7 +910,7 @@ static void radeon_dri2_frame_event_handler(ScrnInfoPtr scrn, uint32_t seq,
     if (status != Success)
         goto cleanup;
 
-    seq += radeon_get_interpolated_vblanks(event->crtc);
+    seq += radeon_get_msc_delta(drawable, event->crtc);
 
     switch (event->type) {
     case DRI2_FLIP:
@@ -912,8 +997,6 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
     int nominal_frame_rate = drmmode_crtc->dpms_last_fps;
     CARD64 last_vblank_ust = drmmode_crtc->dpms_last_ust;
     uint32_t last_vblank_seq = drmmode_crtc->dpms_last_seq;
-    int interpolated_vblanks = drmmode_crtc->interpolated_vblanks;
-    int target_seq;
     CARD64 now, target_time, delta_t;
     int64_t d, delta_seq;
     int ret;
@@ -930,16 +1013,15 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
 	*target_msc = 0;
 	return FALLBACK_SWAP_DELAY;
     }
-    target_seq = (int)*target_msc - interpolated_vblanks;
-    delta_seq = (int64_t)target_seq - (int64_t)last_vblank_seq;
+    delta_seq = *target_msc - last_vblank_seq;
     delta_seq *= 1000000;
     target_time = last_vblank_ust;
     target_time += delta_seq / nominal_frame_rate;
     d = target_time - now;
     if (d < 0) {
 	/* we missed the event, adjust target_msc, do the divisor magic */
-	CARD64 current_msc;
-	current_msc = last_vblank_seq + interpolated_vblanks;
+	CARD64 current_msc = last_vblank_seq;
+
 	delta_t = now - last_vblank_ust;
 	delta_seq = delta_t * nominal_frame_rate;
 	current_msc += delta_seq / 1000000;
@@ -952,8 +1034,7 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
 	    if ((current_msc % divisor) >= remainder)
 		*target_msc += divisor;
 	    *target_msc &= 0xffffffff;
-	    target_seq = (int)*target_msc - interpolated_vblanks;
-	    delta_seq = (int64_t)target_seq - (int64_t)last_vblank_seq;
+	    delta_seq = *target_msc - last_vblank_seq;
 	    delta_seq *= 1000000;
 	    target_time = last_vblank_ust;
 	    target_time += delta_seq / nominal_frame_rate;
@@ -980,7 +1061,6 @@ CARD32 radeon_dri2_extrapolate_msc_delay(xf86CrtcPtr crtc, CARD64 *target_msc,
 static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
-    int ret;
 
     /* Drawable not displayed, make up a value */
     if (crtc == NULL) {
@@ -989,43 +1069,12 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         return TRUE;
     }
 
-    if (radeon_crtc_is_enabled(crtc)) {
-	/* CRTC is running, read vblank counter and timestamp */
-	ret = drmmode_crtc_get_ust_msc(crtc, ust, msc);
-	if (ret != Success)
-	    return FALSE;
+    if (!radeon_dri2_get_crtc_msc(crtc, ust, msc))
+	return FALSE;
 
-	*msc += radeon_get_interpolated_vblanks(crtc);
-	*msc &= 0xffffffff;
-    } else {
-	/* CRTC is not running, extrapolate MSC and timestamp */
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	ScrnInfoPtr scrn = crtc->scrn;
-	RADEONInfoPtr info = RADEONPTR(scrn);
-	CARD64 now, delta_t, delta_seq;
-
-	if (!drmmode_crtc->dpms_last_ust)
-	    return FALSE;
-	ret = drmmode_get_current_ust(info->dri2.drm_fd, &now);
-	if (ret) {
-	    xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-		       "%s cannot get current time\n", __func__);
-	    return FALSE;
-	}
-	delta_t = now - drmmode_crtc->dpms_last_ust;
-	delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
-	delta_seq /= 1000000;
-	*ust = drmmode_crtc->dpms_last_ust;
-	delta_t = delta_seq * 1000000;
-	delta_t /= drmmode_crtc->dpms_last_fps;
-	*ust += delta_t;
-	*msc = drmmode_crtc->dpms_last_seq;
-	*msc += drmmode_crtc->interpolated_vblanks;
-	*msc += delta_seq;
-	*msc &= 0xffffffff;
-    }
-
-    return ret == Success;
+    *msc += radeon_get_msc_delta(draw, crtc);
+    *msc &= 0xffffffff;
+    return TRUE;
 }
 
 static
@@ -1113,6 +1162,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     DRI2FrameEventPtr wait_info = NULL;
     struct radeon_drm_queue_entry *wait = NULL;
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
+    uint32_t msc_delta;
     drmVBlank vbl;
     int ret;
     CARD64 current_msc;
@@ -1126,6 +1176,8 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     /* Drawable not visible, return immediately */
     if (crtc == NULL)
         goto out_complete;
+
+    msc_delta = radeon_get_msc_delta(draw, crtc);
 
     wait_info = calloc(1, sizeof(DRI2FrameEventRec));
     if (!wait_info)
@@ -1142,6 +1194,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      */
     if (!radeon_crtc_is_enabled(crtc)) {
 	CARD32 delay;
+	target_msc -= msc_delta;
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, &target_msc,
 						  divisor, remainder);
 	radeon_dri2_schedule_event(delay, wait_info);
@@ -1160,7 +1213,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         goto out_complete;
     }
 
-    current_msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+    current_msc = vbl.reply.sequence + msc_delta;
     current_msc &= 0xffffffff;
 
     wait = radeon_drm_queue_alloc(scrn, client, RADEON_DRM_QUEUE_ID_DEFAULT,
@@ -1189,8 +1242,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
             target_msc = current_msc;
         vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-        vbl.request.sequence = target_msc;
-	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
+        vbl.request.sequence = target_msc - msc_delta;
         vbl.request.signal = (unsigned long)wait;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
@@ -1211,7 +1263,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     vbl.request.type |= radeon_populate_vbl_request_type(crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
-        remainder;
+        remainder - msc_delta;
 
     /*
      * If calculated remainder is larger than requested remainder,
@@ -1221,7 +1273,6 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      */
     if ((current_msc % divisor) >= remainder)
         vbl.request.sequence += divisor;
-    vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
 
     vbl.request.signal = (unsigned long)wait;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
@@ -1271,6 +1322,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
+    uint32_t msc_delta;
     drmVBlank vbl;
     int ret, flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
@@ -1295,6 +1347,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     /* either off-screen or CRTC not usable... just complete the swap */
     if (crtc == NULL)
         goto blit_fallback;
+
+    msc_delta = radeon_get_msc_delta(draw, crtc);
 
     swap_info = calloc(1, sizeof(DRI2FrameEventRec));
     if (!swap_info)
@@ -1326,8 +1380,11 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      */
     if (!radeon_crtc_is_enabled(crtc)) {
 	CARD32 delay;
+	*target_msc -= msc_delta;
 	delay = radeon_dri2_extrapolate_msc_delay(crtc, target_msc,
 						  divisor, remainder);
+	*target_msc += msc_delta;
+	*target_msc &= 0xffffffff;
 	radeon_dri2_schedule_event(delay, swap_info);
 	return TRUE;
     }
@@ -1344,7 +1401,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	goto blit_fallback;
     }
 
-    current_msc = vbl.reply.sequence + radeon_get_interpolated_vblanks(crtc);
+    current_msc = vbl.reply.sequence + msc_delta;
     current_msc &= 0xffffffff;
 
     /* Flips need to be submitted one frame before */
@@ -1382,8 +1439,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         if (current_msc >= *target_msc)
             *target_msc = current_msc;
 
-        vbl.request.sequence = *target_msc;
-	vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
+        vbl.request.sequence = *target_msc - msc_delta;
         vbl.request.signal = (unsigned long)swap;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
@@ -1393,8 +1449,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	    goto blit_fallback;
         }
 
-        *target_msc = vbl.reply.sequence + flip;
-	*target_msc += radeon_get_interpolated_vblanks(crtc);
+        *target_msc = vbl.reply.sequence + flip + msc_delta;
         swap_info->frame = *target_msc;
 
         return TRUE;
@@ -1411,7 +1466,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     vbl.request.type |= radeon_populate_vbl_request_type(crtc);
 
     vbl.request.sequence = current_msc - (current_msc % divisor) +
-        remainder;
+        remainder - msc_delta;
 
     /*
      * If the calculated deadline vbl.request.sequence is smaller than
@@ -1426,7 +1481,6 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      */
     if (vbl.request.sequence <= current_msc)
         vbl.request.sequence += divisor;
-    vbl.request.sequence -= radeon_get_interpolated_vblanks(crtc);
 
     /* Account for 1 frame extra pageflip delay if flip > 0 */
     vbl.request.sequence -= flip;
@@ -1441,8 +1495,8 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     }
 
     /* Adjust returned value for 1 fame pageflip offset of flip > 0 */
-    *target_msc = vbl.reply.sequence + flip;
-    *target_msc += radeon_get_interpolated_vblanks(crtc);
+    *target_msc = vbl.reply.sequence + flip + msc_delta;
+    *target_msc &= 0xffffffff;
     swap_info->frame = *target_msc;
 
     return TRUE;
@@ -1544,6 +1598,19 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
             driverNames[1] = NULL; /* no VDPAU support */
 
 	if (DRI2InfoCnt == 0) {
+#if HAS_DIXREGISTERPRIVATEKEY
+	    if (!dixRegisterPrivateKey(dri2_window_private_key,
+				       PRIVATE_WINDOW,
+				       sizeof(struct dri2_window_priv))) {
+#else
+	    if (!dixRequestPrivate(dri2_window_private_key,
+				   sizeof(struct dri2_window_priv))) {
+#endif
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Failed to get DRI2 window private\n");
+		return FALSE;
+	    }
+
 	    AddCallback(&ClientStateCallback, radeon_dri2_client_state_changed, 0);
 	}
 
