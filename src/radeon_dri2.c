@@ -559,19 +559,12 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 {
     ScreenPtr pScreen = pDraw->pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    xf86CrtcPtr crtc;
 
-    crtc = radeon_pick_best_crtc(pScrn, consider_disabled,
+    return radeon_pick_best_crtc(pScrn, consider_disabled,
 				 pDraw->x,
 				 pDraw->x + pDraw->width,
 				 pDraw->y,
 				 pDraw->y + pDraw->height);
-
-    /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData)
-	return crtc;
-    else
-	return NULL;
 }
 
 static void
