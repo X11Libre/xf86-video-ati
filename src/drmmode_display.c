@@ -2240,6 +2240,8 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 			crtc->rotation = crtc->desiredRotation;
 			crtc->x = crtc->desiredX;
 			crtc->y = crtc->desiredY;
+			if (!xf86CrtcRotate(crtc))
+			    return FALSE;
 		}
 	}
 	return TRUE;
