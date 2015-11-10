@@ -157,6 +157,10 @@ typedef enum {
 } RADEONOpts;
 
 
+#if XF86_CRTC_VERSION >= 5
+#define RADEON_PIXMAP_SHARING 1
+#endif
+
 #define RADEON_VSYNC_TIMEOUT	20000 /* Maximum wait for VSYNC (in usecs) */
 
 /* Buffer are aligned on 4096 byte boundaries */
@@ -561,6 +565,10 @@ typedef struct {
 	AddTrapsProcPtr SavedAddTraps;
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
 #endif
+#ifdef RADEON_PIXMAP_SHARING
+	SharePixmapBackingProcPtr SavedSharePixmapBacking;
+	SetSharedPixmapBackingProcPtr SavedSetSharedPixmapBacking;
+#endif
     } glamor;
 #endif /* USE_GLAMOR */
 } RADEONInfoRec, *RADEONInfoPtr;
@@ -622,10 +630,6 @@ void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, uint32_t new_fb_size);
 extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 
 drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc);
-
-#if XF86_CRTC_VERSION >= 5
-#define RADEON_PIXMAP_SHARING 1
-#endif
 
 static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 {

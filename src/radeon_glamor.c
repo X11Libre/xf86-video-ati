@@ -368,16 +368,36 @@ radeon_glamor_init(ScreenPtr screen)
 		ps->UnrealizeGlyph = SavedUnrealizeGlyph;
 #endif
 
+	info->glamor.SavedCreatePixmap = screen->CreatePixmap;
 	screen->CreatePixmap = radeon_glamor_create_pixmap;
+	info->glamor.SavedDestroyPixmap = screen->DestroyPixmap;
 	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;
 #ifdef RADEON_PIXMAP_SHARING
+	info->glamor.SavedSharePixmapBacking = screen->SharePixmapBacking;
 	screen->SharePixmapBacking = radeon_glamor_share_pixmap_backing;
+	info->glamor.SavedSetSharedPixmapBacking = screen->SetSharedPixmapBacking;
 	screen->SetSharedPixmapBacking = radeon_glamor_set_shared_pixmap_backing;
 #endif
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
 		   "Use GLAMOR acceleration.\n");
 	return TRUE;
+}
+
+void
+radeon_glamor_fini(ScreenPtr screen)
+{
+	RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
+
+	if (!info->use_glamor)
+		return;
+
+	screen->CreatePixmap = info->glamor.SavedCreatePixmap;
+	screen->DestroyPixmap = info->glamor.SavedDestroyPixmap;
+#ifdef RADEON_PIXMAP_SHARING
+	screen->SharePixmapBacking = info->glamor.SavedSharePixmapBacking;
+	screen->SetSharedPixmapBacking = info->glamor.SavedSetSharedPixmapBacking;
+#endif
 }
 
 XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt)

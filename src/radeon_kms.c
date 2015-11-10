@@ -1490,6 +1490,8 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
     if (info->dri2.enabled)
 	radeon_dri2_close_screen(pScreen);
 
+    radeon_glamor_fini(pScreen);
+
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
     pScreen->BlockHandler = info->BlockHandler;

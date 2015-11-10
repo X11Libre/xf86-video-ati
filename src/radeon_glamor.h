@@ -64,6 +64,7 @@ struct radeon_pixmap;
 
 Bool radeon_glamor_pre_init(ScrnInfoPtr scrn);
 Bool radeon_glamor_init(ScreenPtr screen);
+void radeon_glamor_fini(ScreenPtr screen);
 void radeon_glamor_screen_init(ScreenPtr screen);
 Bool radeon_glamor_create_screen_resources(ScreenPtr screen);
 void radeon_glamor_free_screen(int scrnIndex, int flags);
@@ -77,6 +78,7 @@ XF86VideoAdaptorPtr radeon_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
 
 static inline Bool radeon_glamor_pre_init(ScrnInfoPtr scrn) { return FALSE; }
 static inline Bool radeon_glamor_init(ScreenPtr screen) { return FALSE; }
+static inline void radeon_glamor_fini(ScreenPtr screen) { }
 static inline Bool radeon_glamor_create_screen_resources(ScreenPtr screen) { return FALSE; }
 static inline void radeon_glamor_free_screen(int scrnIndex, int flags) { }
 
