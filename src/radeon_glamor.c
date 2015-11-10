@@ -252,6 +252,12 @@ fallback_pixmap:
 
 static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 {
+#ifndef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
+	ScreenPtr screen = pixmap->drawable.pScreen;
+	RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
+	Bool ret;
+#endif
+
 	if (pixmap->refcnt == 1) {
 		if (pixmap->devPrivate.ptr) {
 			struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
@@ -260,11 +266,23 @@ static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 				radeon_bo_unmap(bo);
 		}
 
+#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
 		glamor_egl_destroy_textured_pixmap(pixmap);
+#endif
 		radeon_set_pixmap_bo(pixmap, NULL);
 	}
+
+#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
 	fbDestroyPixmap(pixmap);
 	return TRUE;
+#else
+	screen->DestroyPixmap = info->glamor.SavedDestroyPixmap;
+	ret = screen->DestroyPixmap(pixmap);
+	info->glamor.SavedDestroyPixmap = screen->DestroyPixmap;
+	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;
+
+	return ret;
+#endif
 }
 
 #ifdef RADEON_PIXMAP_SHARING

@@ -119,6 +119,12 @@ if test "x$GLAMOR" != "xno"; then
 					 [Have glamor_glyphs_init API])], [],
 			      [#include "xorg-server.h"
 			       #include "glamor.h"])
+
+		AC_CHECK_DECL(glamor_egl_destroy_textured_pixmap,
+			      [AC_DEFINE(HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP, 1,
+					 [Have glamor_egl_destroy_textured_pixmap API])], [],
+			      [#include "xorg-server.h"
+			       #include "glamor.h"])
 	fi
 
 	if test "x$GLAMOR_XSERVER" != xyes; then
