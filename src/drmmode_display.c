@@ -626,7 +626,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int saved_x, saved_y;
 	Rotation saved_rotation;
 	DisplayModeRec saved_mode;
-	uint32_t *output_ids;
+	uint32_t *output_ids = NULL;
 	int output_count = 0;
 	Bool ret = TRUE;
 	int i;
@@ -672,15 +672,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		crtc->y = y;
 		crtc->rotation = rotation;
 		crtc->transformPresent = FALSE;
-	}
 
-	output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
-	if (!output_ids) {
-		ret = FALSE;
-		goto done;
-	}
+		output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
+		if (!output_ids) {
+			ret = FALSE;
+			goto done;
+		}
 
-	if (mode) {
 		ScreenPtr pScreen = pScrn->pScreen;
 
 		for (i = 0; i < xf86_config->num_output; i++) {
@@ -792,6 +790,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		xf86_reload_cursors(pScrn->pScreen);
 
 done:
+	free(output_ids);
 	if (!ret) {
 		crtc->x = saved_x;
 		crtc->y = saved_y;
