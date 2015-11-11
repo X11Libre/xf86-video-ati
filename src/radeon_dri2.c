@@ -641,9 +641,9 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 	if (priv->crtc && priv->crtc != crtc) {
 	    CARD64 ust, mscold, mscnew;
 
-	    radeon_dri2_get_crtc_msc(priv->crtc, &ust, &mscold);
-	    radeon_dri2_get_crtc_msc(crtc, &ust, &mscnew);
-	    priv->vblank_delta += mscold - mscnew;
+	    if (radeon_dri2_get_crtc_msc(priv->crtc, &ust, &mscold) &&
+		radeon_dri2_get_crtc_msc(crtc, &ust, &mscnew))
+		priv->vblank_delta += mscold - mscnew;
 	}
 
 	priv->crtc = crtc;
