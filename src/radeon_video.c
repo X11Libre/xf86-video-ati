@@ -145,7 +145,7 @@ void RADEONInitVideo(ScreenPtr pScreen)
 	    return;
 
     num_adaptors = xf86XVListGenericAdaptors(pScrn, &adaptors);
-    newAdaptors = malloc((num_adaptors + 2) * sizeof(XF86VideoAdaptorPtr *));
+    newAdaptors = malloc((num_adaptors + 2) * sizeof(*newAdaptors));
     if (newAdaptors == NULL)
 	return;
 
