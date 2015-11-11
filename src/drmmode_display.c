@@ -555,8 +555,12 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 			   pScrn->bitsPerPixel, rotate_pitch,
 			   scanout->bo->handle,
 			   &scanout->fb_id);
-	if (ret)
+	if (ret) {
 		ErrorF("failed to add scanout fb\n");
+		radeon_bo_unref(scanout->bo);
+		scanout->bo = NULL;
+		return NULL;
+	}
 
 	scanout->width = width;
 	scanout->height = height;
