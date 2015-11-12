@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-ati],
-        [7.5.99],
+        [7.6.0],
         [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
         [xf86-video-ati])
 
