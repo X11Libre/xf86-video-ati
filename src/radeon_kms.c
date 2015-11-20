@@ -1017,18 +1017,17 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
     int ret;
 
     pScrn->capabilities = 0;
+
+    /* PRIME offloading requires acceleration */
+    if (info->r600_shadow_fb)
+	return;
+
     ret = drmGetCap(info->dri2.drm_fd, DRM_CAP_PRIME, &value);
     if (ret == 0) {
-	if (value & DRM_PRIME_CAP_EXPORT) {
-	    pScrn->capabilities |= RR_Capability_SourceOutput;
-	    if (!info->r600_shadow_fb && info->dri2.available)
-		pScrn->capabilities |= RR_Capability_SinkOffload;
-	}
-	if (value & DRM_PRIME_CAP_IMPORT) {
-	    pScrn->capabilities |= RR_Capability_SinkOutput;
-	    if (!info->r600_shadow_fb && info->dri2.available)
-		pScrn->capabilities |= RR_Capability_SourceOffload;
-	}
+	if (value & DRM_PRIME_CAP_EXPORT)
+	    pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
+	if (value & DRM_PRIME_CAP_IMPORT)
+	    pScrn->capabilities |= RR_Capability_SinkOutput | RR_Capability_SourceOffload;
     }
 #endif
 }
