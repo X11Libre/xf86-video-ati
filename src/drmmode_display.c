@@ -40,6 +40,10 @@
 #include "radeon_glamor.h"
 #include "radeon_reg.h"
 
+#ifdef RADEON_PIXMAP_SHARING
+#include <dri.h>
+#endif
+
 #include "drmmode_display.h"
 
 /* DPMS */
@@ -2070,6 +2074,9 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	int i, num_dvi = 0, num_hdmi = 0;
 	drmModeResPtr mode_res;
 	unsigned int crtcs_needed = 0;
+#ifdef RADEON_PIXMAP_SHARING
+	char *bus_id_string, *provider_name;
+#endif
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 
@@ -2112,7 +2119,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode_clones_init(pScrn, drmmode, mode_res);
 
 #ifdef RADEON_PIXMAP_SHARING
-	xf86ProviderSetup(pScrn, NULL, "radeon");
+	bus_id_string = DRICreatePCIBusID(info->PciInfo);
+	XNFasprintf(&provider_name, "%s @ %s", pScrn->chipset, bus_id_string);
+	free(bus_id_string);
+	xf86ProviderSetup(pScrn, NULL, provider_name);
+	free(provider_name);
 #endif
 
 	xf86InitialConfiguration(pScrn, TRUE);
