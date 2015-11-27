@@ -789,11 +789,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		fb_id = drmmode->fb_id;
 #ifdef RADEON_PIXMAP_SHARING
 		if (crtc->randr_crtc && crtc->randr_crtc->scanout_pixmap) {
-			x = drmmode_crtc->prime_pixmap_x;
-			y = 0;
-
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
+			fb_id = drmmode_crtc->scanout[0].fb_id;
+			x = y = 0;
 		} else
 #endif
 		if (drmmode_crtc->rotate.fb_id) {
@@ -802,11 +799,12 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
-		} else if (info->tear_free ||
+		} else if (!pScreen->isGPU &&
+			   (info->tear_free ||
 #if XF86_CRTC_VERSION >= 4
-			   crtc->driverIsPerformingTransform ||
+			    crtc->driverIsPerformingTransform ||
 #endif
-			   info->shadow_primary) {
+			    info->shadow_primary)) {
 			for (i = 0; i < (info->tear_free ? 2 : 1); i++) {
 				drmmode_crtc_scanout_create(crtc,
 							    &drmmode_crtc->scanout[i],
@@ -1118,61 +1116,30 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
 static Bool
 drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 {
-	ScreenPtr screen = xf86ScrnToScreen(crtc->scrn);
-	PixmapPtr screenpix = screen->GetScreenPixmap(screen);
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	int c, total_width = 0, max_height = 0, this_x = 0;
 
 	if (!ppix) {
 		if (crtc->randr_crtc->scanout_pixmap)
-			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap, screenpix);
-		drmmode_crtc->prime_pixmap_x = 0;
+			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap,
+						drmmode_crtc->scanout[0].pixmap);
+		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+					     &drmmode_crtc->scanout[0]);
 		return TRUE;
 	}
 
-	/* iterate over all the attached crtcs -
-	   work out bounding box */
-	for (c = 0; c < xf86_config->num_crtc; c++) {
-		xf86CrtcPtr iter = xf86_config->crtc[c];
-		if (!iter->enabled && iter != crtc)
-			continue;
-		if (iter == crtc) {
-			this_x = total_width;
-			total_width += ppix->drawable.width;
-			if (max_height < ppix->drawable.height)
-				max_height = ppix->drawable.height;
-		} else {
-			total_width += iter->mode.HDisplay;
-			if (max_height < iter->mode.VDisplay)
-				max_height = iter->mode.VDisplay;
-		}
-#if !defined(HAS_DIRTYTRACKING_ROTATION) && !defined(HAS_DIRTYTRACKING2)
-		if (iter != crtc) {
-			ErrorF("Cannot do multiple crtcs without X server dirty tracking 2 interface\n");
-			return FALSE;
-		}
-#endif
-	}
+	if (!drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[0],
+					 ppix->drawable.width,
+					 ppix->drawable.height))
+		return FALSE;
 
-	if (total_width != screenpix->drawable.width ||
-	    max_height != screenpix->drawable.height) {
-		Bool ret;
-		ret = drmmode_xf86crtc_resize(crtc->scrn, total_width, max_height);
-		if (ret == FALSE)
-			return FALSE;
-
-		screenpix = screen->GetScreenPixmap(screen);
-		screen->width = screenpix->drawable.width = total_width;
-		screen->height = screenpix->drawable.height = max_height;
-	}
-	drmmode_crtc->prime_pixmap_x = this_x;
 #ifdef HAS_DIRTYTRACKING_ROTATION
-	PixmapStartDirtyTracking(ppix, screenpix, 0, 0, this_x, 0, RR_Rotate_0);
+	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[0].pixmap,
+				 0, 0, 0, 0, RR_Rotate_0);
 #elif defined(HAS_DIRTYTRACKING2)
-	PixmapStartDirtyTracking2(ppix, screenpix, 0, 0, this_x, 0);
+	PixmapStartDirtyTracking2(ppix, drmmode_crtc->scanout[0].pixmap,
+				  0, 0, 0, 0);
 #else
-	PixmapStartDirtyTracking(ppix, screenpix, 0, 0);
+	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[0].pixmap, 0, 0);
 #endif
 	return TRUE;
 }
