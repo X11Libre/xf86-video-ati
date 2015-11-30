@@ -382,23 +382,76 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 }
 
 #ifdef RADEON_PIXMAP_SHARING
+static RegionPtr
+dirty_region(PixmapDirtyUpdatePtr dirty)
+{
+	RegionPtr damageregion = DamageRegion(dirty->damage);
+	RegionPtr dstregion;
+
+#ifdef HAS_DIRTYTRACKING_ROTATION
+	if (dirty->rotation != RR_Rotate_0) {
+		BoxPtr boxes = RegionRects(damageregion);
+		int nboxes = RegionNumRects(damageregion);
+		xRectanglePtr rects = malloc(nboxes * sizeof(*rects));
+		int dst_w = dirty->slave_dst->drawable.width;
+		int dst_h = dirty->slave_dst->drawable.height;
+		int nrects = 0;
+		BoxRec box;
+		int i;
+
+		for (i = 0; i < nboxes; i++) {
+			box.x1 = boxes[i].x1;
+			box.x2 = boxes[i].x2;
+			box.y1 = boxes[i].y1;
+			box.y2 = boxes[i].y2;
+			pixman_f_transform_bounds(&dirty->f_inverse, &box);
+
+			box.x1 = max(box.x1, 0);
+			box.y1 = max(box.y1, 0);
+			box.x2 = min(box.x2, dst_w);
+			box.y2 = min(box.y2, dst_h);
+			if (box.x1 >= box.x2 || box.y1 >= box.y2)
+				continue;
+
+			rects[nrects].x = box.x1;
+			rects[nrects].y = box.y1;
+			rects[nrects].width = box.x2 - box.x1;
+			rects[nrects].height = box.y2 - box.y1;
+			nrects++;
+		}
+		dstregion = RegionFromRects(nrects, rects, CT_UNSORTED);
+	} else
+#endif
+	{
+	    RegionRec pixregion;
+
+	    dstregion = RegionDuplicate(damageregion);
+	    RegionTranslate(dstregion, -dirty->x, -dirty->y);
+	    PixmapRegionInit(&pixregion, dirty->slave_dst);
+	    RegionIntersect(dstregion, dstregion, &pixregion);
+	    RegionUninit(&pixregion);
+	}
+
+	return dstregion;
+}
+
 static void
-redisplay_dirty(PixmapDirtyUpdatePtr dirty)
+redisplay_dirty(PixmapDirtyUpdatePtr dirty, RegionPtr region)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(dirty->src->drawable.pScreen);
-	RegionRec pixregion;
 
-	PixmapRegionInit(&pixregion, dirty->slave_dst);
-	DamageRegionAppend(&dirty->slave_dst->drawable, &pixregion);
+	if (dirty->slave_dst->master_pixmap)
+	    DamageRegionAppend(&dirty->slave_dst->drawable, region);
+
 #ifdef HAS_DIRTYTRACKING_ROTATION
 	PixmapSyncDirtyHelper(dirty);
 #else
-	PixmapSyncDirtyHelper(dirty, &pixregion);
+	PixmapSyncDirtyHelper(dirty, region);
 #endif
 
 	radeon_cs_flush_indirect(pScrn);
-	DamageRegionProcessPending(&dirty->slave_dst->drawable);
-	RegionUninit(&pixregion);
+	if (dirty->slave_dst->master_pixmap)
+	    DamageRegionProcessPending(&dirty->slave_dst->drawable);
 
 	DamageEmpty(dirty->damage);
 }
@@ -424,7 +477,10 @@ radeon_prime_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t u
     xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
 	if (dirty->src == scanoutpix &&
 	    dirty->slave_dst == drmmode_crtc->scanout[0].pixmap) {
-	    redisplay_dirty(dirty);
+	    RegionPtr region = dirty_region(dirty);
+
+	    redisplay_dirty(dirty, region);
+	    RegionDestroy(region);
 	    break;
 	}
     }
@@ -488,20 +544,24 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 static void
 radeon_dirty_update(ScreenPtr screen)
 {
-	RegionPtr region;
 	PixmapDirtyUpdatePtr ent;
 
 	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
 		return;
 
 	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
-		region = DamageRegion(ent->damage);
+		RegionPtr region = dirty_region(ent);
+
 		if (RegionNotEmpty(region)) {
 			if (screen->isGPU)
 				radeon_prime_scanout_update(ent);
 			else
-				redisplay_dirty(ent);
+				redisplay_dirty(ent, region);
+		} else {
+			DamageEmpty(ent->damage);
 		}
+
+		RegionDestroy(region);
 	}
 }
 #endif
