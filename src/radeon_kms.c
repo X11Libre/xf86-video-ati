@@ -440,6 +440,9 @@ redisplay_dirty(PixmapDirtyUpdatePtr dirty, RegionPtr region)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(dirty->src->drawable.pScreen);
 
+	if (RegionNil(region))
+		goto out;
+
 	if (dirty->slave_dst->master_pixmap)
 	    DamageRegionAppend(&dirty->slave_dst->drawable, region);
 
@@ -453,6 +456,7 @@ redisplay_dirty(PixmapDirtyUpdatePtr dirty, RegionPtr region)
 	if (dirty->slave_dst->master_pixmap)
 	    DamageRegionProcessPending(&dirty->slave_dst->drawable);
 
+out:
 	DamageEmpty(dirty->damage);
 }
 
@@ -462,6 +466,39 @@ radeon_prime_scanout_update_abort(xf86CrtcPtr crtc, void *event_data)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
     drmmode_crtc->scanout_update_pending = FALSE;
+}
+
+void
+radeon_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
+{
+    ScreenPtr master_screen = dirty->src->master_pixmap->drawable.pScreen;
+    PixmapDirtyUpdatePtr ent;
+    RegionPtr region;
+
+    xorg_list_for_each_entry(ent, &master_screen->pixmap_dirty_list, ent) {
+	if (ent->slave_dst != dirty->src)
+	    continue;
+
+	region = dirty_region(ent);
+	redisplay_dirty(ent, region);
+	RegionDestroy(region);
+    }
+}
+
+static Bool
+master_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
+{
+    ScrnInfoPtr master_scrn = xf86ScreenToScrn(dirty->src->master_pixmap->drawable.pScreen);
+
+    return master_scrn->driverName == scrn->driverName;
+}
+
+static Bool
+slave_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
+{
+    ScrnInfoPtr slave_scrn = xf86ScreenToScrn(dirty->slave_dst->drawable.pScreen);
+
+    return slave_scrn->driverName == scrn->driverName;
 }
 
 void
@@ -477,8 +514,12 @@ radeon_prime_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t u
     xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
 	if (dirty->src == scanoutpix &&
 	    dirty->slave_dst == drmmode_crtc->scanout[0].pixmap) {
-	    RegionPtr region = dirty_region(dirty);
+	    RegionPtr region;
 
+	    if (master_has_sync_shared_pixmap(scrn, dirty))
+		radeon_sync_shared_pixmap(dirty);
+
+	    region = dirty_region(dirty);
 	    redisplay_dirty(dirty, region);
 	    RegionDestroy(region);
 	    break;
@@ -542,26 +583,41 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 }
 
 static void
-radeon_dirty_update(ScreenPtr screen)
+radeon_dirty_update(ScrnInfoPtr scrn)
 {
+	ScreenPtr screen = scrn->pScreen;
 	PixmapDirtyUpdatePtr ent;
-
-	if (xorg_list_is_empty(&screen->pixmap_dirty_list))
-		return;
+	RegionPtr region;
 
 	xorg_list_for_each_entry(ent, &screen->pixmap_dirty_list, ent) {
-		RegionPtr region = dirty_region(ent);
+		if (screen->isGPU) {
+			PixmapDirtyUpdatePtr region_ent = ent;
 
-		if (RegionNotEmpty(region)) {
-			if (screen->isGPU)
+			if (master_has_sync_shared_pixmap(scrn, ent)) {
+				ScreenPtr master_screen = ent->src->master_pixmap->drawable.pScreen;
+
+				xorg_list_for_each_entry(region_ent, &master_screen->pixmap_dirty_list, ent) {
+					if (region_ent->slave_dst == ent->src)
+						break;
+				}
+			}
+
+			region = dirty_region(region_ent);
+
+			if (RegionNotEmpty(region))
 				radeon_prime_scanout_update(ent);
 			else
-				redisplay_dirty(ent, region);
-		} else {
-			DamageEmpty(ent->damage);
-		}
+				DamageEmpty(region_ent->damage);
 
-		RegionDestroy(region);
+			RegionDestroy(region);
+		} else {
+			if (slave_has_sync_shared_pixmap(scrn, ent))
+				continue;
+
+			region = dirty_region(ent);
+			redisplay_dirty(ent, region);
+			RegionDestroy(region);
+		}
 	}
 }
 #endif
@@ -861,7 +917,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     radeon_cs_flush_indirect(pScrn);
 
 #ifdef RADEON_PIXMAP_SHARING
-    radeon_dirty_update(pScreen);
+    radeon_dirty_update(pScrn);
 #endif
 }
 
