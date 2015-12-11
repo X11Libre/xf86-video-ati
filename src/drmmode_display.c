@@ -952,7 +952,7 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 			if (max_height < iter->mode.VDisplay)
 				max_height = iter->mode.VDisplay;
 		}
-#ifndef HAS_DIRTYTRACKING2
+#if !defined(HAS_DIRTYTRACKING_ROTATION) && !defined(HAS_DIRTYTRACKING2)
 		if (iter != crtc) {
 			ErrorF("Cannot do multiple crtcs without X server dirty tracking 2 interface\n");
 			return FALSE;
