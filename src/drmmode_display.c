@@ -617,6 +617,34 @@ radeon_screen_damage_report(DamagePtr damage, RegionPtr region, void *closure)
 	damage->damage.data = NULL;
 }
 
+#if XF86_CRTC_VERSION >= 4
+
+static Bool
+drmmode_handle_transform(xf86CrtcPtr crtc)
+{
+	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+	Bool ret;
+
+	crtc->driverIsPerformingTransform = info->tear_free &&
+		!crtc->transformPresent && crtc->rotation != RR_Rotate_0;
+
+	ret = xf86CrtcRotate(crtc);
+
+	crtc->driverIsPerformingTransform &= ret && crtc->transform_in_use;
+
+	return ret;
+}
+
+#else
+
+static Bool
+drmmode_handle_transform(xf86CrtcPtr crtc)
+{
+	return xf86CrtcRotate(crtc);
+}
+
+#endif
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
@@ -694,9 +722,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			output_count++;
 		}
 
-		if (!xf86CrtcRotate(crtc)) {
+		if (!drmmode_handle_transform(crtc))
 			goto done;
-		}
+
 		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
 				       crtc->gamma_blue, crtc->gamma_size);
 
@@ -718,7 +746,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
-		} else if (info->tear_free || info->shadow_primary) {
+		} else if (info->tear_free || info->shadow_primary ||
+			   crtc->driverIsPerformingTransform) {
 			for (i = 0; i < (info->tear_free ? 2 : 1); i++) {
 				drmmode_crtc_scanout_create(crtc,
 							    &drmmode_crtc->scanout[i],
@@ -744,8 +773,17 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 					pBox = RegionExtents(pRegion);
 					pBox->x1 = min(pBox->x1, x);
 					pBox->y1 = min(pBox->y1, y);
-					pBox->x2 = max(pBox->x2, x + mode->HDisplay);
-					pBox->y2 = max(pBox->y2, y + mode->VDisplay);
+
+					switch (crtc->rotation & 0xf) {
+					case RR_Rotate_90:
+					case RR_Rotate_270:
+						pBox->x2 = max(pBox->x2, x + mode->VDisplay);
+						pBox->y2 = max(pBox->y2, y + mode->HDisplay);
+						break;
+					default:
+						pBox->x2 = max(pBox->x2, x + mode->HDisplay);
+						pBox->y2 = max(pBox->y2, y + mode->VDisplay);
+					}
 				}
 			}
 
@@ -821,8 +859,51 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
+#if XF86_CRTC_VERSION >= 4
+	if (crtc->driverIsPerformingTransform) {
+		x += crtc->x;
+		y += crtc->y;
+		xf86CrtcTransformCursorPos(crtc, &x, &y);
+	}
+#endif
+
 	drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
+
+#if XF86_CRTC_VERSION >= 4
+
+static int
+drmmode_cursor_src_offset(Rotation rotation, int width, int height,
+			  int x_dst, int y_dst)
+{
+	int t;
+
+	switch (rotation & 0xf) {
+	case RR_Rotate_90:
+		t = x_dst;
+		x_dst = height - y_dst - 1;
+		y_dst = t;
+		break;
+	case RR_Rotate_180:
+		x_dst = width - x_dst - 1;
+		y_dst = height - y_dst - 1;
+		break;
+	case RR_Rotate_270:
+		t = x_dst;
+		x_dst = y_dst;
+		y_dst = width - t - 1;
+		break;
+	}
+
+	if (rotation & RR_Reflect_X)
+		x_dst = width - x_dst - 1;
+	if (rotation & RR_Reflect_Y)
+		y_dst = height - y_dst - 1;
+
+	return y_dst * height + x_dst;
+}
+
+#endif
 
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
@@ -830,15 +911,37 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	int i;
 	uint32_t *ptr;
-	uint32_t cursor_size = info->cursor_w * info->cursor_h;
 
 	/* cursor should be mapped already */
 	ptr = (uint32_t *)(drmmode_crtc->cursor_bo->ptr);
 
-	for (i = 0; i < cursor_size; i++)
-		ptr[i] = cpu_to_le32(image[i]);
+#if XF86_CRTC_VERSION >= 4
+	if (crtc->driverIsPerformingTransform) {
+		uint32_t cursor_w = info->cursor_w, cursor_h = info->cursor_h;
+		int dstx, dsty;
+		int srcoffset;
+
+		for (dsty = 0; dsty < cursor_h; dsty++) {
+			for (dstx = 0; dstx < cursor_w; dstx++) {
+				srcoffset = drmmode_cursor_src_offset(crtc->rotation,
+								      cursor_w,
+								      cursor_h,
+								      dstx, dsty);
+
+				ptr[dsty * info->cursor_w + dstx] =
+					cpu_to_le32(image[srcoffset]);
+			}
+		}
+	} else
+#endif
+	{
+		uint32_t cursor_size = info->cursor_w * info->cursor_h;
+		int i;
+
+		for (i = 0; i < cursor_size; i++)
+			ptr[i] = cpu_to_le32(image[i]);
+	}
 }
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
@@ -847,6 +950,13 @@ static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 {
 	/* Fall back to SW cursor if the CRTC is transformed */
 	if (crtc->transformPresent)
+		return FALSE;
+
+	/* Xorg doesn't correctly handle cursor position transform in the
+	 * rotation case
+	 */
+	if (crtc->driverIsPerformingTransform &&
+	    (crtc->rotation & 0xf) != RR_Rotate_0)
 		return FALSE;
 
 	drmmode_load_cursor_argb(crtc, image);
@@ -2276,8 +2386,8 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 			crtc->rotation = crtc->desiredRotation;
 			crtc->x = crtc->desiredX;
 			crtc->y = crtc->desiredY;
-			if (!xf86CrtcRotate(crtc))
-			    return FALSE;
+			if (!drmmode_handle_transform(crtc))
+				return FALSE;
 		}
 	}
 	return TRUE;
