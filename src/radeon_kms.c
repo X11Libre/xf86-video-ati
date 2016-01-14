@@ -241,6 +241,7 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
+    rrScrPrivPtr rrScrPriv = rrGetScrPriv(pScreen);
     PixmapPtr pixmap;
     struct radeon_surface *surface;
 
@@ -248,6 +249,20 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     if (!(*pScreen->CreateScreenResources)(pScreen))
 	return FALSE;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;
+
+    /* Set the RandR primary output if Xorg hasn't */
+    if (
+#ifdef RADEON_PIXMAP_SHARING
+	!pScreen->isGPU &&
+#endif
+	!rrScrPriv->primaryOutput)
+    {
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+
+	rrScrPriv->primaryOutput = xf86_config->output[0]->randr_output;
+	RROutputChanged(rrScrPriv->primaryOutput, FALSE);
+	rrScrPriv->layoutChanged = TRUE;
+    }
 
     if (!drmmode_set_desired_modes(pScrn, &info->drmmode, FALSE))
 	return FALSE;
