@@ -1981,7 +1981,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                                         base_align,
                                         info->shadow_primary ?
                                         RADEON_GEM_DOMAIN_GTT :
-                                        RADEON_GEM_DOMAIN_VRAM, 0);
+                                        RADEON_GEM_DOMAIN_VRAM,
+                                        tiling_flags ? RADEON_GEM_NO_CPU_ACCESS : 0);
         if (info->r600_shadow_fb == TRUE) {
             if (radeon_bo_map(info->front_bo, 1)) {
                 ErrorF("Failed to map cursor buffer memory\n");

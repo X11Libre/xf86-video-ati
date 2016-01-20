@@ -66,6 +66,10 @@
 #include "xf86drm.h"
 #include "radeon_drm.h"
 
+#ifndef RADEON_GEM_NO_CPU_ACCESS
+#define RADEON_GEM_NO_CPU_ACCESS	(1 << 4)
+#endif
+
 #ifdef DAMAGE
 #include "damage.h"
 #include "globals.h"

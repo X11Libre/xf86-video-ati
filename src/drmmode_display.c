@@ -549,7 +549,8 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 	size = RADEON_ALIGN(rotate_pitch * aligned_height, RADEON_GPU_PAGE_SIZE);
 
 	scanout->bo = radeon_bo_open(drmmode->bufmgr, 0, size, base_align,
-				     RADEON_GEM_DOMAIN_VRAM, 0);
+				     RADEON_GEM_DOMAIN_VRAM,
+				     RADEON_GEM_NO_CPU_ACCESS);
 	if (scanout->bo == NULL)
 		return NULL;
 
@@ -1917,7 +1918,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, base_align,
 					info->shadow_primary ?
 					RADEON_GEM_DOMAIN_GTT :
-					RADEON_GEM_DOMAIN_VRAM, 0);
+					RADEON_GEM_DOMAIN_VRAM,
+					tiling_flags ? RADEON_GEM_NO_CPU_ACCESS : 0);
 	if (!info->front_bo)
 		goto fail;
 
