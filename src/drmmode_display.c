@@ -622,6 +622,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	ScreenPtr pScreen = pScrn->pScreen;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -680,8 +681,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			ret = FALSE;
 			goto done;
 		}
-
-		ScreenPtr pScreen = pScrn->pScreen;
 
 		for (i = 0; i < xf86_config->num_output; i++) {
 			xf86OutputPtr output = xf86_config->output[i];
@@ -777,8 +776,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		} else
 			ret = TRUE;
 
-		if (crtc->scrn->pScreen)
-			xf86CrtcSetScreenSubpixelOrder(crtc->scrn->pScreen);
+		if (pScreen)
+			xf86CrtcSetScreenSubpixelOrder(pScreen);
 
 		drmmode_crtc->need_modeset = FALSE;
 
@@ -793,9 +792,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 	}
 
-	if (pScrn->pScreen &&
-		!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
-		xf86_reload_cursors(pScrn->pScreen);
+	if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
+		xf86_reload_cursors(pScreen);
 
 done:
 	if (!ret) {
