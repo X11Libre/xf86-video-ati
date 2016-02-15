@@ -1063,6 +1063,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	drmmode_crtc = xnfcalloc(sizeof(drmmode_crtc_private_rec), 1);
 	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
+	drmmode_crtc->dpms_mode = DPMSModeOff;
 	crtc->driver_private = drmmode_crtc;
 	drmmode_crtc_hw_id(crtc);
 
