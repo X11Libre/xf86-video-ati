@@ -262,7 +262,9 @@ fallback_glamor:
 	 */
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "Failed to create textured DRI2/PRIME pixmap.");
-		return pixmap;
+
+		radeon_glamor_destroy_pixmap(pixmap);
+		return NullPixmap;
 	}
 	/* Create textured pixmap failed means glamor failed to
 	 * create a texture from current BO for some reasons. We turn
