@@ -142,6 +142,7 @@ typedef struct
 #ifdef XSERVER_PLATFORM_BUS
     struct xf86_platform_device *platform_dev;
 #endif
+    char *render_node;
 } RADEONEntRec, *RADEONEntPtr;
 
 extern const OptionInfoRec *RADEONOptionsWeak(void);

@@ -39,9 +39,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-
-static int
-radeon_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
+static int open_master_node(ScreenPtr screen, int *out)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	RADEONInfoPtr info = RADEONPTR(scrn);
@@ -84,6 +82,36 @@ radeon_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
 
 	*out = fd;
 	return Success;
+}
+
+static int open_render_node(ScreenPtr screen, int *out)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	int fd;
+
+	fd = open(pRADEONEnt->render_node, O_RDWR | O_CLOEXEC);
+	if (fd < 0)
+		return BadAlloc;
+
+	*out = fd;
+	return Success;
+}
+
+static int
+radeon_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	int ret = BadAlloc;
+
+	if (pRADEONEnt->render_node)
+		ret = open_render_node(screen, out);
+
+	if (ret != Success)
+		ret = open_master_node(screen, out);
+
+	return ret;
 }
 
 static PixmapPtr radeon_dri3_pixmap_from_fd(ScreenPtr screen,
@@ -190,6 +218,9 @@ Bool
 radeon_dri3_screen_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+
+	pRADEONEnt->render_node = drmGetRenderDeviceNameFromFd(pRADEONEnt->fd);
 
 	if (!dri3_screen_init(screen, &radeon_dri3_screen_info)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
