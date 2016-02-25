@@ -64,8 +64,12 @@ radeon_drm_queue_handler(int fd, unsigned int frame, unsigned int sec,
 	xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
 		if (e == user_data) {
 			xorg_list_del(&e->list);
-			e->handler(e->scrn, frame,
-				   (uint64_t)sec * 1000000 + usec, e->data);
+			if (e->handler)
+				e->handler(e->scrn, frame,
+					   (uint64_t)sec * 1000000 + usec,
+					   e->data);
+			else
+				e->abort(e->scrn, e->data);
 			free(e);
 			break;
 		}
@@ -115,15 +119,19 @@ radeon_drm_abort_one(struct radeon_drm_queue_entry *e)
 
 /*
  * Abort drm queue entries for a client
+ *
+ * NOTE: This keeps the entries in the list until the DRM event arrives,
+ * but then it calls the abort functions instead of the handler
+ * functions.
  */
 void
 radeon_drm_abort_client(ClientPtr client)
 {
-    struct radeon_drm_queue_entry *e, *tmp;
+    struct radeon_drm_queue_entry *e;
 
-    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
+    xorg_list_for_each_entry(e, &radeon_drm_queue, list) {
 	if (e->client == client)
-	    radeon_drm_abort_one(e);
+	    e->handler = NULL;
     }
 }
 
