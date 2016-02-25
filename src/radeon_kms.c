@@ -486,12 +486,6 @@ radeon_scanout_flip_abort(ScrnInfoPtr scrn, void *event_data)
 }
 
 static void
-radeon_scanout_flip_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec, void *event_data)
-{
-    radeon_scanout_flip_abort(scrn, event_data);
-}
-
-static void
 radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 		    xf86CrtcPtr xf86_crtc)
 {
@@ -510,8 +504,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     scrn = xf86_crtc->scrn;
     drm_queue_entry = radeon_drm_queue_alloc(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					     RADEON_DRM_QUEUE_ID_DEFAULT,
-					     drmmode_crtc,
-					     radeon_scanout_flip_handler,
+					     drmmode_crtc, NULL,
 					     radeon_scanout_flip_abort);
     if (!drm_queue_entry) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
