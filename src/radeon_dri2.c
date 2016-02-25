@@ -647,6 +647,9 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 static void
 radeon_dri2_flip_event_abort(ScrnInfoPtr scrn, void *event_data)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
+
+    info->drmmode.dri2_flipping = FALSE;
     free(event_data);
 }
 
@@ -654,7 +657,6 @@ static void
 radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 			       void *event_data)
 {
-    RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr flip = event_data;
     unsigned tv_sec, tv_usec;
     DrawablePtr drawable;
@@ -698,7 +700,6 @@ radeon_dri2_flip_event_handler(ScrnInfoPtr scrn, uint32_t frame, uint64_t usec,
 	DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 			 DRI2_FLIP_COMPLETE, flip->event_complete,
 			 flip->event_data);
-	info->drmmode.dri2_flipping = FALSE;
 	break;
     default:
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "%s: unknown vblank event received\n", __func__);
