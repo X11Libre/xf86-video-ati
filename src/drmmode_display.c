@@ -760,6 +760,12 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				radeon_bo_wait(drmmode_crtc->scanout[0].bo);
 			}
 		}
+
+		/* Wait for any pending flip to finish */
+		do {} while (drmmode_crtc->flip_pending &&
+			     drmHandleEvent(drmmode->fd,
+					    &drmmode->event_context) > 0);
+
 		if (drmModeSetCrtc(drmmode->fd,
 				   drmmode_crtc->mode_crtc->crtc_id,
 				   fb_id, x, y, output_ids,
@@ -2024,6 +2030,7 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 static void
 drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_flipdata_ptr flipdata = event_data;
 
 	if (--flipdata->flip_count == 0) {
@@ -2032,11 +2039,14 @@ drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 		flipdata->abort(crtc, flipdata->event_data);
 		free(flipdata);
 	}
+
+	drmmode_crtc->flip_pending = FALSE;
 }
 
 static void
 drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *event_data)
 {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
 	drmmode_flipdata_ptr flipdata = event_data;
 
@@ -2059,6 +2069,8 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 
 		free(flipdata);
 	}
+
+	drmmode_crtc->flip_pending = FALSE;
 }
 
 
@@ -2582,6 +2594,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				   "flip queue failed: %s\n", strerror(errno));
 			goto error;
 		}
+		drmmode_crtc->flip_pending = TRUE;
 		drm_queue = NULL;
 	}
 

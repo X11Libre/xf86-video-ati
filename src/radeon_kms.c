@@ -483,6 +483,7 @@ radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
     drmmode_crtc->scanout_update_pending = FALSE;
+    drmmode_crtc->flip_pending = FALSE;
 }
 
 static void
@@ -523,6 +524,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 
     drmmode_crtc->scanout_id = scanout_id;
     drmmode_crtc->scanout_update_pending = TRUE;
+    drmmode_crtc->flip_pending = TRUE;
 }
 
 static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)

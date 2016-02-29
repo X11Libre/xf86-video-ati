@@ -95,8 +95,12 @@ typedef struct {
     uint16_t lut_r[256], lut_g[256], lut_b[256];
     int prime_pixmap_x;
 
-    /* Modeset needed for DPMS on */
+    /* Modeset needed (for DPMS on or after a page flip crossing with a
+     * modeset)
+     */
     Bool need_modeset;
+    /* A flip is pending for this CRTC */
+    Bool flip_pending;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
