@@ -547,6 +547,11 @@ typedef struct {
     int cursor_w;
     int cursor_h;
 
+    /* If bit n of this field is set, xf86_config->crtc[n] currently can't
+     * use the HW cursor
+     */
+    unsigned hwcursor_disabled;
+
 #ifdef USE_GLAMOR
     struct {
 	CreateGCProcPtr SavedCreateGC;

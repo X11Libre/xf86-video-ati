@@ -860,7 +860,20 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 	}
 
-	if (drmmode_can_use_hw_cursor(crtc))
+	/* Compute index of this CRTC into xf86_config->crtc */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		if (xf86_config->crtc[i] != crtc)
+			continue;
+
+		if (!crtc->enabled || drmmode_can_use_hw_cursor(crtc))
+			info->hwcursor_disabled &= ~(1 << i);
+		else
+			info->hwcursor_disabled |= 1 << i;
+
+		break;
+	}
+
+	if (!info->hwcursor_disabled)
 		xf86_reload_cursors(pScreen);
 
 done:

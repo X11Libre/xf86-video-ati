@@ -823,6 +823,7 @@ can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
 
     return draw->type == DRAWABLE_WINDOW &&
 	   info->allowPageFlip &&
+	   !info->hwcursor_disabled &&
 	   !info->drmmode.present_flipping &&
 	   pScrn->vtSema &&
 	   DRI2CanFlip(draw) &&

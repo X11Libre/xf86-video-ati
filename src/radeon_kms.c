@@ -1285,15 +1285,18 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "TearFree enabled\n");
 
     if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
+	Bool sw_cursor = xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE);
+
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP, TRUE);
 
-	if (info->tear_free || info->shadow_primary) {
+	if (sw_cursor || info->tear_free || info->shadow_primary) {
 	    xf86DrvMsg(pScrn->scrnIndex,
 		       info->allowPageFlip ? X_WARNING : X_DEFAULT,
 		       "KMS Pageflipping: disabled%s\n",
 		       info->allowPageFlip ?
-		       " because of ShadowPrimary/TearFree" : "");
+		       (sw_cursor ? " because of SWcursor" :
+			" because of ShadowPrimary/TearFree") : "");
 	    info->allowPageFlip = FALSE;
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
