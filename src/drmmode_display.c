@@ -620,6 +620,33 @@ radeon_screen_damage_report(DamagePtr damage, RegionPtr region, void *closure)
 	damage->damage.data = NULL;
 }
 
+static Bool
+drmmode_can_use_hw_cursor(xf86CrtcPtr crtc)
+{
+	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+
+	/* Check for Option "SWcursor" */
+	if (xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
+		return FALSE;
+
+	/* Fall back to SW cursor if the CRTC is transformed */
+	if (crtc->transformPresent)
+		return FALSE;
+
+	/* Xorg doesn't correctly handle cursor position transform in the
+	 * rotation case
+	 */
+	if (crtc->driverIsPerformingTransform &&
+	    (crtc->rotation & 0xf) != RR_Rotate_0)
+		return FALSE;
+
+	/* HW cursor not supported yet with RandR 1.4 multihead */
+	if (!xorg_list_is_empty(&crtc->scrn->pScreen->pixmap_dirty_list))
+		return FALSE;
+
+	return TRUE;
+}
+
 #if XF86_CRTC_VERSION >= 4
 
 static Bool
@@ -833,7 +860,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 	}
 
-	if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
+	if (drmmode_can_use_hw_cursor(crtc))
 		xf86_reload_cursors(pScreen);
 
 done:
@@ -951,15 +978,7 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 
 static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 {
-	/* Fall back to SW cursor if the CRTC is transformed */
-	if (crtc->transformPresent)
-		return FALSE;
-
-	/* Xorg doesn't correctly handle cursor position transform in the
-	 * rotation case
-	 */
-	if (crtc->driverIsPerformingTransform &&
-	    (crtc->rotation & 0xf) != RR_Rotate_0)
+	if (!drmmode_can_use_hw_cursor(crtc))
 		return FALSE;
 
 	drmmode_load_cursor_argb(crtc, image);
