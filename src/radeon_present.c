@@ -77,8 +77,7 @@ radeon_present_get_crtc(WindowPtr window)
 				 window->drawable.y,
 				 window->drawable.y + window->drawable.height);
 
-    /* Make sure the CRTC is valid and this is the real front buffer */
-    if (crtc != NULL && !crtc->rotatedData)
+    if (crtc)
 	randr_crtc = crtc->randr_crtc;
 
     return randr_crtc;
