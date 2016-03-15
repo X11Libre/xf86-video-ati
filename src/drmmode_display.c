@@ -2649,7 +2649,8 @@ void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			uint32_t new_front_handle, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
-			radeon_drm_abort_proc abort)
+			radeon_drm_abort_proc abort,
+			enum drmmode_flip_sync flip_sync)
 {
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
@@ -2659,6 +2660,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	unsigned int pitch;
 	int i;
 	uint32_t tiling_flags = 0;
+	uint32_t flip_flags = DRM_MODE_PAGE_FLIP_EVENT;
 	drmmode_flipdata_ptr flipdata;
 	uintptr_t drm_queue_seq = 0;
 
@@ -2705,6 +2707,9 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
         flipdata->handler = handler;
         flipdata->abort = abort;
 
+	if (flip_sync == FLIP_ASYNC)
+		flip_flags |= DRM_MODE_PAGE_FLIP_ASYNC;
+
 	for (i = 0; i < config->num_crtc; i++) {
 		crtc = config->crtc[i];
 
@@ -2731,7 +2736,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		}
 
 		if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-				    drmmode->fb_id, DRM_MODE_PAGE_FLIP_EVENT,
+				    drmmode->fb_id, flip_flags,
 				    (void*)drm_queue_seq)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));

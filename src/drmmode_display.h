@@ -125,6 +125,12 @@ typedef struct {
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 
+enum drmmode_flip_sync {
+    FLIP_VSYNC,
+    FLIP_ASYNC,
+};
+
+
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp);
 extern void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
 extern void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
@@ -151,7 +157,8 @@ extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			uint32_t new_front_handle, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
-			radeon_drm_abort_proc abort);
+			radeon_drm_abort_proc abort,
+			enum drmmode_flip_sync flip_sync);
 int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc);
 int drmmode_get_current_ust(int drm_fd, CARD64 *ust);
 
