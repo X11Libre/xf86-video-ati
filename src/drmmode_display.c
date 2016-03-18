@@ -873,8 +873,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		break;
 	}
 
+#ifndef HAVE_XF86_CURSOR_RESET_CURSOR
 	if (!info->hwcursor_disabled)
 		xf86_reload_cursors(pScreen);
+#endif
 
 done:
 	if (!ret) {

@@ -147,6 +147,12 @@ AC_CHECK_DECL(fbGlyphs,
 	       #include <glyphstr.h>
 	       #include <fbpict.h>])
 
+AC_CHECK_DECL(xf86CursorResetCursor,
+	      [AC_DEFINE(HAVE_XF86_CURSOR_RESET_CURSOR, 1,
+	      [Have xf86CursorResetCursor API])], [],
+	      [#include <xorg-server.h>
+	       #include <xf86Cursor.h>])
+
 AC_CHECK_DECL(xorg_list_init,
 	      [AC_DEFINE(HAVE_XORG_LIST, 1, [Have xorg_list API])], [],
 	      [#include <X11/Xdefs.h>
