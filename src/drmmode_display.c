@@ -37,6 +37,7 @@
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "radeon.h"
+#include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
 #include "radeon_reg.h"
 
@@ -95,13 +96,14 @@ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
-					  int pitch, int tiling,
+					  int pitch,
 					  struct radeon_bo *bo, struct radeon_surface *psurf)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
 	PixmapPtr pixmap;
 	struct radeon_surface *surface;
+	uint32_t tiling;
 
 	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth,
 					  RADEON_CREATE_PIXMAP_SCANOUT);
@@ -137,6 +139,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 			surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
 			surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
 			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
+			tiling = radeon_get_pixmap_tiling_flags(pixmap);
 			if (tiling & RADEON_TILING_MICRO) {
 				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
 				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
@@ -396,7 +399,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
 					  fbcon->depth, fbcon->bpp,
-					  fbcon->pitch, 0, bo, NULL);
+					  fbcon->pitch, bo, NULL);
 	info->fbcon_pixmap = pixmap;
 	radeon_bo_unref(bo);
 out_free_fb:
@@ -601,7 +604,7 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
 						 rotate_pitch,
-						 0, scanout->bo, NULL);
+						 scanout->bo, NULL);
 	if (scanout->pixmap == NULL)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate scanout pixmap for CRTC\n");
