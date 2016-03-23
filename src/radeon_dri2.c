@@ -70,17 +70,8 @@ struct dri2_window_priv {
     int vblank_delta;
 };
 
-#if HAS_DEVPRIVATEKEYREC
-
 static DevPrivateKeyRec dri2_window_private_key_rec;
 #define dri2_window_private_key (&dri2_window_private_key_rec)
-
-#else
-
-static int dri2_window_private_key_index;
-DevPrivateKey dri2_window_private_key = &dri2_window_private_key_index;
-
-#endif /* HAS_DEVPRIVATEKEYREC */
 
 #define get_dri2_window_priv(window) \
     ((struct dri2_window_priv*) \
@@ -1588,14 +1579,9 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
             driverNames[1] = NULL; /* no VDPAU support */
 
 	if (DRI2InfoCnt == 0) {
-#if HAS_DIXREGISTERPRIVATEKEY
 	    if (!dixRegisterPrivateKey(dri2_window_private_key,
 				       PRIVATE_WINDOW,
 				       sizeof(struct dri2_window_priv))) {
-#else
-	    if (!dixRequestPrivate(dri2_window_private_key,
-				   sizeof(struct dri2_window_priv))) {
-#endif
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "Failed to get DRI2 window private\n");
 		return FALSE;

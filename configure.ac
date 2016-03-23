@@ -75,7 +75,7 @@ PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.60])
 PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.8 xproto fontsproto xf86driproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.9 xproto fontsproto xf86driproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
                   HAVE_XEXTPROTO_71="no")

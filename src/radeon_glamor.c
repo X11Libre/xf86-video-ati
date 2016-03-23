@@ -34,11 +34,7 @@
 #include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
 
-#if HAS_DEVPRIVATEKEYREC
 DevPrivateKeyRec glamor_pixmap_index;
-#else
-int glamor_pixmap_index;
-#endif
 
 void
 radeon_glamor_exchange_buffers(PixmapPtr src,
@@ -370,11 +366,7 @@ radeon_glamor_init(ScreenPtr screen)
 		return FALSE;
 	}
 
-#if HAS_DIXREGISTERPRIVATEKEY
 	if (!dixRegisterPrivateKey(&glamor_pixmap_index, PRIVATE_PIXMAP, 0))
-#else
-	if (!dixRequestPrivate(&glamor_pixmap_index, 0))
-#endif
 		return FALSE;
 
 	if (info->shadow_primary)

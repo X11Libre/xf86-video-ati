@@ -272,19 +272,11 @@ struct radeon_pixmap {
 	uint32_t handle;
 };
 
-#if HAS_DEVPRIVATEKEYREC
 extern DevPrivateKeyRec glamor_pixmap_index;
-#else
-extern int glamor_pixmap_index;
-#endif
 
 static inline struct radeon_pixmap *radeon_get_pixmap_private(PixmapPtr pixmap)
 {
-#if HAS_DEVPRIVATEKEYREC
 	return dixGetPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
-#else
-	return dixLookupPrivate(&pixmap->devPrivates, &glamor_pixmap_index);
-#endif
 }
 
 static inline void radeon_set_pixmap_private(PixmapPtr pixmap, struct radeon_pixmap *priv)
