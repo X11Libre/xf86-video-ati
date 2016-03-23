@@ -531,11 +531,10 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	int aligned_height;
-	int size;
+	struct radeon_surface surface;
+	uint32_t tiling;
 	int ret;
-	unsigned long rotate_pitch;
-	int base_align;
+	int pitch;
 
 	if (scanout->bo) {
 		if (scanout->width == width && scanout->height == height)
@@ -544,23 +543,18 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 		drmmode_crtc_scanout_destroy(drmmode, scanout);
 	}
 
-	rotate_pitch =
-		RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0))
-		* drmmode->cpp;
-	aligned_height = RADEON_ALIGN(height, drmmode_get_height_align(pScrn, 0));
-	base_align = drmmode_get_base_align(pScrn, drmmode->cpp, 0);
-	size = RADEON_ALIGN(rotate_pitch * aligned_height, RADEON_GPU_PAGE_SIZE);
-
-	scanout->bo = radeon_bo_open(drmmode->bufmgr, 0, size, base_align,
-				     RADEON_GEM_DOMAIN_VRAM,
-				     RADEON_GEM_NO_CPU_ACCESS);
+	scanout->bo = radeon_alloc_pixmap_bo(pScrn, width, height, pScrn->depth,
+					     RADEON_CREATE_PIXMAP_TILING_MACRO |
+					     RADEON_CREATE_PIXMAP_TILING_MICRO,
+					     pScrn->bitsPerPixel, &pitch,
+					     &surface, &tiling);
 	if (scanout->bo == NULL)
 		return NULL;
 
 	radeon_bo_map(scanout->bo, 1);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, pScrn->depth,
-			   pScrn->bitsPerPixel, rotate_pitch,
+			   pScrn->bitsPerPixel, pitch,
 			   scanout->bo->handle,
 			   &scanout->fb_id);
 	if (ret) {
