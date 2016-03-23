@@ -1713,13 +1713,16 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 
     value = FALSE;
     from = X_DEFAULT;
-    if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
-	from = X_CONFIG;
 
-    if (xf86GetOptValInteger(info->Options, OPTION_DRI, &driLevel) &&
-	(driLevel == 2 || driLevel == 3)) {
-	from = X_CONFIG;
-	value = driLevel == 3;
+    if (!info->r600_shadow_fb) {
+	if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
+	    from = X_CONFIG;
+
+	if (xf86GetOptValInteger(info->Options, OPTION_DRI, &driLevel) &&
+	    (driLevel == 2 || driLevel == 3)) {
+	    from = X_CONFIG;
+	    value = driLevel == 3;
+	}
     }
 
     if (value) {
