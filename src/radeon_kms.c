@@ -1278,11 +1278,13 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     }
 #endif
 
-    info->tear_free = xf86ReturnOptValBool(info->Options, OPTION_TEAR_FREE,
-					   FALSE);
+    if (!info->r600_shadow_fb) {
+	info->tear_free = xf86ReturnOptValBool(info->Options, OPTION_TEAR_FREE,
+					       FALSE);
 
-    if (info->tear_free)
-	xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "TearFree enabled\n");
+	if (info->tear_free)
+	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "TearFree enabled\n");
+    }
 
     if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
 	Bool sw_cursor = xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE);
