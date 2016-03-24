@@ -633,9 +633,9 @@ static void RADEONBlockHandler_oneshot(BLOCKHANDLER_ARGS_DECL)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
-
     RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS);
+
+    drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
 }
 
 static void
