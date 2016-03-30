@@ -97,7 +97,6 @@ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
-					  int pitch,
 					  struct radeon_bo *bo, struct radeon_surface *psurf)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -112,7 +111,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 		return NULL;
 
 	if (!(*pScreen->ModifyPixmapHeader)(pixmap, width, height,
-					    depth, bpp, pitch, NULL)) {
+					    depth, bpp, -1, NULL)) {
 		return NULL;
 	}
 
@@ -401,8 +400,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	}
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
-					  fbcon->depth, fbcon->bpp,
-					  fbcon->pitch, bo, NULL);
+					  fbcon->depth, fbcon->bpp, bo, NULL);
 	info->fbcon_pixmap = pixmap;
 	radeon_bo_unref(bo);
 out_free_fb:
@@ -577,7 +575,6 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned long rotate_pitch;
 
 	if (scanout->pixmap) {
 		if (scanout->width == width && scanout->height == height)
@@ -591,14 +588,10 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 			return NULL;
 	}
 
-	rotate_pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, drmmode->cpp, 0))
-		* drmmode->cpp;
-
 	scanout->pixmap = drmmode_create_bo_pixmap(pScrn,
 						 width, height,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
-						 rotate_pitch,
 						 scanout->bo, NULL);
 	if (scanout->pixmap == NULL)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
