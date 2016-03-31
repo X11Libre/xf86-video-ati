@@ -491,7 +491,7 @@ static void
 radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    struct radeon_drm_queue_entry *drm_queue_entry;
+    uintptr_t drm_queue_seq;
     ScrnInfoPtr scrn;
     drmVBlank vbl;
     DamagePtr pDamage;
@@ -520,13 +520,13 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 	return;
 
     scrn = xf86_crtc->scrn;
-    drm_queue_entry = radeon_drm_queue_alloc(xf86_crtc,
-					     RADEON_DRM_QUEUE_CLIENT_DEFAULT,
-					     RADEON_DRM_QUEUE_ID_DEFAULT,
-					     drmmode_crtc,
-					     radeon_scanout_update_handler,
-					     radeon_scanout_update_abort);
-    if (!drm_queue_entry) {
+    drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
+					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+					   RADEON_DRM_QUEUE_ID_DEFAULT,
+					   drmmode_crtc,
+					   radeon_scanout_update_handler,
+					   radeon_scanout_update_abort);
+    if (!drm_queue_seq) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "radeon_drm_queue_alloc failed for scanout update\n");
 	return;
@@ -535,12 +535,12 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
     vbl.request.type = DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT;
     vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
     vbl.request.sequence = 1;
-    vbl.request.signal = (unsigned long)drm_queue_entry;
+    vbl.request.signal = drm_queue_seq;
     if (drmWaitVBlank(RADEONPTR(scrn)->dri2.drm_fd, &vbl)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "drmWaitVBlank failed for scanout update: %s\n",
 		   strerror(errno));
-	radeon_drm_abort_entry(drm_queue_entry);
+	radeon_drm_abort_entry(drm_queue_seq);
 	return;
     }
 
@@ -562,7 +562,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
     ScrnInfoPtr scrn;
-    struct radeon_drm_queue_entry *drm_queue_entry;
+    uintptr_t drm_queue_seq;
     unsigned scanout_id;
 
     if (drmmode_crtc->scanout_update_pending)
@@ -573,12 +573,12 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
 
     scrn = xf86_crtc->scrn;
-    drm_queue_entry = radeon_drm_queue_alloc(xf86_crtc,
-					     RADEON_DRM_QUEUE_CLIENT_DEFAULT,
-					     RADEON_DRM_QUEUE_ID_DEFAULT,
-					     drmmode_crtc, NULL,
-					     radeon_scanout_flip_abort);
-    if (!drm_queue_entry) {
+    drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
+					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+					   RADEON_DRM_QUEUE_ID_DEFAULT,
+					   drmmode_crtc, NULL,
+					   radeon_scanout_flip_abort);
+    if (!drm_queue_seq) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM event queue entry failed.\n");
 	return;
@@ -586,7 +586,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 
     if (drmModePageFlip(drmmode_crtc->drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 			drmmode_crtc->scanout[scanout_id].fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, drm_queue_entry)) {
+			DRM_MODE_PAGE_FLIP_EVENT, (void*)drm_queue_seq)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
 	return;

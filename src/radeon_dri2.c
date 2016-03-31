@@ -516,7 +516,7 @@ typedef struct _DRI2FrameEvent {
     unsigned frame;
     xf86CrtcPtr crtc;
     OsTimerPtr timer;
-    struct radeon_drm_queue_entry *drm_queue;
+    uintptr_t drm_queue_seq;
 
     /* for swaps & flips only */
     DRI2SwapEventPtr event_complete;
@@ -1079,8 +1079,8 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
      */
     if (!event_info->crtc) {
 	ErrorF("%s no crtc\n", __func__);
-	if (event_info->drm_queue)
-	    radeon_drm_abort_entry(event_info->drm_queue);
+	if (event_info->drm_queue_seq)
+	    radeon_drm_abort_entry(event_info->drm_queue_seq);
 	else
 	    radeon_dri2_frame_event_abort(NULL, data);
 	return 0;
@@ -1092,9 +1092,9 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
     if (ret) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "%s cannot get current time\n", __func__);
-	if (event_info->drm_queue)
+	if (event_info->drm_queue_seq)
 	    radeon_drm_queue_handler(info->dri2.drm_fd, 0, 0, 0,
-				     event_info->drm_queue);
+				     (void*)event_info->drm_queue_seq);
 	else
 	    radeon_dri2_frame_event_handler(crtc, 0, 0, data);
 	return 0;
@@ -1108,9 +1108,10 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
     delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
     delta_seq /= 1000000;
     frame = (CARD64)drmmode_crtc->dpms_last_seq + delta_seq;
-    if (event_info->drm_queue)
+    if (event_info->drm_queue_seq)
 	radeon_drm_queue_handler(info->dri2.drm_fd, frame, drm_now / 1000000,
-				 drm_now % 1000000, event_info->drm_queue);
+				 drm_now % 1000000,
+				 (void*)event_info->drm_queue_seq);
     else
 	radeon_dri2_frame_event_handler(crtc, frame, drm_now, data);
     return 0;
@@ -1141,7 +1142,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     DRI2FrameEventPtr wait_info = NULL;
-    struct radeon_drm_queue_entry *wait = NULL;
+    uintptr_t drm_queue_seq = 0;
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     uint32_t msc_delta;
     drmVBlank vbl;
@@ -1197,15 +1198,15 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     current_msc = vbl.reply.sequence + msc_delta;
     current_msc &= 0xffffffff;
 
-    wait = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
-				  wait_info, radeon_dri2_frame_event_handler,
-				  radeon_dri2_frame_event_abort);
-    if (!wait) {
+    drm_queue_seq = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
+					   wait_info, radeon_dri2_frame_event_handler,
+					   radeon_dri2_frame_event_abort);
+    if (!drm_queue_seq) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM queue event entry failed.\n");
         goto out_complete;
     }
-    wait_info->drm_queue = wait;
+    wait_info->drm_queue_seq = drm_queue_seq;
 
     /*
      * If divisor is zero, or current_msc is smaller than target_msc,
@@ -1224,7 +1225,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
         vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
 	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
         vbl.request.sequence = target_msc - msc_delta;
-        vbl.request.signal = (unsigned long)wait;
+        vbl.request.signal = drm_queue_seq;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1255,7 +1256,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     if ((current_msc % divisor) >= remainder)
         vbl.request.sequence += divisor;
 
-    vbl.request.signal = (unsigned long)wait;
+    vbl.request.signal = drm_queue_seq;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1307,7 +1308,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     drmVBlank vbl;
     int ret, flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
-    struct radeon_drm_queue_entry *swap;
+    uintptr_t drm_queue_seq;
     CARD64 current_msc;
     BoxRec box;
     RegionRec region;
@@ -1344,15 +1345,15 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     swap_info->back = back;
     swap_info->crtc = crtc;
 
-    swap = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
-				  swap_info, radeon_dri2_frame_event_handler,
-				  radeon_dri2_frame_event_abort);
-    if (!swap) {
+    drm_queue_seq = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
+					   swap_info, radeon_dri2_frame_event_handler,
+					   radeon_dri2_frame_event_abort);
+    if (!drm_queue_seq) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM queue entry failed.\n");
         goto blit_fallback;
     }
-    swap_info->drm_queue = swap;
+    swap_info->drm_queue_seq = drm_queue_seq;
 
     /*
      * CRTC is in DPMS off state, fallback to blit, but calculate
@@ -1421,7 +1422,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
             *target_msc = current_msc;
 
         vbl.request.sequence = *target_msc - msc_delta;
-        vbl.request.signal = (unsigned long)swap;
+        vbl.request.signal = drm_queue_seq;
         ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
         if (ret) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1466,7 +1467,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     /* Account for 1 frame extra pageflip delay if flip > 0 */
     vbl.request.sequence -= flip;
 
-    vbl.request.signal = (unsigned long)swap;
+    vbl.request.signal = drm_queue_seq;
     ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
     if (ret) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,

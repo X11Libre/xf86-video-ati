@@ -156,7 +156,7 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
     RADEONInfoPtr info = RADEONPTR(scrn);
     int crtc_id = drmmode_get_crtc_id(xf86_crtc);
     struct radeon_present_vblank_event *event;
-    struct radeon_drm_queue_entry *queue;
+    uintptr_t drm_queue_seq;
     drmVBlank vbl;
     int ret;
 
@@ -164,24 +164,25 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
     if (!event)
 	return BadAlloc;
     event->event_id = event_id;
-    queue = radeon_drm_queue_alloc(xf86_crtc, RADEON_DRM_QUEUE_CLIENT_DEFAULT,
-				   event_id, event,
-				   radeon_present_vblank_handler,
-				   radeon_present_vblank_abort);
-    if (!queue) {
+    drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
+					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
+					   event_id, event,
+					   radeon_present_vblank_handler,
+					   radeon_present_vblank_abort);
+    if (!drm_queue_seq) {
 	free(event);
 	return BadAlloc;
     }
 
     vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | crtc_select(crtc_id);
     vbl.request.sequence = msc;
-    vbl.request.signal = (unsigned long)queue;
+    vbl.request.signal = drm_queue_seq;
     for (;;) {
 	ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
 	if (!ret)
 	    break;
 	if (errno != EBUSY || !radeon_present_flush_drm_events(screen)) {
-	    radeon_drm_abort_entry(queue);
+	    radeon_drm_abort_entry(drm_queue_seq);
 	    return BadAlloc;
 	}
     }

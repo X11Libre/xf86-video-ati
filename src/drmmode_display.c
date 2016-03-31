@@ -2660,7 +2660,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	int i;
 	uint32_t tiling_flags = 0;
 	drmmode_flipdata_ptr flipdata;
-	struct radeon_drm_queue_entry *drm_queue = NULL;
+	uintptr_t drm_queue_seq = 0;
 
 	if (info->allowColorTiling) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600)
@@ -2720,11 +2720,11 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		if (drmmode_crtc->hw_id == ref_crtc_hw_id)
 			flipdata->fe_crtc = crtc;
 
-		drm_queue = radeon_drm_queue_alloc(crtc, client, id,
-						   flipdata,
-						   drmmode_flip_handler,
-						   drmmode_flip_abort);
-		if (!drm_queue) {
+		drm_queue_seq = radeon_drm_queue_alloc(crtc, client, id,
+						       flipdata,
+						       drmmode_flip_handler,
+						       drmmode_flip_abort);
+		if (!drm_queue_seq) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "Allocating DRM queue event entry failed.\n");
 			goto error;
@@ -2732,13 +2732,13 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
 		if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
 				    drmmode->fb_id, DRM_MODE_PAGE_FLIP_EVENT,
-				    drm_queue)) {
+				    (void*)drm_queue_seq)) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "flip queue failed: %s\n", strerror(errno));
 			goto error;
 		}
 		drmmode_crtc->flip_pending = TRUE;
-		drm_queue = NULL;
+		drm_queue_seq = 0;
 	}
 
 	if (flipdata->flip_count > 0)
@@ -2750,8 +2750,8 @@ error:
 		drmmode->fb_id = flipdata->old_fb_id;
 	}
 
-	if (drm_queue)
-		radeon_drm_abort_entry(drm_queue);
+	if (drm_queue_seq)
+		radeon_drm_abort_entry(drm_queue_seq);
 	else if (crtc)
 		drmmode_flip_abort(crtc, flipdata);
 	else if (flipdata && flipdata->flip_count <= 1)
