@@ -1108,8 +1108,11 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
     if (ret == 0) {
 	if (value & DRM_PRIME_CAP_EXPORT)
 	    pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SinkOffload;
-	if (value & DRM_PRIME_CAP_IMPORT)
-	    pScrn->capabilities |= RR_Capability_SinkOutput | RR_Capability_SourceOffload;
+	if (value & DRM_PRIME_CAP_IMPORT) {
+	    pScrn->capabilities |= RR_Capability_SourceOffload;
+	    if (info->drmmode.count_crtcs)
+		pScrn->capabilities |= RR_Capability_SinkOutput;
+	}
     }
 #endif
 }
@@ -1228,8 +1231,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info->allowColorTiling2D = FALSE;
 
-    RADEONSetupCapabilities(pScrn);
-
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
 	Bool colorTilingDefault =
@@ -1327,6 +1328,8 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
 	goto fail;
     }
+
+    RADEONSetupCapabilities(pScrn);
 
     if (info->drmmode.count_crtcs == 1)
         pRADEONEnt->HasCRTC2 = FALSE;
