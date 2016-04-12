@@ -656,8 +656,6 @@ uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
 static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
-    ScreenPtr pScreen = pPix->drawable.pScreen;
-
 #ifdef USE_GLAMOR
     RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
 
@@ -693,9 +691,7 @@ static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	    radeon_bo_ref(bo);
 	    priv->bo = bo;
 
-	    if (radeon_bo_get_tiling(bo, &priv->tiling_flags, &pitch) == 0 &&
-		pitch != pPix->devKind)
-		pScreen->ModifyPixmapHeader(pPix, -1, -1, -1, -1, pitch, NULL);
+	    radeon_bo_get_tiling(bo, &priv->tiling_flags, &pitch);
 	}
 out:
 	radeon_set_pixmap_private(pPix, priv);
@@ -714,9 +710,7 @@ out:
 	    radeon_bo_ref(bo);
 	    driver_priv->bo = bo;
 
-	    if (radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch) == 0 &&
-		pitch != pPix->devKind)
-		pScreen->ModifyPixmapHeader(pPix, -1, -1, -1, -1, pitch, NULL);
+	    radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch);
 	}
     }
 }
