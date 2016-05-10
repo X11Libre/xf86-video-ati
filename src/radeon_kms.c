@@ -430,7 +430,7 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
     Bool force;
 
     if (!xf86_crtc->enabled ||
-	drmmode_crtc->dpms_mode != DPMSModeOn ||
+	drmmode_crtc->pending_dpms_mode != DPMSModeOn ||
 	!drmmode_crtc->scanout[scanout_id].pixmap)
 	return FALSE;
 
@@ -564,7 +564,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
     if (!xf86_crtc->enabled ||
 	drmmode_crtc->scanout_update_pending ||
 	!drmmode_crtc->scanout[0].pixmap ||
-	drmmode_crtc->dpms_mode != DPMSModeOn)
+	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 
     pDamage = drmmode_crtc->scanout[0].damage;

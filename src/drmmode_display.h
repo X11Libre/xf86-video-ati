@@ -88,6 +88,8 @@ typedef struct {
     unsigned scanout_id;
     Bool scanout_update_pending;
     int dpms_mode;
+    /* For when a flip is pending when DPMS off requested */
+    int pending_dpms_mode;
     CARD64 dpms_last_ust;
     uint32_t dpms_last_seq;
     int dpms_last_fps;
