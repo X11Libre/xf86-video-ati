@@ -1722,7 +1722,11 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
 #endif
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,18,3,0,0)
+    value = TRUE;
+#else
     value = FALSE;
+#endif
     from = X_DEFAULT;
 
     if (!info->r600_shadow_fb) {
