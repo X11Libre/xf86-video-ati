@@ -766,6 +766,14 @@ static uint32_t R600GetBlendCntl(int op, PicturePtr pMask, uint32_t dst_format)
 	} else if (dblend == (BLEND_ONE_MINUS_SRC_ALPHA << COLOR_DESTBLEND_shift)) {
 	    dblend = (BLEND_ONE_MINUS_SRC_COLOR << COLOR_DESTBLEND_shift);
 	}
+
+	/* With some tricks, we can still accelerate PictOpOver with solid src.
+	 * This is commonly used for text rendering, so it's worth the extra
+	 * effort.
+	 */
+	if (sblend == (BLEND_ONE << COLOR_SRCBLEND_shift)) {
+	    sblend = (BLEND_CONSTANT_COLOR << COLOR_SRCBLEND_shift);
+	}
     }
 
     return sblend | dblend;
@@ -1143,12 +1151,17 @@ static Bool R600CheckComposite(int op, PicturePtr pSrcPicture, PicturePtr pMaskP
 		/* Check if it's component alpha that relies on a source alpha and
 		 * on the source value.  We can only get one of those into the
 		 * single source value that we get to blend with.
+		 *
+		 * We can cheat a bit if the src is solid, though. PictOpOver
+		 * can use the constant blend color to sneak a second blend
+		 * source in.
 		 */
 		if (R600BlendOp[op].src_alpha &&
 		    (R600BlendOp[op].blend_cntl & COLOR_SRCBLEND_mask) !=
 		    (BLEND_ZERO << COLOR_SRCBLEND_shift)) {
-		    RADEON_FALLBACK(("Component alpha not supported with source "
-				     "alpha and source value blending.\n"));
+		    if (pSrcPicture->pDrawable || op != PictOpOver)
+			RADEON_FALLBACK(("Component alpha not supported with source "
+					 "alpha and source value blending.\n"));
 		}
 	    }
 
@@ -1244,6 +1257,11 @@ static void R600SetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, uint32
 	} else {
 	    if (accel_state->component_alpha) {
 		if (accel_state->src_alpha) {
+		    /* required for PictOpOver */
+		    float cblend[4] = { pix_r / pix_a, pix_g / pix_a,
+					pix_b / pix_a, pix_a / pix_a };
+		    r600_set_blend_color(pScrn, cblend);
+
 		    if (PICT_FORMAT_A(format) == 0) {
 			pix_r = 1.0;
 			pix_g = 1.0;
