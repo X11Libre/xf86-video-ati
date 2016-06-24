@@ -2613,7 +2613,7 @@ restart_destroy:
 			changed = TRUE;
 	}
 
-	if (changed) {
+	if (changed && dixPrivateKeyRegistered(rrPrivKey)) {
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,14,99,2,0)
 		RRSetChanged(xf86ScrnToScreen(scrn));
 #else
