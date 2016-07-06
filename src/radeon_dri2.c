@@ -678,7 +678,8 @@ radeon_dri2_schedule_flip(xf86CrtcPtr crtc, ClientPtr client,
 			   RADEON_DRM_QUEUE_ID_DEFAULT, flip_info,
 			   ref_crtc_hw_id,
 			   radeon_dri2_flip_event_handler,
-			   radeon_dri2_flip_event_abort, FLIP_VSYNC)) {
+			   radeon_dri2_flip_event_abort, FLIP_VSYNC,
+			   target_msc - radeon_get_msc_delta(draw, crtc))) {
 	info->drmmode.dri2_flipping = TRUE;
 	return TRUE;
     }

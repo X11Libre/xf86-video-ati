@@ -755,6 +755,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 {
     ScreenPtr screen = ent->slave_dst->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     xf86CrtcPtr crtc = NULL;
     drmmode_crtc_private_ptr drmmode_crtc = NULL;
@@ -793,9 +794,8 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 	return;
     }
 
-    if (drmModePageFlip(drmmode_crtc->drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			drmmode_crtc->scanout[scanout_id].fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, (void*)drm_queue_seq)) {
+    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc, 0,
+					  drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
 	return;
@@ -1046,7 +1046,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 		    xf86CrtcPtr xf86_crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    ScrnInfoPtr scrn;
+    ScrnInfoPtr scrn = xf86_crtc->scrn;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     uintptr_t drm_queue_seq;
     unsigned scanout_id;
 
@@ -1057,7 +1058,6 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     if (!radeon_scanout_do_update(xf86_crtc, scanout_id))
 	return;
 
-    scrn = xf86_crtc->scrn;
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
@@ -1069,9 +1069,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
     }
 
-    if (drmModePageFlip(drmmode_crtc->drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			drmmode_crtc->scanout[scanout_id].fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, (void*)drm_queue_seq)) {
+    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc, 0,
+					  drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
 	return;

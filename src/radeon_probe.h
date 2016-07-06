@@ -133,6 +133,7 @@ typedef struct {
 typedef struct
 {
     Bool              HasCRTC2;         /* All cards except original Radeon  */
+    Bool has_page_flip_target;
 
     int fd;                             /* for sharing across zaphod heads   */
     int fd_ref;

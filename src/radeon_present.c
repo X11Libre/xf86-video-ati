@@ -349,7 +349,8 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 			     event_id, event, crtc_id,
 			     radeon_present_flip_event,
 			     radeon_present_flip_abort,
-			     sync_flip ? FLIP_VSYNC : FLIP_ASYNC);
+			     sync_flip ? FLIP_VSYNC : FLIP_ASYNC,
+			     target_msc);
     if (!ret)
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR, "present flip failed\n");
     else
@@ -392,7 +393,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 
     if (radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			   event_id, event, -1, radeon_present_flip_event,
-			   radeon_present_flip_abort, FLIP_VSYNC))
+			   radeon_present_flip_abort, FLIP_VSYNC, 0))
 	return;
 
 modeset:
