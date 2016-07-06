@@ -529,7 +529,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 					   drmmode_crtc,
 					   radeon_scanout_update_handler,
 					   radeon_scanout_update_abort);
-    if (!drm_queue_seq) {
+    if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "radeon_drm_queue_alloc failed for scanout update\n");
 	return;
@@ -581,7 +581,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
 					   drmmode_crtc, NULL,
 					   radeon_scanout_flip_abort);
-    if (!drm_queue_seq) {
+    if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM event queue entry failed.\n");
 	return;

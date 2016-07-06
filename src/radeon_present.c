@@ -169,7 +169,7 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
 					   event_id, event,
 					   radeon_present_vblank_handler,
 					   radeon_present_vblank_abort);
-    if (!drm_queue_seq) {
+    if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	free(event);
 	return BadAlloc;
     }
