@@ -40,6 +40,7 @@
 
 #include "radeon_version.h"
 #include "shadow.h"
+#include <xf86Priv.h>
 
 #include "atipciids.h"
 
@@ -58,6 +59,8 @@
 #include "radeon_bo_gem.h"
 #include "radeon_cs_gem.h"
 #include "radeon_vbo.h"
+
+static DevScreenPrivateKeyRec radeon_client_private_key;
 
 extern SymTabRec RADEONChipsets[];
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen);
@@ -241,9 +244,9 @@ radeonUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
 }
 
 static Bool
-callback_needs_flush(RADEONInfoPtr info)
+callback_needs_flush(RADEONInfoPtr info, struct radeon_client_priv *client_priv)
 {
-    return (int)(info->callback_needs_flush - info->gpu_flushed) > 0;
+    return (int)(client_priv->needs_flush - info->gpu_flushed) > 0;
 }
 
 static void
@@ -252,20 +255,30 @@ radeon_event_callback(CallbackListPtr *list,
 {
     EventInfoRec *eventinfo = call_data;
     ScrnInfoPtr pScrn = user_data;
+    ScreenPtr pScreen = pScrn->pScreen;
+    struct radeon_client_priv *client_priv =
+	dixLookupScreenPrivate(&eventinfo->client->devPrivates,
+			       &radeon_client_private_key, pScreen);
+    struct radeon_client_priv *server_priv =
+	dixLookupScreenPrivate(&serverClient->devPrivates,
+			       &radeon_client_private_key, pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     int i;
 
-    if (callback_needs_flush(info))
+    if (callback_needs_flush(info, client_priv) ||
+	callback_needs_flush(info, server_priv))
 	return;
 
-    /* Don't let gpu_flushed get too far ahead of callback_needs_flush,
-     * in order to prevent false positives in callback_needs_flush()
+    /* Don't let gpu_flushed get too far ahead of needs_flush, in order
+     * to prevent false positives in callback_needs_flush()
      */
-    info->callback_needs_flush = info->gpu_flushed;
+    client_priv->needs_flush = info->gpu_flushed;
+    server_priv->needs_flush = info->gpu_flushed;
     
     for (i = 0; i < eventinfo->count; i++) {
 	if (eventinfo->events[i].u.u.type == info->callback_event_type) {
-	    info->callback_needs_flush++;
+	    client_priv->needs_flush++;
+	    server_priv->needs_flush++;
 	    return;
 	}
     }
@@ -276,9 +289,14 @@ radeon_flush_callback(CallbackListPtr *list,
 		      pointer user_data, pointer call_data)
 {
     ScrnInfoPtr pScrn = user_data;
+    ScreenPtr pScreen = pScrn->pScreen;
+    ClientPtr client = call_data ? call_data : serverClient;
+    struct radeon_client_priv *client_priv =
+	dixLookupScreenPrivate(&client->devPrivates,
+			       &radeon_client_private_key, pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
 
-    if (pScrn->vtSema && callback_needs_flush(info))
+    if (pScrn->vtSema && callback_needs_flush(info, client_priv))
         radeon_cs_flush_indirect(pScrn);
 }
 
@@ -349,6 +367,13 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 
 	if (!AddCallback(&EventCallback, radeon_event_callback, pScrn)) {
 	    DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+	    return FALSE;
+	}
+
+	if (!dixRegisterScreenPrivateKey(&radeon_client_private_key, pScreen,
+					 PRIVATE_CLIENT, sizeof(struct radeon_client_priv))) {
+	    DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+	    DeleteCallback(&EventCallback, radeon_event_callback, pScrn);
 	    return FALSE;
 	}
     }
