@@ -51,6 +51,8 @@
 #include <X11/extensions/dpms.h>
 #endif
 
+#include <X11/extensions/damageproto.h>
+
 #include "radeon_chipinfo_gen.h"
 
 #include "radeon_bo_gem.h"
@@ -91,10 +93,11 @@ void radeon_cs_flush_indirect(ScrnInfoPtr pScrn)
     struct radeon_accel_state *accel_state;
     int ret;
 
+    info->gpu_flushed++;
+
 #ifdef USE_GLAMOR
     if (info->use_glamor) {
 	glamor_block_handler(pScrn->pScreen);
-	info->gpu_flushed++;
 	return;
     }
 #endif
@@ -237,8 +240,51 @@ radeonUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
     shadowUpdatePacked(pScreen, pBuf);
 }
 
+static Bool
+callback_needs_flush(RADEONInfoPtr info)
+{
+    return (int)(info->callback_needs_flush - info->gpu_flushed) > 0;
+}
+
+static void
+radeon_event_callback(CallbackListPtr *list,
+		      pointer user_data, pointer call_data)
+{
+    EventInfoRec *eventinfo = call_data;
+    ScrnInfoPtr pScrn = user_data;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+    int i;
+
+    if (callback_needs_flush(info))
+	return;
+
+    /* Don't let gpu_flushed get too far ahead of callback_needs_flush,
+     * in order to prevent false positives in callback_needs_flush()
+     */
+    info->callback_needs_flush = info->gpu_flushed;
+    
+    for (i = 0; i < eventinfo->count; i++) {
+	if (eventinfo->events[i].u.u.type == info->callback_event_type) {
+	    info->callback_needs_flush++;
+	    return;
+	}
+    }
+}
+
+static void
+radeon_flush_callback(CallbackListPtr *list,
+		      pointer user_data, pointer call_data)
+{
+    ScrnInfoPtr pScrn = user_data;
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (pScrn->vtSema && callback_needs_flush(info))
+        radeon_cs_flush_indirect(pScrn);
+}
+
 static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 {
+    ExtensionEntry *damage_ext = CheckExtension("DAMAGE");
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     PixmapPtr pixmap;
@@ -293,6 +339,19 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 
     if (info->use_glamor)
 	radeon_glamor_create_screen_resources(pScreen);
+
+    info->callback_event_type = -1;
+    if (damage_ext) {
+	info->callback_event_type = damage_ext->eventBase + XDamageNotify;
+
+	if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
+	    return FALSE;
+
+	if (!AddCallback(&EventCallback, radeon_event_callback, pScrn)) {
+	    DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+	    return FALSE;
+	}
+    }
 
     return TRUE;
 }
@@ -639,16 +698,6 @@ static void RADEONBlockHandler_oneshot(BLOCKHANDLER_ARGS_DECL)
     RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS);
 
     drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
-}
-
-static void
-radeon_flush_callback(CallbackListPtr *list,
-		      pointer user_data, pointer call_data)
-{
-    ScrnInfoPtr pScrn = user_data;
-
-    if (pScrn->vtSema)
-        radeon_cs_flush_indirect(pScrn);
 }
 
 static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
@@ -1564,7 +1613,10 @@ static Bool RADEONCloseScreen_KMS(CLOSE_SCREEN_ARGS_DECL)
     radeon_drm_queue_close(pScrn);
     radeon_cs_flush_indirect(pScrn);
 
-    DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+    if (info->callback_event_type != -1) {
+	DeleteCallback(&EventCallback, radeon_event_callback, pScrn);
+	DeleteCallback(&FlushCallback, radeon_flush_callback, pScrn);
+    }
 
     if (info->accel_state->exa) {
 	exaDriverFini(pScreen);
@@ -1837,9 +1889,6 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     pScreen->SaveScreen  = RADEONSaveScreen_KMS;
     info->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = RADEONBlockHandler_oneshot;
-
-    if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
-        return FALSE;
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;

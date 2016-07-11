@@ -473,6 +473,8 @@ typedef struct {
     Bool              RenderAccel; /* Render */
     Bool              allowColorTiling;
     Bool              allowColorTiling2D;
+    int               callback_event_type;
+    uint_fast32_t     callback_needs_flush;
     uint_fast32_t     gpu_flushed;
     uint_fast32_t     gpu_synced;
     struct radeon_accel_state *accel_state;
