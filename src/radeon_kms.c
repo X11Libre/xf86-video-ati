@@ -1726,7 +1726,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 #endif
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,18,3,0,0)
-    value = TRUE;
+    value = info->use_glamor;
 #else
     value = FALSE;
 #endif
