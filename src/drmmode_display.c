@@ -543,10 +543,11 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 			      int width, int height)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	struct radeon_surface surface;
-	uint32_t tiling;
+	uint32_t tiling = RADEON_CREATE_PIXMAP_TILING_MACRO;
 	int ret;
 	int pitch;
 
@@ -557,11 +558,11 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 		drmmode_crtc_scanout_destroy(drmmode, scanout);
 	}
 
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+		tiling |= RADEON_CREATE_PIXMAP_TILING_MICRO;
 	scanout->bo = radeon_alloc_pixmap_bo(pScrn, width, height, pScrn->depth,
-					     RADEON_CREATE_PIXMAP_TILING_MACRO |
-					     RADEON_CREATE_PIXMAP_TILING_MICRO,
-					     pScrn->bitsPerPixel, &pitch,
-					     &surface, &tiling);
+					     tiling, pScrn->bitsPerPixel,
+					     &pitch, &surface, &tiling);
 	if (scanout->bo == NULL)
 		return NULL;
 
