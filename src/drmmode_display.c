@@ -59,6 +59,10 @@
 
 #define DEFAULT_NOMINAL_FRAME_RATE 60
 
+#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 22
+#define HAVE_NOTIFY_FD	1
+#endif
+
 static Bool
 drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height);
 
@@ -2231,13 +2235,21 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 }
 
 
+#if HAVE_NOTIFY_FD
+static void
+drm_notify_fd(int fd, int ready, void *data)
+#else
 static void
 drm_wakeup_handler(pointer data, int err, pointer p)
+#endif
 {
 	drmmode_ptr drmmode = data;
+#if !HAVE_NOTIFY_FD
 	fd_set *read_mask = p;
 
-	if (err >= 0 && FD_ISSET(drmmode->fd, read_mask)) {
+	if (err >= 0 && FD_ISSET(drmmode->fd, read_mask))
+#endif
+	{
 		drmHandleEvent(drmmode->fd, &drmmode->event_context);
 	}
 }
@@ -2321,9 +2333,13 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	info->drmmode_inited = TRUE;
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
+#if HAVE_NOTIFY_FD
+		SetNotifyFd(drmmode->fd, drm_notify_fd, X_NOTIFY_READ, drmmode);
+#else
 		AddGeneralSocket(drmmode->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
+#endif
 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
 		pRADEONEnt->fd_wakeup_ref = 1;
 	} else
@@ -2340,9 +2356,13 @@ void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
 	    !--pRADEONEnt->fd_wakeup_ref) {
+#if HAVE_NOTIFY_FD
+		RemoveNotifyFd(drmmode->fd);
+#else
 		RemoveGeneralSocket(drmmode->fd);
 		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
 				drm_wakeup_handler, drmmode);
+#endif
 	}
 }
 
