@@ -302,7 +302,7 @@ radeon_flush_callback(CallbackListPtr *list,
 
 static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 {
-    ExtensionEntry *damage_ext = CheckExtension("DAMAGE");
+    ExtensionEntry *damage_ext;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     PixmapPtr pixmap;
@@ -360,7 +360,7 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	radeon_glamor_create_screen_resources(pScreen);
 
     info->callback_event_type = -1;
-    if (damage_ext) {
+    if (!pScreen->isGPU && (damage_ext = CheckExtension("DAMAGE"))) {
 	info->callback_event_type = damage_ext->eventBase + XDamageNotify;
 
 	if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
