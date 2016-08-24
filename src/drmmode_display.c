@@ -2204,9 +2204,9 @@ drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 	drmmode_flipdata_ptr flipdata = event_data;
 
 	if (--flipdata->flip_count == 0) {
-		if (flipdata->fe_crtc)
-			crtc = flipdata->fe_crtc;
-		flipdata->abort(crtc, flipdata->event_data);
+		if (!flipdata->fe_crtc)
+			flipdata->fe_crtc = crtc;
+		flipdata->abort(flipdata->fe_crtc, flipdata->event_data);
 		free(flipdata);
 	}
 
@@ -2227,11 +2227,14 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 	}
 
 	if (--flipdata->flip_count == 0) {
-		/* Deliver cached msc, ust from reference crtc to flip event handler */
+		/* Deliver MSC & UST from reference/current CRTC to flip event
+		 * handler
+		 */
 		if (flipdata->fe_crtc)
-			crtc = flipdata->fe_crtc;
-		flipdata->handler(crtc, flipdata->fe_frame, flipdata->fe_usec,
-				  flipdata->event_data);
+			flipdata->handler(flipdata->fe_crtc, flipdata->fe_frame,
+					  flipdata->fe_usec, flipdata->event_data);
+		else
+			flipdata->handler(crtc, frame, usec, flipdata->event_data);
 
 		/* Release framebuffer */
 		drmModeRmFB(info->drmmode.fd, flipdata->old_fb_id);
