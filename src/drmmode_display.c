@@ -2174,7 +2174,7 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
-static void
+void
 drmmode_clear_pending_flip(xf86CrtcPtr crtc)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
