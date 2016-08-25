@@ -556,7 +556,7 @@ radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
     drmmode_crtc->scanout_update_pending = FALSE;
-    drmmode_crtc->flip_pending = FALSE;
+    drmmode_clear_pending_flip(crtc);
 }
 
 static void
