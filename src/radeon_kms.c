@@ -1402,13 +1402,8 @@ static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
     }
 #endif
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,9,99,901,0)
     XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
                 dev->domain, dev->bus, dev->dev, dev->func);
-#else
-    busid = XNFprintf("pci:%04x:%02x:%02x.%d",
-		      dev->domain, dev->bus, dev->dev, dev->func);
-#endif
 
     fd = drmOpen(NULL, busid);
     if (fd == -1)
@@ -1597,8 +1592,6 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
 #endif
 }
 
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-
 /* When the root window is created, initialize the screen contents from
  * console if -background none was specified on the command line
  */
@@ -1622,8 +1615,6 @@ static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 
     return ret;
 }
-
-#endif
 
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
@@ -1714,7 +1705,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     /* don't enable tiling if accel is not enabled */
     if (!info->r600_shadow_fb) {
 	Bool colorTilingDefault =
-	    xorgGetVersion() >= XORG_VERSION_NUMERIC(1,9,4,901,0) &&
 	    info->ChipFamily >= CHIP_FAMILY_R300 &&
 	    /* this check could be removed sometime after a big mesa release
 	     * with proper bit, in the meantime you need to set tiling option in
@@ -2303,12 +2293,10 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
     pScrn->pScreen = pScreen;
 
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
     if (serverGeneration == 1 && bgNoneRoot && info->accelOn) {
 	info->CreateWindow = pScreen->CreateWindow;
 	pScreen->CreateWindow = RADEONCreateWindow_oneshot;
     }
-#endif
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */

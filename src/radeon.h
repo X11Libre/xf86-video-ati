@@ -519,9 +519,7 @@ typedef struct {
     DisplayModePtr currentMode;
 
     CreateScreenResourcesProcPtr CreateScreenResources;
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
     CreateWindowProcPtr CreateWindow;
-#endif
 
     Bool              IsSecondary;
 

@@ -388,8 +388,6 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 					    crtc->x, crtc->y);
 }
 
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10
-
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode,
 			ScrnInfoPtr pScrn, int fbcon_id)
@@ -507,8 +505,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	destroy_pixmap_for_fbcon(pScrn);
 	return;
 }
-
-#endif /* GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 10 */
 
 static void
 drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
@@ -2149,9 +2145,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 					   width, height, -1, -1, pitch,
 					   info->fb_shadow);
 	}
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,9,99,1,0)
-	scrn->pixmapPrivate.ptr = ppix->devPrivate.ptr;
-#endif
 
 	if (info->use_glamor)
 		radeon_glamor_create_screen_resources(scrn->pScreen);
