@@ -799,7 +799,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
 			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
-		} else if (!pScreen->isGPU &&
+		} else if (
+#ifdef RADEON_PIXMAP_SHARING
+			!pScreen->isGPU &&
+#endif
 			   (info->tear_free ||
 #if XF86_CRTC_VERSION >= 4
 			    crtc->driverIsPerformingTransform ||

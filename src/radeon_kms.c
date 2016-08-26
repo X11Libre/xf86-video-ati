@@ -842,7 +842,10 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
-    if (!pScreen->isGPU) {
+#ifdef RADEON_PIXMAP_SHARING
+    if (!pScreen->isGPU)
+#endif
+    {
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    if (info->tear_free)
 		radeon_scanout_flip(pScreen, info, xf86_config->crtc[c]);
