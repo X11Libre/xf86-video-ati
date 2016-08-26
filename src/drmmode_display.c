@@ -2181,8 +2181,9 @@ drmmode_clear_pending_flip(xf86CrtcPtr crtc)
 
 	drmmode_crtc->flip_pending = FALSE;
 
-	if (drmmode_crtc->pending_dpms_mode != DPMSModeOn &&
-	    drmmode_crtc->dpms_mode != drmmode_crtc->pending_dpms_mode) {
+	if (!crtc->enabled ||
+	    (drmmode_crtc->pending_dpms_mode != DPMSModeOn &&
+	     drmmode_crtc->dpms_mode != drmmode_crtc->pending_dpms_mode)) {
 		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 		int o;
 
@@ -2193,8 +2194,9 @@ drmmode_clear_pending_flip(xf86CrtcPtr crtc)
 				continue;
 
 			drmmode_output_dpms(output, drmmode_crtc->pending_dpms_mode);
-			drmmode_crtc_dpms(crtc, drmmode_crtc->pending_dpms_mode);
 		}
+
+		drmmode_crtc_dpms(crtc, drmmode_crtc->pending_dpms_mode);
 	}
 }
 
