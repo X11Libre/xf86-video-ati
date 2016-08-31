@@ -585,6 +585,35 @@ radeon_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
     }
 }
 
+
+#if HAS_SYNC_SHARED_PIXMAP
+
+static Bool
+master_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
+{
+    ScreenPtr master_screen = dirty->src->master_pixmap->drawable.pScreen;
+
+    return master_screen->SyncSharedPixmap != NULL;
+}
+
+static Bool
+slave_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
+{
+    ScreenPtr slave_screen = dirty->slave_dst->drawable.pScreen;
+
+    return slave_screen->SyncSharedPixmap != NULL;
+}
+
+static void
+call_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
+{
+    ScreenPtr master_screen = dirty->src->master_pixmap->drawable.pScreen;
+
+    master_screen->SyncSharedPixmap(dirty);
+}
+
+#else /* !HAS_SYNC_SHARED_PIXMAP */
+
 static Bool
 master_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
 {
@@ -600,6 +629,15 @@ slave_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
 
     return slave_scrn->driverName == scrn->driverName;
 }
+
+static void
+call_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
+{
+    radeon_sync_shared_pixmap(dirty);
+}
+
+#endif /* HAS_SYNC_SHARED_PIXMAPS */
+
 
 static Bool
 radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
@@ -618,7 +656,7 @@ radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
 	    RegionPtr region;
 
 	    if (master_has_sync_shared_pixmap(scrn, dirty))
-		radeon_sync_shared_pixmap(dirty);
+		call_sync_shared_pixmap(dirty);
 
 	    region = dirty_region(dirty);
 	    if (RegionNil(region))
@@ -2298,6 +2336,9 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 #ifdef RADEON_PIXMAP_SHARING
     pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
     pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
+#if HAS_SYNC_SHARED_PIXMAP
+    pScreen->SyncSharedPixmap = radeon_sync_shared_pixmap;
+#endif
 #endif
 
    if (!xf86CrtcScreenInit (pScreen))
