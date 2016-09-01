@@ -382,6 +382,45 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 }
 
 #ifdef RADEON_PIXMAP_SHARING
+
+static RegionPtr
+transform_region(RegionPtr region, struct pict_f_transform *transform,
+		 int w, int h)
+{
+	BoxPtr boxes = RegionRects(region);
+	int nboxes = RegionNumRects(region);
+	xRectanglePtr rects = malloc(nboxes * sizeof(*rects));
+	RegionPtr transformed;
+	int nrects = 0;
+	BoxRec box;
+	int i;
+
+	for (i = 0; i < nboxes; i++) {
+		box.x1 = boxes[i].x1;
+		box.x2 = boxes[i].x2;
+		box.y1 = boxes[i].y1;
+		box.y2 = boxes[i].y2;
+		pixman_f_transform_bounds(transform, &box);
+
+		box.x1 = max(box.x1, 0);
+		box.y1 = max(box.y1, 0);
+		box.x2 = min(box.x2, w);
+		box.y2 = min(box.y2, h);
+		if (box.x1 >= box.x2 || box.y1 >= box.y2)
+			continue;
+
+		rects[nrects].x = box.x1;
+		rects[nrects].y = box.y1;
+		rects[nrects].width = box.x2 - box.x1;
+		rects[nrects].height = box.y2 - box.y1;
+		nrects++;
+	}
+
+	transformed = RegionFromRects(nrects, rects, CT_UNSORTED);
+	free(rects);
+	return transformed;
+}
+
 static RegionPtr
 dirty_region(PixmapDirtyUpdatePtr dirty)
 {
@@ -390,36 +429,10 @@ dirty_region(PixmapDirtyUpdatePtr dirty)
 
 #ifdef HAS_DIRTYTRACKING_ROTATION
 	if (dirty->rotation != RR_Rotate_0) {
-		BoxPtr boxes = RegionRects(damageregion);
-		int nboxes = RegionNumRects(damageregion);
-		xRectanglePtr rects = malloc(nboxes * sizeof(*rects));
-		int dst_w = dirty->slave_dst->drawable.width;
-		int dst_h = dirty->slave_dst->drawable.height;
-		int nrects = 0;
-		BoxRec box;
-		int i;
-
-		for (i = 0; i < nboxes; i++) {
-			box.x1 = boxes[i].x1;
-			box.x2 = boxes[i].x2;
-			box.y1 = boxes[i].y1;
-			box.y2 = boxes[i].y2;
-			pixman_f_transform_bounds(&dirty->f_inverse, &box);
-
-			box.x1 = max(box.x1, 0);
-			box.y1 = max(box.y1, 0);
-			box.x2 = min(box.x2, dst_w);
-			box.y2 = min(box.y2, dst_h);
-			if (box.x1 >= box.x2 || box.y1 >= box.y2)
-				continue;
-
-			rects[nrects].x = box.x1;
-			rects[nrects].y = box.y1;
-			rects[nrects].width = box.x2 - box.x1;
-			rects[nrects].height = box.y2 - box.y1;
-			nrects++;
-		}
-		dstregion = RegionFromRects(nrects, rects, CT_UNSORTED);
+		dstregion = transform_region(damageregion,
+					     &dirty->f_inverse,
+					     dirty->slave_dst->drawable.width,
+					     dirty->slave_dst->drawable.height);
 	} else
 #endif
 	{
