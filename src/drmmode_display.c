@@ -523,10 +523,20 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 		radeon_bo_unref(scanout->bo);
 		scanout->bo = NULL;
 	}
+}
 
-	if (scanout->damage) {
-		DamageDestroy(scanout->damage);
-		scanout->damage = NULL;
+static void
+drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
+{
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout[0]);
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout[1]);
+
+	if (drmmode_crtc->scanout_damage) {
+		DamageDestroy(drmmode_crtc->scanout_damage);
+		drmmode_crtc->scanout_damage = NULL;
+		RegionUninit(&drmmode_crtc->scanout_last_region);
 	}
 }
 
@@ -536,15 +546,8 @@ drmmode_scanout_free(ScrnInfoPtr scrn)
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	int c;
 
-	for (c = 0; c < xf86_config->num_crtc; c++) {
-		drmmode_crtc_private_ptr drmmode_crtc =
-			xf86_config->crtc[c]->driver_private;
-
-		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout[0]);
-		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout[1]);
-	}
+	for (c = 0; c < xf86_config->num_crtc; c++)
+		drmmode_crtc_scanout_free(xf86_config->crtc[c]->driver_private);
 }
 
 static void *
@@ -797,8 +800,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
 
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[0]);
-			drmmode_crtc_scanout_destroy(drmmode, &drmmode_crtc->scanout[1]);
+			drmmode_crtc_scanout_free(drmmode_crtc);
 		} else if (
 #ifdef RADEON_PIXMAP_SHARING
 			!pScreen->isGPU &&
@@ -813,42 +815,40 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 							    &drmmode_crtc->scanout[i],
 							    mode->HDisplay,
 							    mode->VDisplay);
-
-				if (drmmode_crtc->scanout[i].pixmap) {
-					RegionPtr pRegion;
-					BoxPtr pBox;
-
-					if (!drmmode_crtc->scanout[i].damage) {
-						drmmode_crtc->scanout[i].damage =
-							DamageCreate(radeon_screen_damage_report,
-								     NULL, DamageReportRawRegion,
-								     TRUE, pScreen, NULL);
-						DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
-							       drmmode_crtc->scanout[i].damage);
-					}
-
-					pRegion = DamageRegion(drmmode_crtc->scanout[i].damage);
-					RegionUninit(pRegion);
-					pRegion->data = NULL;
-					pBox = RegionExtents(pRegion);
-					pBox->x1 = min(pBox->x1, x);
-					pBox->y1 = min(pBox->y1, y);
-
-					switch (crtc->rotation & 0xf) {
-					case RR_Rotate_90:
-					case RR_Rotate_270:
-						pBox->x2 = max(pBox->x2, x + mode->VDisplay);
-						pBox->y2 = max(pBox->y2, y + mode->HDisplay);
-						break;
-					default:
-						pBox->x2 = max(pBox->x2, x + mode->HDisplay);
-						pBox->y2 = max(pBox->y2, y + mode->VDisplay);
-					}
-				}
 			}
 
 			if (drmmode_crtc->scanout[0].pixmap &&
 			    (!info->tear_free || drmmode_crtc->scanout[1].pixmap)) {
+				RegionPtr pRegion;
+				BoxPtr pBox;
+
+				if (!drmmode_crtc->scanout_damage) {
+					drmmode_crtc->scanout_damage =
+						DamageCreate(radeon_screen_damage_report,
+							     NULL, DamageReportRawRegion,
+							     TRUE, pScreen, NULL);
+					DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
+						       drmmode_crtc->scanout_damage);
+				}
+
+				pRegion = DamageRegion(drmmode_crtc->scanout_damage);
+				RegionUninit(pRegion);
+				pRegion->data = NULL;
+				pBox = RegionExtents(pRegion);
+				pBox->x1 = min(pBox->x1, x);
+				pBox->y1 = min(pBox->y1, y);
+
+				switch (crtc->rotation & 0xf) {
+				case RR_Rotate_90:
+				case RR_Rotate_270:
+					pBox->x2 = max(pBox->x2, x + mode->VDisplay);
+					pBox->y2 = max(pBox->y2, y + mode->HDisplay);
+					break;
+				default:
+					pBox->x2 = max(pBox->x2, x + mode->HDisplay);
+					pBox->y2 = max(pBox->y2, y + mode->VDisplay);
+				}
+
 				drmmode_crtc->scanout_id = 0;
 				fb_id = drmmode_crtc->scanout[0].fb_id;
 				x = y = 0;
@@ -1125,8 +1125,7 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 		if (crtc->randr_crtc->scanout_pixmap)
 			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap,
 						drmmode_crtc->scanout[0].pixmap);
-		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout[0]);
+		drmmode_crtc_scanout_free(drmmode_crtc);
 		return TRUE;
 	}
 

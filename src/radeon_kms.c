@@ -402,8 +402,6 @@ radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
     return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
 }
 
-#ifdef RADEON_PIXMAP_SHARING
-
 static RegionPtr
 transform_region(RegionPtr region, struct pict_f_transform *transform,
 		 int w, int h)
@@ -441,6 +439,70 @@ transform_region(RegionPtr region, struct pict_f_transform *transform,
 	free(rects);
 	return transformed;
 }
+
+static void
+radeon_sync_scanout_pixmaps(xf86CrtcPtr xf86_crtc, RegionPtr new_region,
+			    int scanout_id)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    DrawablePtr dst = &drmmode_crtc->scanout[scanout_id].pixmap->drawable;
+    DrawablePtr src = &drmmode_crtc->scanout[scanout_id ^ 1].pixmap->drawable;
+    RegionPtr last_region = &drmmode_crtc->scanout_last_region;
+    ScrnInfoPtr scrn = xf86_crtc->scrn;
+    ScreenPtr pScreen = scrn->pScreen;
+    RADEONInfoPtr info = RADEONPTR(scrn);
+    RegionRec remaining;
+    RegionPtr sync_region = NULL;
+    BoxRec extents;
+    Bool force;
+    GCPtr gc;
+
+    if (RegionNil(last_region))
+	return;
+
+    RegionNull(&remaining);
+    RegionSubtract(&remaining, last_region, new_region);
+    if (RegionNil(&remaining))
+	goto uninit;
+
+    extents = *RegionExtents(&remaining);
+    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents, dst->width,
+					  dst->height))
+	goto uninit;
+
+#if XF86_CRTC_VERSION >= 4
+    if (xf86_crtc->driverIsPerformingTransform) {
+	sync_region = transform_region(&remaining,
+				       &xf86_crtc->f_framebuffer_to_crtc,
+				       dst->width, dst->height);
+    } else
+#endif /* XF86_CRTC_VERSION >= 4 */
+    {
+	sync_region = RegionDuplicate(&remaining);
+	RegionTranslate(sync_region, -xf86_crtc->x, -xf86_crtc->y);
+    }
+
+    force = info->accel_state->force;
+    info->accel_state->force = TRUE;
+
+    gc = GetScratchGC(dst->depth, pScreen);
+    if (gc) {
+	ValidateGC(dst, gc);
+	gc->funcs->ChangeClip(gc, CT_REGION, sync_region, 0);
+	sync_region = NULL;
+	gc->ops->CopyArea(src, dst, gc, 0, 0, dst->width, dst->height, 0, 0);
+	FreeScratchGC(gc);
+    }
+
+    info->accel_state->force = force;
+
+ uninit:
+    if (sync_region)
+	RegionDestroy(sync_region);
+    RegionUninit(&remaining);
+}
+
+#ifdef RADEON_PIXMAP_SHARING
 
 static RegionPtr
 dirty_region(PixmapDirtyUpdatePtr dirty)
@@ -660,13 +722,12 @@ static Bool
 radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    ScrnInfoPtr scrn;
-    DamagePtr pDamage;
-    RegionPtr pRegion;
+    RegionPtr pRegion = DamageRegion(drmmode_crtc->scanout_damage);
+    ScrnInfoPtr scrn = xf86_crtc->scrn;
+    ScreenPtr pScreen = scrn->pScreen;
+    RADEONInfoPtr info = RADEONPTR(scrn);
     DrawablePtr pDraw;
-    ScreenPtr pScreen;
     BoxRec extents;
-    RADEONInfoPtr info;
     Bool force;
 
     if (!xf86_crtc->enabled ||
@@ -674,24 +735,21 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 	!drmmode_crtc->scanout[scanout_id].pixmap)
 	return FALSE;
 
-    pDamage = drmmode_crtc->scanout[scanout_id].damage;
-    if (!pDamage)
-	return FALSE;
-
-    pRegion = DamageRegion(pDamage);
     if (!RegionNotEmpty(pRegion))
 	return FALSE;
 
     pDraw = &drmmode_crtc->scanout[scanout_id].pixmap->drawable;
-    pScreen = pDraw->pScreen;
     extents = *RegionExtents(pRegion);
-    RegionEmpty(pRegion);
     if (!radeon_scanout_extents_intersect(xf86_crtc, &extents, pDraw->width,
 					  pDraw->height))
 	return FALSE;
 
-    scrn = xf86_crtc->scrn;
-    info = RADEONPTR(scrn);
+    if (info->tear_free) {
+	radeon_sync_scanout_pixmaps(xf86_crtc, pRegion, scanout_id);
+	RegionCopy(&drmmode_crtc->scanout_last_region, pRegion);
+    }
+    RegionEmpty(pRegion);
+
     force = info->accel_state->force;
     info->accel_state->force = TRUE;
 
@@ -807,7 +865,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 
-    pDamage = drmmode_crtc->scanout[0].damage;
+    pDamage = drmmode_crtc->scanout_damage;
     if (!pDamage)
 	return;
 
