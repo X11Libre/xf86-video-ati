@@ -381,6 +381,27 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     return TRUE;
 }
 
+static Bool
+radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
+				 int h)
+{
+    extents->x1 = max(extents->x1 - xf86_crtc->x, 0);
+    extents->y1 = max(extents->y1 - xf86_crtc->y, 0);
+
+    switch (xf86_crtc->rotation & 0xf) {
+    case RR_Rotate_90:
+    case RR_Rotate_270:
+	extents->x2 = min(extents->x2 - xf86_crtc->x, h);
+	extents->y2 = min(extents->y2 - xf86_crtc->y, w);
+	break;
+    default:
+	extents->x2 = min(extents->x2 - xf86_crtc->x, w);
+	extents->y2 = min(extents->y2 - xf86_crtc->y, h);
+    }
+
+    return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
+}
+
 #ifdef RADEON_PIXMAP_SHARING
 
 static RegionPtr
@@ -634,27 +655,6 @@ radeon_dirty_update(ScrnInfoPtr scrn)
 	}
 }
 #endif
-
-static Bool
-radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
-				 int h)
-{
-    extents->x1 = max(extents->x1 - xf86_crtc->x, 0);
-    extents->y1 = max(extents->y1 - xf86_crtc->y, 0);
-
-    switch (xf86_crtc->rotation & 0xf) {
-    case RR_Rotate_90:
-    case RR_Rotate_270:
-	extents->x2 = min(extents->x2 - xf86_crtc->x, h);
-	extents->y2 = min(extents->y2 - xf86_crtc->y, w);
-	break;
-    default:
-	extents->x2 = min(extents->x2 - xf86_crtc->x, w);
-	extents->y2 = min(extents->y2 - xf86_crtc->y, h);
-    }
-
-    return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
-}
 
 static Bool
 radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
