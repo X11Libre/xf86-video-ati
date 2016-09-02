@@ -528,10 +528,19 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 static void
 drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
 {
-	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-				     &drmmode_crtc->scanout[0]);
-	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-				     &drmmode_crtc->scanout[1]);
+	if (drmmode_crtc->flip_pending) {
+		drmmode_crtc->scanout_destroy[0] = drmmode_crtc->scanout[0];
+		drmmode_crtc->scanout[0].pixmap = NULL;
+		drmmode_crtc->scanout[0].bo = NULL;
+		drmmode_crtc->scanout_destroy[1] = drmmode_crtc->scanout[1];
+		drmmode_crtc->scanout[1].pixmap = NULL;
+		drmmode_crtc->scanout[1].bo = NULL;
+	} else {
+		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+					     &drmmode_crtc->scanout[0]);
+		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+					     &drmmode_crtc->scanout[1]);
+	}
 
 	if (drmmode_crtc->scanout_damage) {
 		DamageDestroy(drmmode_crtc->scanout_damage);
@@ -1120,11 +1129,12 @@ static Bool
 drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
 
 	if (!ppix) {
 		if (crtc->randr_crtc->scanout_pixmap)
 			PixmapStopDirtyTracking(crtc->randr_crtc->scanout_pixmap,
-						drmmode_crtc->scanout[0].pixmap);
+						drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap);
 		drmmode_crtc_scanout_free(drmmode_crtc);
 		return TRUE;
 	}
@@ -1133,6 +1143,14 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 					 ppix->drawable.width,
 					 ppix->drawable.height))
 		return FALSE;
+
+	if (info->tear_free &&
+	    !drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[1],
+					 ppix->drawable.width,
+					 ppix->drawable.height)) {
+		drmmode_crtc_scanout_free(drmmode_crtc);
+		return FALSE;
+	}
 
 #ifdef HAS_DIRTYTRACKING_ROTATION
 	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[0].pixmap,
@@ -2200,6 +2218,11 @@ drmmode_clear_pending_flip(xf86CrtcPtr crtc)
 
 		drmmode_crtc_dpms(crtc, drmmode_crtc->pending_dpms_mode);
 	}
+
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout_destroy[0]);
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout_destroy[1]);
 }
 
 static void
