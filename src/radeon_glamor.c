@@ -342,6 +342,26 @@ radeon_glamor_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr slave,
 	CARD32 size;
 	int fd;
 
+	if ((radeon_get_pixmap_tiling_flags(pixmap) &
+	     RADEON_TILING_MASK) != RADEON_TILING_LINEAR) {
+		PixmapPtr linear;
+
+		/* We don't want to re-allocate the screen pixmap as
+		 * linear, to avoid trouble with page flipping
+		 */
+		if (screen->GetScreenPixmap(screen) == pixmap)
+			return FALSE;
+
+		linear = screen->CreatePixmap(screen, pixmap->drawable.width,
+					      pixmap->drawable.height,
+					      pixmap->drawable.depth,
+					      CREATE_PIXMAP_USAGE_SHARED);
+		if (!linear)
+			return FALSE;
+
+		radeon_glamor_set_pixmap_bo(&pixmap->drawable, linear);
+	}
+
 	fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
 	if (fd < 0)
 		return FALSE;
