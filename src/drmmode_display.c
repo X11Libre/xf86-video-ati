@@ -126,12 +126,11 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 
 	if (!(*pScreen->ModifyPixmapHeader)(pixmap, width, height,
 					    depth, bpp, pitch, NULL)) {
-		return NULL;
+		goto fail;
 	}
 
 	if (!info->use_glamor)
 		exaMoveInPixmap(pixmap);
-	radeon_set_pixmap_bo(pixmap, bo);
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		surface = radeon_get_pixmap_surface(pixmap);
 		if (surface && psurf) 
@@ -163,22 +162,25 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
 			}
 			if (radeon_surface_best(info->surf_man, surface)) {
-				return NULL;
+				goto fail;
 			}
 			if (radeon_surface_init(info->surf_man, surface)) {
-				return NULL;
+				goto fail;
 			}
 		}
 	}
 
-	if (info->use_glamor &&
-	    !radeon_glamor_create_textured_pixmap(pixmap,
-						  radeon_get_pixmap_private(pixmap))) {
-		pScreen->DestroyPixmap(pixmap);
-	  	return NULL;
-	}
+	if (!radeon_set_pixmap_bo(pixmap, bo))
+		goto fail;
 
-	return pixmap;
+	if (!info->use_glamor ||
+	    radeon_glamor_create_textured_pixmap(pixmap,
+						 radeon_get_pixmap_private(pixmap)))
+		return pixmap;
+
+fail:
+	pScreen->DestroyPixmap(pixmap);
+	return NULL;
 }
 
 static void drmmode_destroy_bo_pixmap(PixmapPtr pixmap)
@@ -2121,7 +2123,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		goto fail;
 
 	if (!info->r600_shadow_fb) {
-		radeon_set_pixmap_bo(ppix, info->front_bo);
 		psurface = radeon_get_pixmap_surface(ppix);
 		*psurface = info->front_surface;
 		screen->ModifyPixmapHeader(ppix,
@@ -2144,6 +2145,11 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	if (info->use_glamor)
 		radeon_glamor_create_screen_resources(scrn->pScreen);
+
+	if (!info->r600_shadow_fb) {
+		if (!radeon_set_pixmap_bo(ppix, info->front_bo))
+			goto fail;
+	}
 
 	/* Clear new buffer */
 	gc = GetScratchGC(ppix->drawable.depth, scrn->pScreen);

@@ -347,7 +347,8 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     if (info->dri2.enabled || info->use_glamor) {
 	if (info->front_bo) {
 	    PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
-	    radeon_set_pixmap_bo(pPix, info->front_bo);
+	    if (!radeon_set_pixmap_bo(pPix, info->front_bo))
+		return FALSE;
 	    surface = radeon_get_pixmap_surface(pPix);
 	    if (surface) {
 		*surface = info->front_surface;

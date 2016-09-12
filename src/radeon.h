@@ -678,7 +678,7 @@ static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
-static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
+static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
 #ifdef USE_GLAMOR
     RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
@@ -688,11 +688,11 @@ static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 
 	priv = radeon_get_pixmap_private(pPix);
 	if (priv == NULL && bo == NULL)
-	    return;
+	    return TRUE;
 
 	if (priv) {
 	    if (priv->bo == bo)
-		return;
+		return TRUE;
 
 	    if (priv->bo)
 		radeon_bo_unref(priv->bo);
@@ -709,7 +709,7 @@ static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	    if (!priv) {
 		priv = calloc(1, sizeof (struct radeon_pixmap));
 		if (!priv)
-		    goto out;
+		    return FALSE;
 	    }
 
 	    radeon_bo_ref(bo);
@@ -717,8 +717,9 @@ static inline void radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 
 	    radeon_bo_get_tiling(bo, &priv->tiling_flags, &pitch);
 	}
-out:
+
 	radeon_set_pixmap_private(pPix, priv);
+	return TRUE;
     } else
 #endif /* USE_GLAMOR */
     {
@@ -735,7 +736,10 @@ out:
 	    driver_priv->bo = bo;
 
 	    radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch);
+	    return TRUE;
 	}
+
+	return FALSE;
     }
 }
 
