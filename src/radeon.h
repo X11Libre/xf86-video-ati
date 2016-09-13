@@ -691,11 +691,12 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	    return TRUE;
 
 	if (priv) {
-	    if (priv->bo == bo)
-		return TRUE;
+	    if (priv->bo) {
+		if (priv->bo == bo)
+		    return TRUE;
 
-	    if (priv->bo)
 		radeon_bo_unref(priv->bo);
+	    }
 
 	    if (!bo) {
 		free(priv);
