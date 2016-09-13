@@ -314,10 +314,9 @@ radeon_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap)
 		FreeScratchGC(gc);
 	}
 
-	radeon_set_pixmap_private(pixmap, NULL);
-
 	/* And redirect the pixmap to the new bo (for 3D). */
 	glamor_egl_exchange_buffers(old, pixmap);
+	radeon_set_pixmap_private(pixmap, radeon_get_pixmap_private(old));
 	radeon_set_pixmap_private(old, priv);
 
 	screen->ModifyPixmapHeader(old,
