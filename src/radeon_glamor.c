@@ -283,6 +283,54 @@ fallback_pixmap:
 		return fbCreatePixmap(screen, w, h, depth, usage);
 }
 
+PixmapPtr
+radeon_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap)
+{
+	PixmapPtr old = get_drawable_pixmap(drawable);
+	ScreenPtr screen = drawable->pScreen;
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pixmap);
+	GCPtr gc;
+
+	/* With a glamor pixmap, 2D pixmaps are created in texture
+	 * and without a static BO attached to it. To support DRI,
+	 * we need to create a new textured-drm pixmap and
+	 * need to copy the original content to this new textured-drm
+	 * pixmap, and then convert the old pixmap to a coherent
+	 * textured-drm pixmap which has a valid BO attached to it
+	 * and also has a valid texture, thus both glamor and DRI2
+	 * can access it.
+	 *
+	 */
+
+	/* Copy the current contents of the pixmap to the bo. */
+	gc = GetScratchGC(drawable->depth, screen);
+	if (gc) {
+		ValidateGC(&pixmap->drawable, gc);
+		gc->ops->CopyArea(&old->drawable, &pixmap->drawable,
+				  gc,
+				  0, 0,
+				  old->drawable.width,
+				  old->drawable.height, 0, 0);
+		FreeScratchGC(gc);
+	}
+
+	radeon_set_pixmap_private(pixmap, NULL);
+
+	/* And redirect the pixmap to the new bo (for 3D). */
+	glamor_egl_exchange_buffers(old, pixmap);
+	radeon_set_pixmap_private(old, priv);
+
+	screen->ModifyPixmapHeader(old,
+				   old->drawable.width,
+				   old->drawable.height,
+				   0, 0, pixmap->devKind, NULL);
+	old->devPrivate.ptr = NULL;
+
+	screen->DestroyPixmap(pixmap);
+
+	return old;
+}
+
 #ifdef RADEON_PIXMAP_SHARING
 
 static Bool
