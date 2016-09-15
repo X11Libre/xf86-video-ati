@@ -98,6 +98,7 @@ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
+					  int pitch,
 					  struct radeon_bo *bo, struct radeon_surface *psurf)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -111,8 +112,16 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	if (!pixmap)
 		return NULL;
 
+	if (pitch <= 0 &&
+	    (radeon_bo_get_tiling(bo, &tiling, (uint32_t*)&pitch) != 0 ||
+	     pitch <= 0)) {
+		ErrorF("radeon_bo_get_tiling failed to determine pitch\n");
+		pScreen->DestroyPixmap(pixmap);
+		return NULL;
+	}
+
 	if (!(*pScreen->ModifyPixmapHeader)(pixmap, width, height,
-					    depth, bpp, -1, NULL)) {
+					    depth, bpp, pitch, NULL)) {
 		return NULL;
 	}
 
@@ -401,7 +410,8 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	}
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
-					  fbcon->depth, fbcon->bpp, bo, NULL);
+					  fbcon->depth, fbcon->bpp, fbcon->pitch,
+					  bo, NULL);
 	info->fbcon_pixmap = pixmap;
 	radeon_bo_unref(bo);
 out_free_fb:
@@ -593,7 +603,7 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 						 width, height,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
-						 scanout->bo, NULL);
+						 -1, scanout->bo, NULL);
 	if (scanout->pixmap == NULL)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate scanout pixmap for CRTC\n");
