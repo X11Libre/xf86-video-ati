@@ -516,10 +516,11 @@ static uint32_t radeon_get_msc_delta(DrawablePtr pDraw, xf86CrtcPtr crtc)
  */
 static Bool radeon_dri2_get_crtc_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 {
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
     if (!radeon_crtc_is_enabled(crtc) ||
 	 drmmode_crtc_get_ust_msc(crtc, ust, msc) != Success) {
 	/* CRTC is not running, extrapolate MSC and timestamp */
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	ScrnInfoPtr scrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	CARD64 now, delta_t, delta_seq;
@@ -543,6 +544,8 @@ static Bool radeon_dri2_get_crtc_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 	*msc = drmmode_crtc->dpms_last_seq;
 	*msc += delta_seq;
     }
+
+    *msc += drmmode_crtc->interpolated_vblanks;
 
     return TRUE;
 }
@@ -991,7 +994,8 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     if (!radeon_dri2_get_crtc_msc(crtc, ust, msc))
 	return FALSE;
 
-    *msc += radeon_get_msc_delta(draw, crtc);
+    if (draw && draw->type == DRAWABLE_WINDOW)
+	*msc += get_dri2_window_priv((WindowPtr)draw)->vblank_delta;
     *msc &= 0xffffffff;
     return TRUE;
 }
