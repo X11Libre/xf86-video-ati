@@ -775,7 +775,7 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
 
     region.extents.x1 = region.extents.y1 = 0;
     region.extents.x2 = front_priv->pixmap->drawable.width;
-    region.extents.y2 = front_priv->pixmap->drawable.width;
+    region.extents.y2 = front_priv->pixmap->drawable.height;
     region.data = NULL;
     DamageRegionAppend(&front_priv->pixmap->drawable, &region);
 
