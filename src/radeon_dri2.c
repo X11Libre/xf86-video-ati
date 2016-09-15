@@ -78,15 +78,6 @@ static DevPrivateKeyRec dri2_window_private_key_rec;
      dixLookupPrivate(&(window)->devPrivates, dri2_window_private_key))
 
 
-static PixmapPtr get_drawable_pixmap(DrawablePtr drawable)
-{
-    if (drawable->type == DRAWABLE_PIXMAP)
-	return (PixmapPtr)drawable;
-    else
-	return (*drawable->pScreen->GetWindowPixmap)((WindowPtr)drawable);
-}
-
-
 static PixmapPtr fixup_glamor(DrawablePtr drawable, PixmapPtr pixmap)
 {
 	PixmapPtr old = get_drawable_pixmap(drawable);
