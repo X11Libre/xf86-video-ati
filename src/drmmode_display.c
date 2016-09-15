@@ -36,6 +36,7 @@
 #include "damagestr.h"
 #include "micmap.h"
 #include "xf86cmap.h"
+#include "xf86Priv.h"
 #include "radeon.h"
 #include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
@@ -2514,10 +2515,12 @@ void
 radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 {
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 	drmModeResPtr mode_res;
-	int i, j;
+	int i, j, s;
 	Bool found;
 	Bool changed = FALSE;
+	int num_dvi = 0, num_hdmi = 0;
 
 	mode_res = drmModeGetResources(drmmode->fd);
 	if (!mode_res)
@@ -2553,21 +2556,43 @@ restart_destroy:
 	for (i = 0; i < mode_res->count_connectors; i++) {
 		found = FALSE;
 
-		for (j = 0; j < config->num_output; j++) {
-			xf86OutputPtr output = config->output[j];
-			drmmode_output_private_ptr drmmode_output;
+		for (s = 0; !found && s < xf86NumScreens; s++) {
+			ScrnInfoPtr loop_scrn = xf86Screens[s];
+			xf86CrtcConfigPtr loop_config =
+				XF86_CRTC_CONFIG_PTR(loop_scrn);
 
-			drmmode_output = output->driver_private;
-			if (mode_res->connectors[i] == drmmode_output->output_id) {
-				found = TRUE;
-				break;
+			if (RADEONEntPriv(loop_scrn) != pRADEONEnt)
+				continue;
+
+			for (j = 0; !found && j < loop_config->num_output; j++) {
+				xf86OutputPtr output = loop_config->output[j];
+				drmmode_output_private_ptr drmmode_output;
+
+				drmmode_output = output->driver_private;
+				if (mode_res->connectors[i] ==
+				    drmmode_output->output_id) {
+					found = TRUE;
+
+					switch(drmmode_output->mode_output->connector_type) {
+					case DRM_MODE_CONNECTOR_DVII:
+					case DRM_MODE_CONNECTOR_DVID:
+					case DRM_MODE_CONNECTOR_DVIA:
+						num_dvi++;
+						break;
+					case DRM_MODE_CONNECTOR_HDMIA:
+					case DRM_MODE_CONNECTOR_HDMIB:
+						num_hdmi++;
+						break;
+					}
+				}
 			}
 		}
 		if (found)
 			continue;
 
-		changed = TRUE;
-		drmmode_output_init(scrn, drmmode, mode_res, i, NULL, NULL, 1);
+		if (drmmode_output_init(scrn, drmmode, mode_res, i, &num_dvi,
+					&num_hdmi, 1) != 0)
+			changed = TRUE;
 	}
 
 	if (changed) {
