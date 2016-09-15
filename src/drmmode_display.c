@@ -2561,7 +2561,8 @@ restart_destroy:
 			xf86CrtcConfigPtr loop_config =
 				XF86_CRTC_CONFIG_PTR(loop_scrn);
 
-			if (RADEONEntPriv(loop_scrn) != pRADEONEnt)
+			if (strcmp(loop_scrn->driverName, scrn->driverName) ||
+			    RADEONEntPriv(loop_scrn) != pRADEONEnt)
 				continue;
 
 			for (j = 0; !found && j < loop_config->num_output; j++) {
