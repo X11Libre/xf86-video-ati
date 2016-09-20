@@ -402,6 +402,8 @@ radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
     return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
 }
 
+#if XF86_CRTC_VERSION >= 4
+
 static RegionPtr
 transform_region(RegionPtr region, struct pict_f_transform *transform,
 		 int w, int h)
@@ -439,6 +441,8 @@ transform_region(RegionPtr region, struct pict_f_transform *transform,
 	free(rects);
 	return transformed;
 }
+
+#endif
 
 static void
 radeon_sync_scanout_pixmaps(xf86CrtcPtr xf86_crtc, RegionPtr new_region,
