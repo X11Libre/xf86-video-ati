@@ -137,6 +137,12 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
+AC_CHECK_DECL(RegionDuplicate,
+	      [AC_DEFINE(HAVE_REGIONDUPLICATE, 1,
+	      [Have RegionDuplicate API])], [],
+	      [#include <xorg-server.h>
+	       #include <regionstr.h>])
+
 AC_CHECK_DECL(fbGlyphs,
 	      [AC_DEFINE(HAVE_FBGLYPHS, 1, [Have fbGlyphs API])], [],
 	      [#include <X11/Xmd.h>
