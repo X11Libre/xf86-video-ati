@@ -1982,7 +1982,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	struct radeon_bo *old_front = NULL;
-	Bool	    ret;
 	ScreenPtr   screen = xf86ScrnToScreen(scrn);
 	uint32_t    old_fb_id;
 	int	    i, pitch, old_width, old_height, old_pitch;
@@ -2085,6 +2084,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	old_height = scrn->virtualY;
 	old_pitch = scrn->displayWidth;
 	old_fb_id = drmmode->fb_id;
+	drmmode->fb_id = 0;
 	old_front = info->front_bo;
 
 	scrn->virtualX = width;
@@ -2114,13 +2114,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 #endif
 	if (tiling_flags)
 	    radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
-
-	ret = drmModeAddFB(drmmode->fd, width, height, scrn->depth,
-			   scrn->bitsPerPixel, pitch,
-			   info->front_bo->handle,
-			   &drmmode->fb_id);
-	if (ret)
-		goto fail;
 
 	if (!info->r600_shadow_fb) {
 		psurface = radeon_get_pixmap_surface(ppix);
