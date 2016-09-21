@@ -781,7 +781,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
 
-			drmmode_crtc_scanout_free(drmmode_crtc);
 		} else if (
 #ifdef RADEON_PIXMAP_SHARING
 			!pScreen->isGPU &&
@@ -909,8 +908,12 @@ done:
 		crtc->y = saved_y;
 		crtc->rotation = saved_rotation;
 		crtc->mode = saved_mode;
-	} else
+	} else {
 		crtc->active = TRUE;
+
+		if (fb_id != drmmode_crtc->scanout[0].fb_id)
+			drmmode_crtc_scanout_free(drmmode_crtc);
+	}
 
 	free(output_ids);
 
