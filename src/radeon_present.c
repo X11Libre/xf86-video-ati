@@ -265,7 +265,8 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
 	if (!config->crtc[i]->enabled)
 	    continue;
 
-	if (!drmmode_crtc || drmmode_crtc->rotate.bo != NULL)
+	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
+	    drmmode_crtc->scanout[0].bo)
 	    return FALSE;
 
 	if (drmmode_crtc->pending_dpms_mode == DPMSModeOn)
