@@ -383,8 +383,7 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 }
 
 static Bool
-radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
-				 int h)
+radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents)
 {
     extents->x1 -= xf86_crtc->filter_width >> 1;
     extents->x2 += xf86_crtc->filter_width >> 1;
@@ -394,8 +393,8 @@ radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
 
     extents->x1 = max(extents->x1, 0);
     extents->y1 = max(extents->y1, 0);
-    extents->x2 = min(extents->x2, w);
-    extents->y2 = min(extents->y2, h);
+    extents->x2 = min(extents->x2, xf86_crtc->mode.HDisplay);
+    extents->y2 = min(extents->y2, xf86_crtc->mode.VDisplay);
 
     return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
 }
@@ -468,8 +467,7 @@ radeon_sync_scanout_pixmaps(xf86CrtcPtr xf86_crtc, RegionPtr new_region,
 	goto uninit;
 
     extents = *RegionExtents(&remaining);
-    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents, dst->width,
-					  dst->height))
+    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
 	goto uninit;
 
 #if XF86_CRTC_VERSION >= 4
@@ -875,8 +873,7 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 
     pDraw = &drmmode_crtc->scanout[scanout_id].pixmap->drawable;
     extents = *RegionExtents(pRegion);
-    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents, pDraw->width,
-					  pDraw->height))
+    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
 	return FALSE;
 
     if (info->tear_free) {
@@ -985,7 +982,6 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
     drmVBlank vbl;
     DamagePtr pDamage;
     RegionPtr pRegion;
-    DrawablePtr pDraw;
     BoxRec extents;
 
     if (!xf86_crtc->enabled ||
@@ -1002,10 +998,8 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
     if (!RegionNotEmpty(pRegion))
 	return;
 
-    pDraw = &drmmode_crtc->scanout[0].pixmap->drawable;
     extents = *RegionExtents(pRegion);
-    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents, pDraw->width,
-					  pDraw->height))
+    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
 	return;
 
     scrn = xf86_crtc->scrn;
