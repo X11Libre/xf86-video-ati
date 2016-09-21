@@ -96,7 +96,6 @@ typedef struct {
     uint32_t dpms_last_seq;
     int dpms_last_fps;
     uint32_t interpolated_vblanks;
-    uint16_t lut_r[256], lut_g[256], lut_b[256];
 
     /* Modeset needed (for DPMS on or after a page flip crossing with a
      * modeset)
