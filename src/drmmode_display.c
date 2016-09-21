@@ -730,7 +730,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	DisplayModeRec saved_mode;
 	uint32_t *output_ids = NULL;
 	int output_count = 0;
-	Bool ret = TRUE;
+	Bool ret = FALSE;
 	int i;
 	int fb_id;
 	drmModeModeInfo kmode;
@@ -747,10 +747,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		crtc->rotation = rotation;
 
 		output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
-		if (!output_ids) {
-			ret = FALSE;
+		if (!output_ids)
 			goto done;
-		}
 
 		for (i = 0; i < xf86_config->num_output; i++) {
 			xf86OutputPtr output = xf86_config->output[i];
@@ -850,7 +848,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 					 info->front_bo->handle,
 					 &drmmode->fb_id) < 0) {
 				ErrorF("failed to add fb\n");
-				ret = FALSE;
 				goto done;
 			}
 
@@ -867,8 +864,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				   fb_id, x, y, output_ids,
 				   output_count, &kmode) != 0) {
 			xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-				   "failed to set mode: %s", strerror(errno));
-			ret = FALSE;
+				   "failed to set mode: %s\n", strerror(errno));
 			goto done;
 		} else
 			ret = TRUE;
