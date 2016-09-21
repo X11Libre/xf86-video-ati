@@ -734,34 +734,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int i;
 	int fb_id;
 	drmModeModeInfo kmode;
-	int pitch;
-	uint32_t tiling_flags = 0;
-
-	if (info->allowColorTiling) {
-		if (info->ChipFamily >= CHIP_FAMILY_R600)
-			tiling_flags |= RADEON_TILING_MICRO;
-		else
-			tiling_flags |= RADEON_TILING_MACRO;
-	}
-
-	pitch = RADEON_ALIGN(pScrn->displayWidth, drmmode_get_pitch_align(pScrn, info->pixel_bytes, tiling_flags)) *
-		info->pixel_bytes;
-	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		pitch = info->front_surface.level[0].pitch_bytes;
-	}
-
-	if (drmmode->fb_id == 0) {
-		ret = drmModeAddFB(drmmode->fd,
-				   pScrn->virtualX, pScrn->virtualY,
-                                   pScrn->depth, pScrn->bitsPerPixel,
-				   pitch,
-				   info->front_bo->handle,
-                                   &drmmode->fb_id);
-                if (ret < 0) {
-                        ErrorF("failed to add fb\n");
-                        return FALSE;
-                }
-        }
 
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
@@ -867,6 +839,22 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				radeon_scanout_update_handler(crtc, 0, 0, drmmode_crtc);
 				radeon_bo_wait(drmmode_crtc->scanout[0].bo);
 			}
+		}
+
+		if (fb_id == 0) {
+			if (drmModeAddFB(drmmode->fd,
+					 pScrn->virtualX,
+					 pScrn->virtualY,
+					 pScrn->depth, pScrn->bitsPerPixel,
+					 pScrn->displayWidth * info->pixel_bytes,
+					 info->front_bo->handle,
+					 &drmmode->fb_id) < 0) {
+				ErrorF("failed to add fb\n");
+				ret = FALSE;
+				goto done;
+			}
+
+			fb_id = drmmode->fb_id;
 		}
 
 		/* Wait for any pending flip to finish */
