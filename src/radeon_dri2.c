@@ -723,7 +723,10 @@ can_exchange(ScrnInfoPtr pScrn, DrawablePtr draw,
 
     for (i = 0; i < xf86_config->num_crtc; i++) {
 	xf86CrtcPtr crtc = xf86_config->crtc[i];
-	if (crtc->enabled && crtc->rotatedData)
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	if (crtc->enabled &&
+	    (crtc->rotatedData || drmmode_crtc->scanout[0].bo))
 	    return FALSE;
     }
 
