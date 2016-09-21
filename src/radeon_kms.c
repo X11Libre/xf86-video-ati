@@ -999,8 +999,10 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 	return;
 
     extents = *RegionExtents(pRegion);
-    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
+    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents)) {
+	RegionEmpty(pRegion);
 	return;
+    }
 
     scrn = xf86_crtc->scrn;
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
