@@ -687,15 +687,15 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 	Bool ret;
 
 #if XF86_CRTC_VERSION >= 7
-	if (!crtc->transformPresent && crtc->rotation != RR_Rotate_0)
+	if (crtc->transformPresent || crtc->rotation != RR_Rotate_0)
 	    crtc->driverIsPerformingTransform = XF86DriverTransformOutput;
 	else
 	    crtc->driverIsPerformingTransform = XF86DriverTransformNone;
 #else
 	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
 
-	crtc->driverIsPerformingTransform = info->tear_free &&
-		!crtc->transformPresent && crtc->rotation != RR_Rotate_0;
+	crtc->driverIsPerformingTransform = crtc->transformPresent ||
+		(info->tear_free && crtc->rotation != RR_Rotate_0);
 #endif
 
 	ret = xf86CrtcRotate(crtc);
@@ -815,19 +815,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 				RegionUninit(pRegion);
 				pRegion->data = NULL;
 				pBox = RegionExtents(pRegion);
-				pBox->x1 = min(pBox->x1, x);
-				pBox->y1 = min(pBox->y1, y);
-
-				switch (crtc->rotation & 0xf) {
-				case RR_Rotate_90:
-				case RR_Rotate_270:
-					pBox->x2 = max(pBox->x2, x + mode->VDisplay);
-					pBox->y2 = max(pBox->y2, y + mode->HDisplay);
-					break;
-				default:
-					pBox->x2 = max(pBox->x2, x + mode->HDisplay);
-					pBox->y2 = max(pBox->y2, y + mode->VDisplay);
-				}
+				pBox->x1 = 0;
+				pBox->y1 = 0;
+				pBox->x2 = max(pBox->x2, pScrn->virtualX);
+				pBox->y2 = max(pBox->y2, pScrn->virtualY);
 
 				drmmode_crtc->scanout_id = 0;
 				fb_id = drmmode_crtc->scanout[0].fb_id;

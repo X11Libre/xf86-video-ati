@@ -386,19 +386,16 @@ static Bool
 radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents, int w,
 				 int h)
 {
-    extents->x1 = max(extents->x1 - xf86_crtc->x, 0);
-    extents->y1 = max(extents->y1 - xf86_crtc->y, 0);
+    extents->x1 -= xf86_crtc->filter_width >> 1;
+    extents->x2 += xf86_crtc->filter_width >> 1;
+    extents->y1 -= xf86_crtc->filter_height >> 1;
+    extents->y2 += xf86_crtc->filter_height >> 1;
+    pixman_f_transform_bounds(&xf86_crtc->f_framebuffer_to_crtc, extents);
 
-    switch (xf86_crtc->rotation & 0xf) {
-    case RR_Rotate_90:
-    case RR_Rotate_270:
-	extents->x2 = min(extents->x2 - xf86_crtc->x, h);
-	extents->y2 = min(extents->y2 - xf86_crtc->y, w);
-	break;
-    default:
-	extents->x2 = min(extents->x2 - xf86_crtc->x, w);
-	extents->y2 = min(extents->y2 - xf86_crtc->y, h);
-    }
+    extents->x1 = max(extents->x1, 0);
+    extents->y1 = max(extents->y1, 0);
+    extents->x2 = min(extents->x2, w);
+    extents->y2 = min(extents->y2, h);
 
     return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
 }
@@ -927,12 +924,6 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 	if (xf86_crtc->filter)
 	    SetPicturePictFilter(src, xf86_crtc->filter, xf86_crtc->params,
 				 xf86_crtc->nparams);
-
-	extents.x1 += xf86_crtc->x - (xf86_crtc->filter_width >> 1);
-	extents.x2 += xf86_crtc->x + (xf86_crtc->filter_width >> 1);
-	extents.y1 += xf86_crtc->y - (xf86_crtc->filter_height >> 1);
-	extents.y2 += xf86_crtc->y + (xf86_crtc->filter_height >> 1);
-	pixman_f_transform_bounds(&xf86_crtc->f_framebuffer_to_crtc, &extents);
 
 	pScreen->SourceValidate = NULL;
 	CompositePicture(PictOpSrc,
