@@ -131,6 +131,10 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 
 	if (!info->use_glamor)
 		exaMoveInPixmap(pixmap);
+
+	if (!radeon_set_pixmap_bo(pixmap, bo))
+		goto fail;
+
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		surface = radeon_get_pixmap_surface(pixmap);
 		if (surface && psurf) 
@@ -169,9 +173,6 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 			}
 		}
 	}
-
-	if (!radeon_set_pixmap_bo(pixmap, bo))
-		goto fail;
 
 	if (!info->use_glamor ||
 	    radeon_glamor_create_textured_pixmap(pixmap,
