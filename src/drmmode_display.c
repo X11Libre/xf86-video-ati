@@ -671,8 +671,9 @@ drmmode_can_use_hw_cursor(xf86CrtcPtr crtc)
 		return FALSE;
 #endif
 
-#ifdef RADEON_PIXMAP_SHARING
-	/* HW cursor not supported yet with RandR 1.4 multihead */
+#if defined(RADEON_PIXMAP_SHARING) && \
+	XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(1,18,99,901,0)
+	/* HW cursor not supported with RandR 1.4 multihead */
 	if (!xorg_list_is_empty(&crtc->scrn->pScreen->pixmap_dirty_list))
 		return FALSE;
 #endif
