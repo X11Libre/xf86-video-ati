@@ -17,6 +17,8 @@ my $radeonchipsetfile = 'radeon_chipset_gen.h';
 my $radeonchipinfofile  = 'radeon_chipinfo_gen.h';
 
 my %uniquechipsets;
+my @uniquearray;
+my $numunique = 0;
 
 my $csv = Text::CSV_XS->new();
 
@@ -50,7 +52,10 @@ while (<CSV>) {
 	print PCIDEVICEMATCH " ATI_DEVICE_MATCH( PCI_CHIP_$columns[1], 0 ),\n";
 
 	print RADEONCHIPSET "  { PCI_CHIP_$columns[1], \"$columns[8]\" },\n";
-	$uniquechipsets{$columns[8]} = 1;
+	if (!$uniquechipsets{$columns[8]}) {
+	    $uniquearray[$numunique] = $columns[8];
+	    $uniquechipsets{$columns[8]} = $numunique++;
+	}
 
 	print RADEONCHIPINFO " { $columns[0], CHIP_FAMILY_$columns[2], ";
 
@@ -95,7 +100,7 @@ while (<CSV>) {
 
 print RADEONCHIPINFO "};\n";
 print RADEONCHIPSET "  { -1,                 NULL }\n};\n\nSymTabRec RADEONUniqueChipsets[] = {\n";
-foreach (sort keys %uniquechipsets) {
+foreach (@uniquearray) {
 	print RADEONCHIPSET "  { 0, \"$_\" },\n";
 }
 print RADEONCHIPSET "  { -1,                 NULL }\n};\n";
