@@ -1142,23 +1142,21 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+	ScreenPtr screen = crtc->scrn->pScreen;
+	PixmapDirtyUpdatePtr dirty;
 
-	if (!ppix) {
-		ScreenPtr screen = crtc->scrn->pScreen;
-		PixmapDirtyUpdatePtr dirty;
+	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
+		if (dirty->slave_dst !=
+		    drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap)
+			continue;
 
-		xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
-			if (dirty->slave_dst !=
-			    drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap)
-				continue;
-
-			PixmapStopDirtyTracking(dirty->src, dirty->slave_dst);
-			drmmode_crtc_scanout_free(drmmode_crtc);
-			break;
-		}
-
-		return TRUE;
+		PixmapStopDirtyTracking(dirty->src, dirty->slave_dst);
+		drmmode_crtc_scanout_free(drmmode_crtc);
+		break;
 	}
+
+	if (!ppix)
+		return TRUE;
 
 	if (!drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[0],
 					 ppix->drawable.width,
