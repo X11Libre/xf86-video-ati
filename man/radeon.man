@@ -271,7 +271,7 @@ Sea Islands.
 Define the maximum level of DRI to enable. Valid values are 2 for DRI2 or 3 for DRI3.
 The default is
 .B 3 for DRI3
-if the driver was compiled for Xorg >= 1.18.3 and glamor is enabled, otherwise
+if the Xorg version is >= 1.18.3 and glamor is enabled, otherwise
 .B 2 for DRI2. Note:
 DRI3 may not work correctly in all cases with EXA, enable at your own risk.
 .TP
