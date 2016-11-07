@@ -224,14 +224,14 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	if (flags & RADEON_CREATE_PIXMAP_TILING_MACRO)
 	    tiling |= RADEON_TILING_MACRO;
 
-	    if (aligned_width == front_width)
-		aligned_width = pScrn->virtualX;
+	if (aligned_width == front_width)
+	    aligned_width = pScrn->virtualX;
 
-	    pixmap = (*pScreen->CreatePixmap)(pScreen,
-					      aligned_width,
-					      height,
-					      depth,
-					      flags | RADEON_CREATE_PIXMAP_DRI2);
+	pixmap = (*pScreen->CreatePixmap)(pScreen,
+					  aligned_width,
+					  height,
+					  depth,
+					  flags | RADEON_CREATE_PIXMAP_DRI2);
     }
 
     buffers = calloc(1, sizeof *buffers);
