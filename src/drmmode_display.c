@@ -2543,6 +2543,37 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
     return TRUE;
 }
 
+static Bool
+drmmode_find_output(ScrnInfoPtr scrn, int output_id, int *num_dvi,
+		    int *num_hdmi)
+{
+	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+	int i;
+
+	for (i = 0; i < config->num_output; i++) {
+		xf86OutputPtr output = config->output[i];
+		drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+		if (drmmode_output->output_id == output_id) {
+			switch(drmmode_output->mode_output->connector_type) {
+			case DRM_MODE_CONNECTOR_DVII:
+			case DRM_MODE_CONNECTOR_DVID:
+			case DRM_MODE_CONNECTOR_DVIA:
+				(*num_dvi)++;
+				break;
+			case DRM_MODE_CONNECTOR_HDMIA:
+			case DRM_MODE_CONNECTOR_HDMIB:
+				(*num_hdmi)++;
+				break;
+			}
+
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
 void
 radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 {
@@ -2590,35 +2621,14 @@ restart_destroy:
 
 		for (s = 0; !found && s < xf86NumScreens; s++) {
 			ScrnInfoPtr loop_scrn = xf86Screens[s];
-			xf86CrtcConfigPtr loop_config =
-				XF86_CRTC_CONFIG_PTR(loop_scrn);
 
 			if (strcmp(loop_scrn->driverName, scrn->driverName) ||
 			    RADEONEntPriv(loop_scrn) != pRADEONEnt)
 				continue;
 
-			for (j = 0; !found && j < loop_config->num_output; j++) {
-				xf86OutputPtr output = loop_config->output[j];
-				drmmode_output_private_ptr drmmode_output;
-
-				drmmode_output = output->driver_private;
-				if (mode_res->connectors[i] ==
-				    drmmode_output->output_id) {
-					found = TRUE;
-
-					switch(drmmode_output->mode_output->connector_type) {
-					case DRM_MODE_CONNECTOR_DVII:
-					case DRM_MODE_CONNECTOR_DVID:
-					case DRM_MODE_CONNECTOR_DVIA:
-						num_dvi++;
-						break;
-					case DRM_MODE_CONNECTOR_HDMIA:
-					case DRM_MODE_CONNECTOR_HDMIB:
-						num_hdmi++;
-						break;
-					}
-				}
-			}
+			found = drmmode_find_output(loop_scrn,
+						    mode_res->connectors[i],
+						    &num_dvi, &num_hdmi);
 		}
 		if (found)
 			continue;
