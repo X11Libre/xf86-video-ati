@@ -2580,7 +2580,7 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 	drmModeResPtr mode_res;
-	int i, j, s;
+	int i, j;
 	Bool found;
 	Bool changed = FALSE;
 	int num_dvi = 0, num_hdmi = 0;
@@ -2617,20 +2617,13 @@ restart_destroy:
 
 	/* find new output ids we don't have outputs for */
 	for (i = 0; i < mode_res->count_connectors; i++) {
-		found = FALSE;
-
-		for (s = 0; !found && s < xf86NumScreens; s++) {
-			ScrnInfoPtr loop_scrn = xf86Screens[s];
-
-			if (strcmp(loop_scrn->driverName, scrn->driverName) ||
-			    RADEONEntPriv(loop_scrn) != pRADEONEnt)
-				continue;
-
-			found = drmmode_find_output(loop_scrn,
-						    mode_res->connectors[i],
-						    &num_dvi, &num_hdmi);
-		}
-		if (found)
+		if (drmmode_find_output(pRADEONEnt->primary_scrn,
+					mode_res->connectors[i],
+					&num_dvi, &num_hdmi) ||
+		    (pRADEONEnt->secondary_scrn &&
+		     drmmode_find_output(pRADEONEnt->secondary_scrn,
+					 mode_res->connectors[i],
+					 &num_dvi, &num_hdmi)))
 			continue;
 
 		if (drmmode_output_init(scrn, drmmode, mode_res, i, &num_dvi,

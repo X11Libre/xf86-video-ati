@@ -1659,6 +1659,11 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
         }
     }
 
+    if (info->IsSecondary)
+	pRADEONEnt->secondary_scrn = pScrn;
+    else
+	pRADEONEnt->primary_scrn = pScrn;
+
     info->PciInfo = xf86GetPciInfoForEntity(info->pEnt->index);
     pScrn->monitor     = pScrn->confScreen->monitor;
 
