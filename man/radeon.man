@@ -281,10 +281,8 @@ Enable DRI2 page flipping.  The default is
 Pageflipping is supported on all radeon hardware.
 .TP
 .BI "Option \*qTearFree\*q \*q" boolean \*q
-Enable tearing prevention using the hardware page flipping mechanism. This
-option currently doesn't have any effect for CRTCs using transforms other than
-rotation or reflection. It requires allocating two separate scanout buffers for
-each supported CRTC. Enabling this option currently disables Option
+Enable tearing prevention using the hardware page flipping mechanism. Requires allocating two
+separate scanout buffers for each CRTC. Enabling this option currently disables Option
 \*qEnablePageFlip\*q. The default is
 .B off.
 .TP
