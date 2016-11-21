@@ -383,11 +383,21 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 static Bool
 radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents)
 {
-    extents->x1 -= xf86_crtc->filter_width >> 1;
-    extents->x2 += xf86_crtc->filter_width >> 1;
-    extents->y1 -= xf86_crtc->filter_height >> 1;
-    extents->y2 += xf86_crtc->filter_height >> 1;
-    pixman_f_transform_bounds(&xf86_crtc->f_framebuffer_to_crtc, extents);
+#ifdef RADEON_PIXMAP_SHARING
+    if (xf86_crtc->scrn->is_gpu) {
+	extents->x1 -= xf86_crtc->x;
+	extents->y1 -= xf86_crtc->y;
+	extents->x2 -= xf86_crtc->x;
+	extents->y2 -= xf86_crtc->y;
+    } else
+#endif
+    {
+	extents->x1 -= xf86_crtc->filter_width >> 1;
+	extents->x2 += xf86_crtc->filter_width >> 1;
+	extents->y1 -= xf86_crtc->filter_height >> 1;
+	extents->y2 += xf86_crtc->filter_height >> 1;
+	pixman_f_transform_bounds(&xf86_crtc->f_framebuffer_to_crtc, extents);
+    }
 
     extents->x1 = max(extents->x1, 0);
     extents->y1 = max(extents->y1, 0);
