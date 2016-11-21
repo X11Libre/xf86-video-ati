@@ -293,7 +293,7 @@ Chooses between available acceleration architectures.  Valid values are
 .B glamor
 (for R300 or higher). The default is
 .B glamor
-as of TAHITI, otherwise
+with R600 or newer (with Xorg >= 1.18.3, otherwise with TAHITI or newer), otherwise
 .B EXA.
 
 .PP
