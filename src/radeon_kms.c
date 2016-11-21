@@ -807,6 +807,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 					  0, drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
+	radeon_drm_abort_entry(drm_queue_seq);
 	return;
     }
 
@@ -1083,6 +1084,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 					  0, drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
+	radeon_drm_abort_entry(drm_queue_seq);
 	return;
     }
 
