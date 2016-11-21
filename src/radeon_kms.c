@@ -495,8 +495,8 @@ radeon_sync_scanout_pixmaps(xf86CrtcPtr xf86_crtc, RegionPtr new_region,
 
     gc = GetScratchGC(dst->depth, pScreen);
     if (gc) {
-	ValidateGC(dst, gc);
 	gc->funcs->ChangeClip(gc, CT_REGION, sync_region, 0);
+	ValidateGC(dst, gc);
 	sync_region = NULL;
 	gc->ops->CopyArea(src, dst, gc, 0, 0, dst->width, dst->height, 0, 0);
 	FreeScratchGC(gc);
