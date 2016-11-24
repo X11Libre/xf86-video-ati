@@ -2314,21 +2314,21 @@ static Bool drmmode_probe_page_flip_target(drmmode_ptr drmmode)
 }
 
 static int
-drmmode_page_flip(drmmode_crtc_private_ptr drmmode_crtc, uint32_t flags,
-		  uintptr_t drm_queue_seq)
+drmmode_page_flip(drmmode_crtc_private_ptr drmmode_crtc, int fb_id,
+		  uint32_t flags, uintptr_t drm_queue_seq)
 {
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
 	flags |= DRM_MODE_PAGE_FLIP_EVENT;
 	return drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			       drmmode->fb_id, flags, (void*)drm_queue_seq);
+			       fb_id, flags, (void*)drm_queue_seq);
 }
 
 int
 drmmode_page_flip_target_absolute(RADEONEntPtr pRADEONEnt,
 				  drmmode_crtc_private_ptr drmmode_crtc,
-				  uint32_t flags, uintptr_t drm_queue_seq,
-				  uint32_t target_msc)
+				  int fb_id, uint32_t flags,
+				  uintptr_t drm_queue_seq, uint32_t target_msc)
 {
 #ifdef DRM_MODE_PAGE_FLIP_TARGET
 	if (pRADEONEnt->has_page_flip_target) {
@@ -2337,19 +2337,19 @@ drmmode_page_flip_target_absolute(RADEONEntPtr pRADEONEnt,
 		flags |= DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE;
 		return drmModePageFlipTarget(drmmode->fd,
 					     drmmode_crtc->mode_crtc->crtc_id,
-					     drmmode->fb_id, flags,
-					     (void*)drm_queue_seq, target_msc);
+					     fb_id, flags, (void*)drm_queue_seq,
+					     target_msc);
 	}
 #endif
 
-	return drmmode_page_flip(drmmode_crtc, flags, drm_queue_seq);
+	return drmmode_page_flip(drmmode_crtc, fb_id, flags, drm_queue_seq);
 }
 
 int
 drmmode_page_flip_target_relative(RADEONEntPtr pRADEONEnt,
 				  drmmode_crtc_private_ptr drmmode_crtc,
-				  uint32_t flags, uintptr_t drm_queue_seq,
-				  uint32_t target_msc)
+				  int fb_id, uint32_t flags,
+				  uintptr_t drm_queue_seq, uint32_t target_msc)
 {
 #ifdef DRM_MODE_PAGE_FLIP_TARGET
 	if (pRADEONEnt->has_page_flip_target) {
@@ -2358,12 +2358,12 @@ drmmode_page_flip_target_relative(RADEONEntPtr pRADEONEnt,
 		flags |= DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_PAGE_FLIP_TARGET_RELATIVE;
 		return drmModePageFlipTarget(drmmode->fd,
 					     drmmode_crtc->mode_crtc->crtc_id,
-					     drmmode->fb_id, flags,
-					     (void*)drm_queue_seq, target_msc);
+					     fb_id, flags, (void*)drm_queue_seq,
+					     target_msc);
 	}
 #endif
 
-	return drmmode_page_flip(drmmode_crtc, flags, drm_queue_seq);
+	return drmmode_page_flip(drmmode_crtc, fb_id, flags, drm_queue_seq);
 }
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
@@ -2868,6 +2868,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		if (drmmode_crtc->hw_id == ref_crtc_hw_id) {
 			if (drmmode_page_flip_target_absolute(pRADEONEnt,
 							      drmmode_crtc,
+							      drmmode->fb_id,
 							      flip_flags,
 							      drm_queue_seq,
 							      target_msc) != 0)
@@ -2875,6 +2876,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		} else {
 			if (drmmode_page_flip_target_relative(pRADEONEnt,
 							      drmmode_crtc,
+							      drmmode->fb_id,
 							      flip_flags,
 							      drm_queue_seq, 0) != 0)
 				goto flip_error;

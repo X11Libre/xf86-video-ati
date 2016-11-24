@@ -135,11 +135,13 @@ enum drmmode_flip_sync {
 
 extern int drmmode_page_flip_target_absolute(RADEONEntPtr pRADEONEnt,
 					     drmmode_crtc_private_ptr drmmode_crtc,
-					     uint32_t flags, uintptr_t drm_queue_seq,
+					     int fb_id, uint32_t flags,
+					     uintptr_t drm_queue_seq,
 					     uint32_t target_msc);
 extern int drmmode_page_flip_target_relative(RADEONEntPtr pRADEONEnt,
 					     drmmode_crtc_private_ptr drmmode_crtc,
-					     uint32_t flags, uintptr_t drm_queue_seq,
+					     int fb_id, uint32_t flags,
+					     uintptr_t drm_queue_seq,
 					     uint32_t target_msc);
 extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp);
 extern void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode);

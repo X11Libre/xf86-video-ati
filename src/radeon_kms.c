@@ -794,8 +794,9 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 	return;
     }
 
-    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc, 0,
-					  drm_queue_seq, 0) != 0) {
+    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
+					  drmmode_crtc->scanout[scanout_id].fb_id,
+					  0, drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
 	return;
@@ -1069,8 +1070,9 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
     }
 
-    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc, 0,
-					  drm_queue_seq, 0) != 0) {
+    if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
+					  drmmode_crtc->scanout[scanout_id].fb_id,
+					  0, drm_queue_seq, 0) != 0) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
 		   __func__, strerror(errno));
 	return;
