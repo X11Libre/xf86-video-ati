@@ -360,7 +360,11 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	radeon_glamor_create_screen_resources(pScreen);
 
     info->callback_event_type = -1;
-    if (!pScreen->isGPU && (damage_ext = CheckExtension("DAMAGE"))) {
+    if (
+#ifdef RADEON_PIXMAP_SHARING
+	!pScreen->isGPU &&
+#endif
+	(damage_ext = CheckExtension("DAMAGE"))) {
 	info->callback_event_type = damage_ext->eventBase + XDamageNotify;
 
 	if (!AddCallback(&FlushCallback, radeon_flush_callback, pScrn))
