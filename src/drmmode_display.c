@@ -779,10 +779,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			fb_id = drmmode_crtc->rotate.fb_id;
 			x = y = 0;
 
-		} else if (
-#ifdef RADEON_PIXMAP_SHARING
-			!pScreen->isGPU &&
-#endif
+		} else if (!radeon_is_gpu_screen(pScreen) &&
 			   (info->tear_free ||
 #if XF86_CRTC_VERSION >= 4
 			    crtc->driverIsPerformingTransform ||
