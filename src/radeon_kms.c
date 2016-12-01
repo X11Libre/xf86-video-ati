@@ -669,7 +669,6 @@ radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
 {
     ScrnInfoPtr scrn = crtc->scrn;
     ScreenPtr screen = scrn->pScreen;
-    RADEONInfoPtr info = RADEONPTR(scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     PixmapPtr scanoutpix = crtc->randr_crtc->scanout_pixmap;
     PixmapDirtyUpdatePtr dirty;
@@ -677,7 +676,7 @@ radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
 
     xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
 	if (dirty->src == scanoutpix && dirty->slave_dst ==
-	    drmmode_crtc->scanout[scanout_id ^ info->tear_free].pixmap) {
+	    drmmode_crtc->scanout[scanout_id ^ drmmode_crtc->tear_free].pixmap) {
 	    RegionPtr region;
 
 	    if (master_has_sync_shared_pixmap(scrn, dirty))
@@ -687,7 +686,7 @@ radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
 	    if (RegionNil(region))
 		goto destroy;
 
-	    if (info->tear_free) {
+	    if (drmmode_crtc->tear_free) {
 		RegionTranslate(region, crtc->x, crtc->y);
 		radeon_sync_scanout_pixmaps(crtc, region, scanout_id);
 		radeon_cs_flush_indirect(scrn);
@@ -823,7 +822,6 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 static void
 radeon_dirty_update(ScrnInfoPtr scrn)
 {
-	RADEONInfoPtr info = RADEONPTR(scrn);
 	ScreenPtr screen = scrn->pScreen;
 	PixmapDirtyUpdatePtr ent;
 	RegionPtr region;
@@ -844,7 +842,13 @@ radeon_dirty_update(ScrnInfoPtr scrn)
 			region = dirty_region(region_ent);
 
 			if (RegionNotEmpty(region)) {
-				if (info->tear_free)
+				xf86CrtcPtr crtc = radeon_prime_dirty_to_crtc(ent);
+				drmmode_crtc_private_ptr drmmode_crtc = NULL;
+
+				if (crtc)
+				    drmmode_crtc = crtc->driver_private;
+
+				if (drmmode_crtc && drmmode_crtc->tear_free)
 					radeon_prime_scanout_flip(ent);
 				else
 					radeon_prime_scanout_update(ent);
@@ -890,7 +894,7 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
     if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
 	return FALSE;
 
-    if (info->tear_free) {
+    if (drmmode_crtc->tear_free) {
 	radeon_sync_scanout_pixmaps(xf86_crtc, pRegion, scanout_id);
 	RegionCopy(&drmmode_crtc->scanout_last_region, pRegion);
     }
@@ -1112,14 +1116,17 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     if (!radeon_is_gpu_screen(pScreen))
     {
 	for (c = 0; c < xf86_config->num_crtc; c++) {
-	    if (info->tear_free)
-		radeon_scanout_flip(pScreen, info, xf86_config->crtc[c]);
+	    xf86CrtcPtr crtc = xf86_config->crtc[c];
+	    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	    if (drmmode_crtc->tear_free)
+		radeon_scanout_flip(pScreen, info, crtc);
 	    else if (info->shadow_primary
 #if XF86_CRTC_VERSION >= 4
-		     || xf86_config->crtc[c]->driverIsPerformingTransform
+		     || crtc->driverIsPerformingTransform
 #endif
 		)
-		radeon_scanout_update(xf86_config->crtc[c]);
+		radeon_scanout_update(crtc);
 	}
     }
 
@@ -1633,6 +1640,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 {
     RADEONInfoPtr     info;
     RADEONEntPtr pRADEONEnt;
+    MessageType from;
     DevUnion* pPriv;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
     uint32_t tiling = 0;
@@ -1778,11 +1786,14 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 #endif
 
     if (!info->r600_shadow_fb) {
-	info->tear_free = xf86ReturnOptValBool(info->Options, OPTION_TEAR_FREE,
-					       FALSE);
+	from = X_DEFAULT;
 
-	if (info->tear_free)
-	    xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "TearFree enabled\n");
+	info->tear_free = 2;
+	if (xf86GetOptValBool(info->Options, OPTION_TEAR_FREE,
+			      &info->tear_free))
+	    from = X_CONFIG;
+	xf86DrvMsg(pScrn->scrnIndex, from, "TearFree property default: %s\n",
+		   info->tear_free == 2 ? "auto" : (info->tear_free ? "on" : "off"));
     }
 
     if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
@@ -1791,13 +1802,13 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						   OPTION_PAGE_FLIP, TRUE);
 
-	if (sw_cursor || info->tear_free || info->shadow_primary) {
+	if (sw_cursor || info->shadow_primary) {
 	    xf86DrvMsg(pScrn->scrnIndex,
 		       info->allowPageFlip ? X_WARNING : X_DEFAULT,
 		       "KMS Pageflipping: disabled%s\n",
 		       info->allowPageFlip ?
 		       (sw_cursor ? " because of SWcursor" :
-			" because of ShadowPrimary/TearFree") : "");
+			" because of ShadowPrimary") : "");
 	    info->allowPageFlip = FALSE;
 	} else {
 	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,

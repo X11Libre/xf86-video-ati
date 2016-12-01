@@ -507,7 +507,7 @@ typedef struct {
     Bool              accelOn;
     Bool              use_glamor;
     Bool              shadow_primary;
-    Bool              tear_free;
+    int               tear_free;
     Bool	      exa_pixmaps;
     Bool              exa_force_create;
     XF86ModReqInfo    exaReq;

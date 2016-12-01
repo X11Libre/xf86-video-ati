@@ -89,6 +89,7 @@ typedef struct {
     RegionRec scanout_last_region;
     unsigned scanout_id;
     Bool scanout_update_pending;
+    Bool tear_free;
     int dpms_mode;
     /* For when a flip is pending when DPMS off requested */
     int pending_dpms_mode;
@@ -124,6 +125,7 @@ typedef struct {
     drmmode_prop_ptr props;
     int enc_mask;
     int enc_clone_mask;
+    int tear_free;
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 
