@@ -2717,21 +2717,15 @@ drmmode_handle_uevents(int fd, void *closure)
 	ScrnInfoPtr scrn = drmmode->scrn;
 	struct udev_device *dev;
 	Bool received = FALSE;
-	struct timeval tv;
+	struct timeval tv = { 0, 0 };
 	fd_set readfd;
-	int ret;
 
 	FD_ZERO(&readfd);
 	FD_SET(fd, &readfd);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
 
-	while (1) {
-		ret = select(fd + 1, &readfd, NULL, NULL, &tv);
-		/* Check if our file descriptor has received data. */
-		if (!(ret > 0 && FD_ISSET(fd, &readfd)))
-			break;
-		/* Make the call to receive device. select() ensured that this will not be blocked. */
+	while (select(fd + 1, &readfd, NULL, NULL, &tv) > 0 &&
+	       FD_ISSET(fd, &readfd)) {
+		/* select() ensured that this will not block */
 		dev = udev_monitor_receive_device(drmmode->uevent_monitor);
 		if (dev) {
 			udev_device_unref(dev);
