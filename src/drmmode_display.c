@@ -116,14 +116,6 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	if (!pixmap)
 		return NULL;
 
-	if (pitch <= 0 &&
-	    (radeon_bo_get_tiling(bo, &tiling, (uint32_t*)&pitch) != 0 ||
-	     pitch <= 0)) {
-		ErrorF("radeon_bo_get_tiling failed to determine pitch\n");
-		pScreen->DestroyPixmap(pixmap);
-		return NULL;
-	}
-
 	if (!(*pScreen->ModifyPixmapHeader)(pixmap, width, height,
 					    depth, bpp, pitch, NULL)) {
 		goto fail;
@@ -561,7 +553,7 @@ drmmode_scanout_free(ScrnInfoPtr scrn)
 static void *
 drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 			      struct drmmode_scanout *scanout,
-			      int width, int height)
+			      int width, int height, int *pitch)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -570,7 +562,6 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 	struct radeon_surface surface;
 	uint32_t tiling = RADEON_CREATE_PIXMAP_TILING_MACRO;
 	int ret;
-	int pitch;
 
 	if (scanout->bo) {
 		if (scanout->width == width && scanout->height == height)
@@ -583,14 +574,14 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 		tiling |= RADEON_CREATE_PIXMAP_TILING_MICRO;
 	scanout->bo = radeon_alloc_pixmap_bo(pScrn, width, height, pScrn->depth,
 					     tiling, pScrn->bitsPerPixel,
-					     &pitch, &surface, &tiling);
+					     pitch, &surface, &tiling);
 	if (scanout->bo == NULL)
 		return NULL;
 
 	radeon_bo_map(scanout->bo, 1);
 
 	ret = drmModeAddFB(drmmode->fd, width, height, pScrn->depth,
-			   pScrn->bitsPerPixel, pitch,
+			   pScrn->bitsPerPixel, *pitch,
 			   scanout->bo->handle,
 			   &scanout->fb_id);
 	if (ret) {
@@ -612,6 +603,7 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	int pitch;
 
 	if (scanout->pixmap) {
 		if (scanout->width == width && scanout->height == height)
@@ -621,7 +613,8 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 	}
 
 	if (!scanout->bo) {
-		if (!drmmode_crtc_scanout_allocate(crtc, scanout, width, height))
+		if (!drmmode_crtc_scanout_allocate(crtc, scanout, width, height,
+						   &pitch))
 			return NULL;
 	}
 
@@ -629,7 +622,7 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 						 width, height,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
-						 -1, scanout->bo, NULL);
+						 pitch, scanout->bo, NULL);
 	if (scanout->pixmap == NULL)
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate scanout pixmap for CRTC\n");
@@ -1092,9 +1085,10 @@ static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	int pitch;
 
 	return drmmode_crtc_scanout_allocate(crtc, &drmmode_crtc->rotate,
-					     width, height);
+					     width, height, &pitch);
 }
 
 static PixmapPtr
