@@ -1741,10 +1741,12 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		if (r600_get_tile_config(pScrn)) {
 		    info->allowColorTiling = xf86ReturnOptValBool(info->Options,
 								  OPTION_COLOR_TILING, colorTilingDefault);
-		    /* need working DFS for tiling */
-		    if ((info->ChipFamily == CHIP_FAMILY_PALM) &&
-			(!info->accel_state->allowHWDFS))
-			info->allowColorTiling = FALSE;
+		    if (!info->use_glamor) {
+			/* need working DFS for tiling */
+			if (info->ChipFamily == CHIP_FAMILY_PALM &&
+			    !info->accel_state->allowHWDFS)
+			    info->allowColorTiling = FALSE;
+		    }
 		} else
 		    info->allowColorTiling = FALSE;
 	    } else
