@@ -8,3 +8,6 @@ charset=utf-8
 
 [src/{drmmode_display.c,radeon_dri3.c,radeon_glamor.c,radeon_glamor.h,radeon_glamor_wrappers.c}]
 indent_size=8
+
+[src/ati.c]
+indent_style=space
