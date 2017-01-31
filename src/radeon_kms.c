@@ -1801,10 +1801,13 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	}
     }
 
-    info->swapBuffersWait = xf86ReturnOptValBool(info->Options,
-						 OPTION_SWAPBUFFERS_WAIT, TRUE);
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-	       "SwapBuffers wait for vsync: %sabled\n", info->swapBuffersWait ? "en" : "dis");
+    if (!info->use_glamor) {
+	info->swapBuffersWait =
+	    xf86ReturnOptValBool(info->Options, OPTION_SWAPBUFFERS_WAIT, TRUE);
+	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		   "SwapBuffers wait for vsync: %sabled\n",
+		   info->swapBuffersWait ? "en" : "dis");
+    }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_DELETE_DP12, FALSE)) {
         info->drmmode.delete_dp_12_displays = TRUE;
