@@ -664,7 +664,8 @@ extern Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix,
 Bool radeon_dri3_screen_init(ScreenPtr screen);
 
 /* radeon_kms.c */
-Bool radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id);
+Bool radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
+			      DrawablePtr src_draw);
 void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
 				   , RegionPtr pBSRegion
