@@ -2895,7 +2895,8 @@ flip_error:
 		   strerror(errno));
 
 error:
-	if (flipdata && flipdata->flip_count <= 1) {
+	if (flipdata && flipdata->flip_count <= 1 &&
+	    drmmode->fb_id != flipdata->old_fb_id) {
 		drmModeRmFB(drmmode->fd, drmmode->fb_id);
 		drmmode->fb_id = flipdata->old_fb_id;
 	}
