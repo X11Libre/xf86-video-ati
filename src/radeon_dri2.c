@@ -579,9 +579,9 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 static void
 radeon_dri2_flip_event_abort(xf86CrtcPtr crtc, void *event_data)
 {
-    RADEONInfoPtr info = RADEONPTR(crtc->scrn);
+    if (crtc)
+	RADEONPTR(crtc->scrn)->drmmode.dri2_flipping = FALSE;
 
-    info->drmmode.dri2_flipping = FALSE;
     free(event_data);
 }
 

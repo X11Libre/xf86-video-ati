@@ -2904,8 +2904,10 @@ error:
 		radeon_drm_abort_entry(drm_queue_seq);
 	else if (crtc)
 		drmmode_flip_abort(crtc, flipdata);
-	else if (flipdata && flipdata->flip_count <= 1)
+	else {
+		abort(NULL, data);
 		free(flipdata);
+	}
 
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
 		   strerror(errno));
