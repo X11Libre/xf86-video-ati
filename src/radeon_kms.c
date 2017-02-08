@@ -891,34 +891,29 @@ radeon_dirty_update(ScrnInfoPtr scrn)
 
 Bool
 radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
-			 DrawablePtr src_draw)
+			 DrawablePtr src_draw, BoxPtr extents)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    RegionPtr pRegion = DamageRegion(drmmode_crtc->scanout_damage);
+    RegionRec region = { .extents = *extents, .data = NULL };
     ScrnInfoPtr scrn = xf86_crtc->scrn;
     ScreenPtr pScreen = scrn->pScreen;
     RADEONInfoPtr info = RADEONPTR(scrn);
     DrawablePtr pDraw;
-    BoxRec extents;
     Bool force;
 
     if (!xf86_crtc->enabled ||
-	!drmmode_crtc->scanout[scanout_id].pixmap)
-	return FALSE;
-
-    if (!RegionNotEmpty(pRegion))
+	!drmmode_crtc->scanout[scanout_id].pixmap ||
+	extents->x1 >= extents->x2 || extents->y1 >= extents->y2)
 	return FALSE;
 
     pDraw = &drmmode_crtc->scanout[scanout_id].pixmap->drawable;
-    extents = *RegionExtents(pRegion);
-    if (!radeon_scanout_extents_intersect(xf86_crtc, &extents))
+    if (!radeon_scanout_extents_intersect(xf86_crtc, extents))
 	return FALSE;
 
     if (drmmode_crtc->tear_free) {
-	radeon_sync_scanout_pixmaps(xf86_crtc, pRegion, scanout_id);
-	RegionCopy(&drmmode_crtc->scanout_last_region, pRegion);
+	radeon_sync_scanout_pixmaps(xf86_crtc, &region, scanout_id);
+	RegionCopy(&drmmode_crtc->scanout_last_region, &region);
     }
-    RegionEmpty(pRegion);
 
     force = info->accel_state->force;
     info->accel_state->force = TRUE;
@@ -960,9 +955,9 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 	pScreen->SourceValidate = NULL;
 	CompositePicture(PictOpSrc,
 			 src, NULL, dst,
-			 extents.x1, extents.y1, 0, 0, extents.x1,
-			 extents.y1, extents.x2 - extents.x1,
-			 extents.y2 - extents.y1);
+			 extents->x1, extents->y1, 0, 0, extents->x1,
+			 extents->y1, extents->x2 - extents->x1,
+			 extents->y2 - extents->y1);
 	pScreen->SourceValidate = SourceValidate;
 
  free_dst:
@@ -977,9 +972,9 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 
 	ValidateGC(pDraw, gc);
 	(*gc->ops->CopyArea)(src_draw, pDraw, gc,
-			     xf86_crtc->x + extents.x1, xf86_crtc->y + extents.y1,
-			     extents.x2 - extents.x1, extents.y2 - extents.y1,
-			     extents.x1, extents.y1);
+			     xf86_crtc->x + extents->x1, xf86_crtc->y + extents->y1,
+			     extents->x2 - extents->x1, extents->y2 - extents->y1,
+			     extents->x1, extents->y1);
 	FreeScratchGC(gc);
     }
 
@@ -1004,9 +999,12 @@ radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 {
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
     ScreenPtr screen = crtc->scrn->pScreen;
+    RegionPtr region = DamageRegion(drmmode_crtc->scanout_damage);
 
     radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id,
-			     &screen->GetWindowPixmap(screen->root)->drawable);
+			     &screen->GetWindowPixmap(screen->root)->drawable,
+			     &region->extents);
+    RegionEmpty(region);
 
     radeon_scanout_update_abort(crtc, event_data);
 }
@@ -1083,6 +1081,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 		    xf86CrtcPtr xf86_crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    RegionPtr region = DamageRegion(drmmode_crtc->scanout_damage);
     ScrnInfoPtr scrn = xf86_crtc->scrn;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     uintptr_t drm_queue_seq;
@@ -1094,8 +1093,10 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 
     scanout_id = drmmode_crtc->scanout_id ^ 1;
     if (!radeon_scanout_do_update(xf86_crtc, scanout_id,
-				  &pScreen->GetWindowPixmap(pScreen->root)->drawable))
+				  &pScreen->GetWindowPixmap(pScreen->root)->drawable,
+				  &region->extents))
 	return;
+    RegionEmpty(region);
 
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,

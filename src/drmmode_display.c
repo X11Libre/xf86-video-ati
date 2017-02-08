@@ -834,7 +834,8 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 		*x = *y = 0;
 
 		radeon_scanout_do_update(crtc, scanout_id,
-					 &screen->GetWindowPixmap(screen->root)->drawable);
+					 &screen->GetWindowPixmap(screen->root)->drawable,
+					 box);
 		radeon_bo_wait(drmmode_crtc->scanout[scanout_id].bo);
 	}
 }
