@@ -652,7 +652,6 @@ radeon_dri2_schedule_flip(xf86CrtcPtr crtc, ClientPtr client,
     ScrnInfoPtr scrn = crtc->scrn;
     RADEONInfoPtr info = RADEONPTR(scrn);
     struct dri2_buffer_priv *back_priv;
-    struct radeon_bo *bo;
     DRI2FrameEventPtr flip_info;
     int ref_crtc_hw_id = drmmode_get_crtc_id(crtc);
 
@@ -673,9 +672,7 @@ radeon_dri2_schedule_flip(xf86CrtcPtr crtc, ClientPtr client,
 
     /* Page flip the full screen buffer */
     back_priv = back->driverPrivate;
-    bo = radeon_get_pixmap_bo(back_priv->pixmap);
-
-    if (radeon_do_pageflip(scrn, client, bo->handle,
+    if (radeon_do_pageflip(scrn, client, back_priv->pixmap,
 			   RADEON_DRM_QUEUE_ID_DEFAULT, flip_info,
 			   ref_crtc_hw_id,
 			   radeon_dri2_flip_event_handler,

@@ -2950,36 +2950,27 @@ void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 }
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
-			uint32_t new_front_handle, uint64_t id, void *data,
+			PixmapPtr new_front, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort,
 			enum drmmode_flip_sync flip_sync,
 			uint32_t target_msc)
 {
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-	RADEONInfoPtr info = RADEONPTR(scrn);
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	xf86CrtcPtr crtc = NULL;
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-	unsigned int pitch;
 	int i;
-	uint32_t tiling_flags = 0;
 	uint32_t flip_flags = flip_sync == FLIP_ASYNC ? DRM_MODE_PAGE_FLIP_ASYNC : 0;
 	drmmode_flipdata_ptr flipdata;
 	uintptr_t drm_queue_seq = 0;
+	uint32_t new_front_handle;
 
-	if (info->allowColorTiling) {
-		if (info->ChipFamily >= CHIP_FAMILY_R600)
-			tiling_flags |= RADEON_TILING_MICRO;
-		else
-			tiling_flags |= RADEON_TILING_MACRO;
-	}
-
-	pitch = RADEON_ALIGN(scrn->displayWidth, drmmode_get_pitch_align(scrn, info->pixel_bytes, tiling_flags)) *
-		info->pixel_bytes;
-	if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
-		pitch = info->front_surface.level[0].pitch_bytes;
+	if (!radeon_get_pixmap_handle(new_front, &new_front_handle)) {
+		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+			   "flip queue: failed to get new front handle\n");
+		return FALSE;
 	}
 
         flipdata = calloc(1, sizeof(drmmode_flipdata_rec));
@@ -2993,8 +2984,9 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	 * Create a new handle for the back buffer
 	 */
 	flipdata->old_fb_id = drmmode->fb_id;
-	if (drmModeAddFB(drmmode->fd, scrn->virtualX, scrn->virtualY,
-			 scrn->depth, scrn->bitsPerPixel, pitch,
+	if (drmModeAddFB(drmmode->fd, new_front->drawable.width,
+			 new_front->drawable.height, scrn->depth,
+			 scrn->bitsPerPixel, new_front->devKind,
 			 new_front_handle, &drmmode->fb_id))
 		goto error;
 

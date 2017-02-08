@@ -168,7 +168,7 @@ extern int drmmode_get_base_align(ScrnInfoPtr scrn, int bpe, uint32_t tiling);
 extern void drmmode_clear_pending_flip(xf86CrtcPtr crtc);
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
-			uint32_t new_front_handle, uint64_t id, void *data,
+			PixmapPtr new_front, uint64_t id, void *data,
 			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort,
 			enum drmmode_flip_sync flip_sync,

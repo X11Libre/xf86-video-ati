@@ -332,13 +332,9 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     struct radeon_present_vblank_event *event;
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     int crtc_id = xf86_crtc ? drmmode_get_crtc_id(xf86_crtc) : -1;
-    uint32_t handle;
     Bool ret;
 
     if (!radeon_present_check_flip(crtc, screen->root, pixmap, sync_flip))
-	return FALSE;
-
-    if (!radeon_get_pixmap_handle(pixmap, &handle))
 	return FALSE;
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));
@@ -349,7 +345,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 
     radeon_cs_flush_indirect(scrn);
 
-    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
+    ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, pixmap,
 			     event_id, event, crtc_id,
 			     radeon_present_flip_event,
 			     radeon_present_flip_abort,
@@ -377,7 +373,6 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     enum drmmode_flip_sync flip_sync =
 	(radeon_present_screen_info.capabilities & PresentCapabilityAsync) ?
 	FLIP_ASYNC : FLIP_VSYNC;
-    uint32_t handle;
     int old_fb_id;
     int i;
 
@@ -385,12 +380,6 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 
     if (!radeon_present_check_unflip(scrn))
 	goto modeset;
-
-    if (!radeon_get_pixmap_handle(pixmap, &handle)) {
-	ErrorF("%s: radeon_get_pixmap_handle failed, display might freeze\n",
-	       __func__);
-	goto modeset;
-    }
 
     event = calloc(1, sizeof(struct radeon_present_vblank_event));
     if (!event) {
@@ -401,7 +390,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     event->event_id = event_id;
     event->unflip = TRUE;
 
-    if (radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
+    if (radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, pixmap,
 			   event_id, event, -1, radeon_present_flip_event,
 			   radeon_present_flip_abort, flip_sync, 0))
 	return;
