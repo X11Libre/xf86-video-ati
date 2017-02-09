@@ -44,6 +44,10 @@
 
 #include "atipciids.h"
 
+#if HAVE_PRESENT_H
+#include <present.h>
+#endif
+
 /* DPMS */
 #ifdef HAVE_XEXTPROTO_71
 #include <X11/extensions/dpmsconst.h>
@@ -779,6 +783,15 @@ radeon_prime_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
     drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
 			 drmmode_crtc->flip_pending);
     radeon_prime_scanout_flip_abort(crtc, event_data);
+
+#ifdef HAVE_PRESENT_H
+    if (drmmode_crtc->present_vblank_event_id) {
+	present_event_notify(drmmode_crtc->present_vblank_event_id,
+			     drmmode_crtc->present_vblank_usec,
+			     drmmode_crtc->present_vblank_msc);
+	drmmode_crtc->present_vblank_event_id = 0;
+    }
+#endif
 }
 
 static void
@@ -1001,10 +1014,14 @@ radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
     ScreenPtr screen = crtc->scrn->pScreen;
     RegionPtr region = DamageRegion(drmmode_crtc->scanout_damage);
 
-    radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id,
-			     &screen->GetWindowPixmap(screen->root)->drawable,
-			     &region->extents);
-    RegionEmpty(region);
+    if (crtc->enabled &&
+	!drmmode_crtc->flip_pending &&
+	drmmode_crtc->dpms_mode == DPMSModeOn) {
+	if (radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id,
+				     &screen->GetWindowPixmap(screen->root)->drawable,
+				     &region->extents))
+	    RegionEmpty(region);
+    }
 
     radeon_scanout_update_abort(crtc, event_data);
 }
@@ -1021,6 +1038,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 
     if (!xf86_crtc->enabled ||
 	drmmode_crtc->scanout_update_pending ||
+	drmmode_crtc->flip_pending ||
 	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
@@ -1088,6 +1106,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     unsigned scanout_id;
 
     if (drmmode_crtc->scanout_update_pending ||
+	drmmode_crtc->flip_pending ||
 	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 

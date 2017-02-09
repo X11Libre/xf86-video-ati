@@ -85,6 +85,7 @@ typedef struct {
     struct drmmode_scanout rotate;
     struct drmmode_scanout scanout[2];
     DamagePtr scanout_damage;
+    Bool ignore_damage;
     RegionRec scanout_last_region;
     unsigned scanout_id;
     Bool scanout_update_pending;
@@ -106,6 +107,14 @@ typedef struct {
     struct drmmode_fb *flip_pending;
     /* The FB currently being scanned out by this CRTC, if any */
     struct drmmode_fb *fb;
+
+#ifdef HAVE_PRESENT_H
+    /* Deferred processing of Present vblank event */
+    uint64_t present_vblank_event_id;
+    uint64_t present_vblank_usec;
+    unsigned present_vblank_msc;
+    Bool present_flip_expected;
+#endif
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
@@ -146,7 +155,8 @@ drmmode_crtc_can_flip(xf86CrtcPtr crtc)
     return crtc->enabled &&
 	drmmode_crtc->dpms_mode == DPMSModeOn &&
 	!drmmode_crtc->rotate.bo &&
-	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo;
+	(drmmode_crtc->tear_free ||
+	 !drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo);
 }
 
 
