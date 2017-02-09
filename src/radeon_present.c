@@ -371,6 +371,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     struct radeon_present_vblank_event *event;
     PixmapPtr pixmap = screen->GetScreenPixmap(screen);
     uint32_t handle;
+    int old_fb_id;
     int i;
 
     if (!radeon_present_check_unflip(scrn))
@@ -400,7 +401,7 @@ modeset:
     /* info->drmmode.fb_id still points to the FB for the last flipped BO.
      * Clear it, drmmode_set_mode_major will re-create it
      */
-    drmModeRmFB(info->drmmode.fd, info->drmmode.fb_id);
+    old_fb_id = info->drmmode.fb_id;
     info->drmmode.fb_id = 0;
 
     for (i = 0; i < config->num_crtc; i++) {
@@ -417,6 +418,7 @@ modeset:
 	    drmmode_crtc->need_modeset = TRUE;
     }
 
+    drmModeRmFB(info->drmmode.fd, old_fb_id);
     present_event_notify(event_id, 0, 0);
 
     info->drmmode.present_flipping = FALSE;
