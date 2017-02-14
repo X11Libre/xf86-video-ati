@@ -643,6 +643,27 @@ call_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
 #endif /* HAS_SYNC_SHARED_PIXMAPS */
 
 
+static xf86CrtcPtr
+radeon_prime_dirty_to_crtc(PixmapDirtyUpdatePtr dirty)
+{
+    ScreenPtr screen = dirty->slave_dst->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    int c;
+
+    /* Find the CRTC which is scanning out from this slave pixmap */
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	xf86CrtcPtr xf86_crtc = xf86_config->crtc[c];
+	drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+
+	if (drmmode_crtc->scanout[0].pixmap == dirty->slave_dst ||
+	    drmmode_crtc->scanout[1].pixmap == dirty->slave_dst)
+	    return xf86_crtc;
+    }
+
+    return NULL;
+}
+
 static Bool
 radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
 {
@@ -701,24 +722,16 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 {
     ScreenPtr screen = dirty->slave_dst->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    xf86CrtcPtr xf86_crtc = NULL;
-    drmmode_crtc_private_ptr drmmode_crtc = NULL;
+    xf86CrtcPtr xf86_crtc = radeon_prime_dirty_to_crtc(dirty);
+    drmmode_crtc_private_ptr drmmode_crtc;
     uintptr_t drm_queue_seq;
     drmVBlank vbl;
-    int c;
 
-    /* Find the CRTC which is scanning out from this slave pixmap */
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-	xf86_crtc = xf86_config->crtc[c];
-	drmmode_crtc = xf86_crtc->driver_private;
-	if (drmmode_crtc->scanout[0].pixmap == dirty->slave_dst)
-	    break;
-    }
+    if (!xf86_crtc || !xf86_crtc->enabled)
+	return;
 
-    if (c == xf86_config->num_crtc ||
-	!xf86_crtc->enabled ||
-	drmmode_crtc->scanout_update_pending ||
+    drmmode_crtc = xf86_crtc->driver_private;
+    if (drmmode_crtc->scanout_update_pending ||
 	!drmmode_crtc->scanout[0].pixmap ||
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
@@ -764,25 +777,16 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
     ScreenPtr screen = ent->slave_dst->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    xf86CrtcPtr crtc = NULL;
-    drmmode_crtc_private_ptr drmmode_crtc = NULL;
+    xf86CrtcPtr crtc = radeon_prime_dirty_to_crtc(ent);
+    drmmode_crtc_private_ptr drmmode_crtc;
     uintptr_t drm_queue_seq;
     unsigned scanout_id;
-    int c;
 
-    /* Find the CRTC which is scanning out from this slave pixmap */
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-	crtc = xf86_config->crtc[c];
-	drmmode_crtc = crtc->driver_private;
-	scanout_id = drmmode_crtc->scanout_id;
-	if (drmmode_crtc->scanout[scanout_id].pixmap == ent->slave_dst)
-	    break;
-    }
+    if (!crtc || !crtc->enabled)
+	return;
 
-    if (c == xf86_config->num_crtc ||
-	!crtc->enabled ||
-	drmmode_crtc->scanout_update_pending ||
+    drmmode_crtc = crtc->driver_private;
+    if (drmmode_crtc->scanout_update_pending ||
 	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
