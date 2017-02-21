@@ -706,6 +706,53 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 
 #endif
 
+static void
+drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
+			    unsigned scanout_id, int *fb_id, int *x, int *y)
+{
+	ScrnInfoPtr scrn = crtc->scrn;
+	ScreenPtr screen = scrn->pScreen;
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[0],
+				    mode->HDisplay, mode->VDisplay);
+	if (info->tear_free) {
+		drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[1],
+					    mode->HDisplay, mode->VDisplay);
+	}
+
+	if (drmmode_crtc->scanout[0].pixmap &&
+	    (!info->tear_free || drmmode_crtc->scanout[1].pixmap)) {
+		RegionPtr region;
+		BoxPtr box;
+
+		if (!drmmode_crtc->scanout_damage) {
+			drmmode_crtc->scanout_damage =
+				DamageCreate(radeon_screen_damage_report,
+					     NULL, DamageReportRawRegion,
+					     TRUE, screen, NULL);
+			DamageRegister(&screen->GetScreenPixmap(screen)->drawable,
+				       drmmode_crtc->scanout_damage);
+		}
+
+		region = DamageRegion(drmmode_crtc->scanout_damage);
+		RegionUninit(region);
+		region->data = NULL;
+		box = RegionExtents(region);
+		box->x1 = 0;
+		box->y1 = 0;
+		box->x2 = max(box->x2, scrn->virtualX);
+		box->y2 = max(box->y2, scrn->virtualY);
+
+		*fb_id = drmmode_crtc->scanout[scanout_id].fb_id;
+		*x = *y = 0;
+
+		radeon_scanout_do_update(crtc, scanout_id);
+		radeon_bo_wait(drmmode_crtc->scanout[scanout_id].bo);
+	}
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
@@ -779,42 +826,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			    crtc->driverIsPerformingTransform ||
 #endif
 			    info->shadow_primary)) {
-			for (i = 0; i < (info->tear_free ? 2 : 1); i++) {
-				drmmode_crtc_scanout_create(crtc,
-							    &drmmode_crtc->scanout[i],
-							    mode->HDisplay,
-							    mode->VDisplay);
-			}
-
-			if (drmmode_crtc->scanout[0].pixmap &&
-			    (!info->tear_free || drmmode_crtc->scanout[1].pixmap)) {
-				RegionPtr pRegion;
-				BoxPtr pBox;
-
-				if (!drmmode_crtc->scanout_damage) {
-					drmmode_crtc->scanout_damage =
-						DamageCreate(radeon_screen_damage_report,
-							     NULL, DamageReportRawRegion,
-							     TRUE, pScreen, NULL);
-					DamageRegister(&pScreen->GetScreenPixmap(pScreen)->drawable,
-						       drmmode_crtc->scanout_damage);
-				}
-
-				pRegion = DamageRegion(drmmode_crtc->scanout_damage);
-				RegionUninit(pRegion);
-				pRegion->data = NULL;
-				pBox = RegionExtents(pRegion);
-				pBox->x1 = 0;
-				pBox->y1 = 0;
-				pBox->x2 = max(pBox->x2, pScrn->virtualX);
-				pBox->y2 = max(pBox->y2, pScrn->virtualY);
-
-				fb_id = drmmode_crtc->scanout[scanout_id].fb_id;
-				x = y = 0;
-
-				radeon_scanout_do_update(crtc, scanout_id);
-				radeon_bo_wait(drmmode_crtc->scanout[scanout_id].bo);
-			}
+			drmmode_crtc_scanout_update(crtc, mode, scanout_id,
+						    &fb_id, &x, &y);
 		}
 
 		if (fb_id == 0) {
