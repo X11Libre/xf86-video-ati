@@ -2618,13 +2618,8 @@ void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 #endif
 	}
 
-	for (c = 0; c < config->num_crtc; c++) {
-		xf86CrtcPtr crtc = config->crtc[c];
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-		drmmode_crtc_scanout_destroy(&info->drmmode, &drmmode_crtc->scanout[0]);
-		drmmode_crtc_scanout_destroy(&info->drmmode, &drmmode_crtc->scanout[1]);
-	}
+	for (c = 0; c < config->num_crtc; c++)
+		drmmode_crtc_scanout_free(config->crtc[c]->driver_private);
 }
 
 
