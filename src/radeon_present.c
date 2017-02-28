@@ -347,6 +347,8 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 
     event->event_id = event_id;
 
+    radeon_cs_flush_indirect(scrn);
+
     ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, handle,
 			     event_id, event, crtc_id,
 			     radeon_present_flip_event,
