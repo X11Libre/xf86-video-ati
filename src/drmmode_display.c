@@ -1194,14 +1194,20 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 			 info->cursor_w, info->cursor_h);
 }
 
+/* Xorg expects a non-NULL return value from drmmode_crtc_shadow_allocate, and
+ * passes that back to drmmode_crtc_scanout_create; it doesn't use it for
+ * anything else.
+ */
 static void *
 drmmode_crtc_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	int pitch;
 
-	return drmmode_crtc_scanout_allocate(crtc, &drmmode_crtc->rotate,
-					     width, height, &pitch);
+	if (!drmmode_crtc_scanout_create(crtc, &drmmode_crtc->rotate, width,
+					 height))
+		return NULL;
+
+	return (void*)~0UL;
 }
 
 static PixmapPtr
@@ -1209,11 +1215,12 @@ drmmode_crtc_shadow_create(xf86CrtcPtr crtc, void *data, int width, int height)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-	/* Xorg passes in the return value of drmmode_crtc_shadow_allocate
-	 * for data, but that's redundant for drmmode_crtc_scanout_create.
-	 */
-	return drmmode_crtc_scanout_create(crtc, &drmmode_crtc->rotate, width,
-					   height);
+	if (!data) {
+		drmmode_crtc_scanout_create(crtc, &drmmode_crtc->rotate, width,
+					    height);
+	}
+
+	return drmmode_crtc->rotate.pixmap;
 }
 
 static void
