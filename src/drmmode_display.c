@@ -550,10 +550,9 @@ drmmode_scanout_free(ScrnInfoPtr scrn)
 		drmmode_crtc_scanout_free(xf86_config->crtc[c]->driver_private);
 }
 
-static void *
-drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
-			      struct drmmode_scanout *scanout,
-			      int width, int height, int *pitch)
+static PixmapPtr
+drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
+			    int width, int height)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -561,48 +560,6 @@ drmmode_crtc_scanout_allocate(xf86CrtcPtr crtc,
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	struct radeon_surface surface;
 	uint32_t tiling = RADEON_CREATE_PIXMAP_TILING_MACRO;
-	int ret;
-
-	if (scanout->bo) {
-		if (scanout->width == width && scanout->height == height)
-			return scanout->bo->ptr;
-
-		drmmode_crtc_scanout_destroy(drmmode, scanout);
-	}
-
-	if (info->ChipFamily >= CHIP_FAMILY_R600)
-		tiling |= RADEON_CREATE_PIXMAP_TILING_MICRO;
-	scanout->bo = radeon_alloc_pixmap_bo(pScrn, width, height, pScrn->depth,
-					     tiling, pScrn->bitsPerPixel,
-					     pitch, &surface, &tiling);
-	if (scanout->bo == NULL)
-		return NULL;
-
-	radeon_bo_map(scanout->bo, 1);
-
-	ret = drmModeAddFB(drmmode->fd, width, height, pScrn->depth,
-			   pScrn->bitsPerPixel, *pitch,
-			   scanout->bo->handle,
-			   &scanout->fb_id);
-	if (ret) {
-		ErrorF("failed to add scanout fb\n");
-		radeon_bo_unref(scanout->bo);
-		scanout->bo = NULL;
-		return NULL;
-	}
-
-	scanout->width = width;
-	scanout->height = height;
-	return scanout->bo->ptr;
-}
-
-static PixmapPtr
-drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
-			    int width, int height)
-{
-	ScrnInfoPtr pScrn = crtc->scrn;
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	int pitch;
 
 	if (scanout->pixmap) {
@@ -612,10 +569,20 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 		drmmode_crtc_scanout_destroy(drmmode, scanout);
 	}
 
-	if (!scanout->bo) {
-		if (!drmmode_crtc_scanout_allocate(crtc, scanout, width, height,
-						   &pitch))
-			return NULL;
+	if (info->ChipFamily >= CHIP_FAMILY_R600)
+		tiling |= RADEON_CREATE_PIXMAP_TILING_MICRO;
+	scanout->bo = radeon_alloc_pixmap_bo(pScrn, width, height, pScrn->depth,
+					     tiling, pScrn->bitsPerPixel,
+					     &pitch, &surface, &tiling);
+	if (scanout->bo == NULL)
+		goto error;
+
+	if (drmModeAddFB(drmmode->fd, width, height, pScrn->depth,
+			   pScrn->bitsPerPixel, pitch,
+			   scanout->bo->handle,
+			   &scanout->fb_id) != 0) {
+		ErrorF("failed to add scanout fb\n");
+		goto error;
 	}
 
 	scanout->pixmap = drmmode_create_bo_pixmap(pScrn,
@@ -623,9 +590,15 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
 						 pitch, scanout->bo, NULL);
-	if (scanout->pixmap == NULL)
+	if (scanout->pixmap) {
+		scanout->width = width;
+		scanout->height = height;
+	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't allocate scanout pixmap for CRTC\n");
+error:
+		drmmode_crtc_scanout_destroy(drmmode, scanout);
+	}
 
 	return scanout->pixmap;
 }
