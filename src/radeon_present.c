@@ -374,6 +374,8 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     int old_fb_id;
     int i;
 
+    radeon_cs_flush_indirect(scrn);
+
     if (!radeon_present_check_unflip(scrn))
 	goto modeset;
 
@@ -404,7 +406,6 @@ modeset:
     old_fb_id = info->drmmode.fb_id;
     info->drmmode.fb_id = 0;
 
-    radeon_cs_flush_indirect(scrn);
     radeon_bo_wait(info->front_bo);
     for (i = 0; i < config->num_crtc; i++) {
 	xf86CrtcPtr crtc = config->crtc[i];
