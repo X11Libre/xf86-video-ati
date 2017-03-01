@@ -1137,17 +1137,6 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 #endif
 }
 
-static void RADEONBlockHandler_oneshot(BLOCKHANDLER_ARGS_DECL)
-{
-    SCREEN_PTR(arg);
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-
-    RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS);
-
-    drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
-}
-
 static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr info = RADEONPTR(pScrn);
@@ -1634,6 +1623,32 @@ static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 	drmmode_copy_fb(pScrn, &info->drmmode);
 
     return ret;
+}
+
+/* When the root window is mapped, set the initial modes */
+static void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
+					  , RegionPtr pBSRegion
+#endif
+    )
+{
+    ScreenPtr pScreen = pWin->drawable.pScreen;
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    RADEONInfoPtr info = RADEONPTR(pScrn);
+
+    if (pWin != pScreen->root)
+	ErrorF("%s called for non-root window %p\n", __func__, pWin);
+
+    pScreen->WindowExposures = info->WindowExposures;
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
+    pScreen->WindowExposures(pWin, pRegion, RegionPtr pBSRegion);
+#else
+    pScreen->WindowExposures(pWin, pRegion);
+#endif
+
+    radeon_cs_flush_indirect(pScrn);
+    radeon_bo_wait(info->front_bo);
+    drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
 }
 
 Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
@@ -2330,6 +2345,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 	info->CreateWindow = pScreen->CreateWindow;
 	pScreen->CreateWindow = RADEONCreateWindow_oneshot;
     }
+    info->WindowExposures = pScreen->WindowExposures;
+    pScreen->WindowExposures = RADEONWindowExposures_oneshot;
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
@@ -2337,7 +2354,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     pScreen->CloseScreen = RADEONCloseScreen_KMS;
     pScreen->SaveScreen  = RADEONSaveScreen_KMS;
     info->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = RADEONBlockHandler_oneshot;
+    pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
     info->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = RADEONCreateScreenResources_KMS;

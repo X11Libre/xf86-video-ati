@@ -523,6 +523,7 @@ typedef struct {
 
     CreateScreenResourcesProcPtr CreateScreenResources;
     CreateWindowProcPtr CreateWindow;
+    WindowExposuresProcPtr WindowExposures;
 
     Bool              IsSecondary;
 
