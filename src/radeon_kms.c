@@ -882,7 +882,6 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
     Bool force;
 
     if (!xf86_crtc->enabled ||
-	drmmode_crtc->pending_dpms_mode != DPMSModeOn ||
 	!drmmode_crtc->scanout[scanout_id].pixmap)
 	return FALSE;
 
@@ -1069,7 +1068,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     uintptr_t drm_queue_seq;
     unsigned scanout_id;
 
-    if (drmmode_crtc->scanout_update_pending)
+    if (drmmode_crtc->scanout_update_pending ||
+	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 
     scanout_id = drmmode_crtc->scanout_id ^ 1;
