@@ -490,9 +490,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	FreeScratchGC(gc);
 
-	radeon_cs_flush_indirect(pScrn);
-	radeon_bo_wait(info->front_bo);
-
 	pScreen->canDoBGNoneRoot = TRUE;
 	destroy_pixmap_for_fbcon(pScrn);
 	return;
