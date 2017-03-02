@@ -769,7 +769,7 @@ drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 	
 #endif /* RADEON_PIXMAP_SHARING */
 
-			static void
+static void
 drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 			    unsigned scanout_id, int *fb_id, int *x, int *y)
 {
