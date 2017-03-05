@@ -1641,7 +1641,7 @@ static void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
 
     pScreen->WindowExposures = info->WindowExposures;
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-    pScreen->WindowExposures(pWin, pRegion, RegionPtr pBSRegion);
+    pScreen->WindowExposures(pWin, pRegion, pBSRegion);
 #else
     pScreen->WindowExposures(pWin, pRegion);
 #endif
