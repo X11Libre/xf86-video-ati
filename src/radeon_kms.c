@@ -328,7 +328,8 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	}
     }
 
-    if (!drmmode_set_desired_modes(pScrn, &info->drmmode, FALSE))
+    if (!drmmode_set_desired_modes(pScrn, &info->drmmode,
+				   radeon_is_gpu_screen(pScreen)))
 	return FALSE;
 
     drmmode_uevent_init(pScrn, &info->drmmode);
