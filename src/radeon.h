@@ -183,8 +183,10 @@ typedef enum {
 #if XF86_CRTC_VERSION >= 5
 #define RADEON_PIXMAP_SHARING 1
 #define radeon_is_gpu_screen(screen) (screen)->isGPU
+#define radeon_is_gpu_scrn(scrn) (scrn)->is_gpu
 #else
 #define radeon_is_gpu_screen(screen) 0
+#define radeon_is_gpu_scrn(scrn) 0
 #endif
 
 #define RADEON_VSYNC_TIMEOUT	20000 /* Maximum wait for VSYNC (in usecs) */

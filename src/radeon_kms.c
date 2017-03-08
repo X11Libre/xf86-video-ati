@@ -1811,32 +1811,36 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		   info->tear_free == 2 ? "auto" : (info->tear_free ? "on" : "off"));
     }
 
-    if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
-	Bool sw_cursor = xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE);
+    if (!radeon_is_gpu_scrn(pScrn)) {
+	if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
+	    Bool sw_cursor = xf86ReturnOptValBool(info->Options,
+						  OPTION_SW_CURSOR, FALSE);
 
-	info->allowPageFlip = xf86ReturnOptValBool(info->Options,
-						   OPTION_PAGE_FLIP, TRUE);
+	    info->allowPageFlip = xf86ReturnOptValBool(info->Options,
+						       OPTION_PAGE_FLIP, TRUE);
 
-	if (sw_cursor || info->shadow_primary) {
-	    xf86DrvMsg(pScrn->scrnIndex,
-		       info->allowPageFlip ? X_WARNING : X_DEFAULT,
-		       "KMS Pageflipping: disabled%s\n",
-		       info->allowPageFlip ?
-		       (sw_cursor ? " because of SWcursor" :
-			" because of ShadowPrimary") : "");
-	    info->allowPageFlip = FALSE;
-	} else {
-	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		       "KMS Pageflipping: %sabled\n", info->allowPageFlip ? "en" : "dis");
+	    if (sw_cursor || info->shadow_primary) {
+		xf86DrvMsg(pScrn->scrnIndex,
+			   info->allowPageFlip ? X_WARNING : X_DEFAULT,
+			   "KMS Pageflipping: disabled%s\n",
+			   info->allowPageFlip ?
+			   (sw_cursor ? " because of SWcursor" :
+			    " because of ShadowPrimary") : "");
+		info->allowPageFlip = FALSE;
+	    } else {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "KMS Pageflipping: %sabled\n",
+			   info->allowPageFlip ? "en" : "dis");
+	    }
 	}
-    }
 
-    if (!info->use_glamor) {
-	info->swapBuffersWait =
-	    xf86ReturnOptValBool(info->Options, OPTION_SWAPBUFFERS_WAIT, TRUE);
-	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-		   "SwapBuffers wait for vsync: %sabled\n",
-		   info->swapBuffersWait ? "en" : "dis");
+	if (!info->use_glamor) {
+	    info->swapBuffersWait =
+		xf86ReturnOptValBool(info->Options, OPTION_SWAPBUFFERS_WAIT, TRUE);
+	    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+		       "SwapBuffers wait for vsync: %sabled\n",
+		       info->swapBuffersWait ? "en" : "dis");
+	}
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_DELETE_DP12, FALSE)) {
@@ -2244,33 +2248,35 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
 #endif
 
-    if (xorgGetVersion() >= XORG_VERSION_NUMERIC(1,18,3,0,0))
-	value = info->use_glamor;
-    else
-	value = FALSE;
-    from = X_DEFAULT;
+    if (!radeon_is_gpu_screen(pScreen)) {
+	if (xorgGetVersion() >= XORG_VERSION_NUMERIC(1,18,3,0,0))
+	    value = info->use_glamor;
+	else
+	    value = FALSE;
+	from = X_DEFAULT;
 
-    if (!info->r600_shadow_fb) {
-	if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
-	    from = X_CONFIG;
+	if (!info->r600_shadow_fb) {
+	    if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
+		from = X_CONFIG;
 
-	if (xf86GetOptValInteger(info->Options, OPTION_DRI, &driLevel) &&
-	    (driLevel == 2 || driLevel == 3)) {
-	    from = X_CONFIG;
-	    value = driLevel == 3;
+	    if (xf86GetOptValInteger(info->Options, OPTION_DRI, &driLevel) &&
+		(driLevel == 2 || driLevel == 3)) {
+		from = X_CONFIG;
+		value = driLevel == 3;
+	    }
 	}
+
+	if (value) {
+	    value = radeon_sync_init(pScreen) &&
+		radeon_present_screen_init(pScreen) &&
+		radeon_dri3_screen_init(pScreen);
+
+	    if (!value)
+		from = X_WARNING;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, from, "DRI3 %sabled\n", value ? "en" : "dis");
     }
-
-    if (value) {
-	value = radeon_sync_init(pScreen) &&
-	    radeon_present_screen_init(pScreen) &&
-	    radeon_dri3_screen_init(pScreen);
-
-	if (!value)
-	    from = X_WARNING;
-    }
-
-    xf86DrvMsg(pScrn->scrnIndex, from, "DRI3 %sabled\n", value ? "en" : "dis");
 
     pScrn->vtSema = TRUE;
     xf86SetBackingStore(pScreen);
@@ -2325,7 +2331,8 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
      */
     /* xf86DiDGAInit(pScreen, info->LinearAddr + pScrn->fbOffset); */
 #endif
-    if (info->r600_shadow_fb == FALSE) {
+    if (info->r600_shadow_fb == FALSE &&
+	!radeon_is_gpu_screen(pScreen)) {
         /* Init Xv */
         xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
                        "Initializing Xv\n");
@@ -2341,12 +2348,14 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     }
     pScrn->pScreen = pScreen;
 
-    if (serverGeneration == 1 && bgNoneRoot && info->accelOn) {
-	info->CreateWindow = pScreen->CreateWindow;
-	pScreen->CreateWindow = RADEONCreateWindow_oneshot;
+    if (!radeon_is_gpu_screen(pScreen)) {
+	if (serverGeneration == 1 && bgNoneRoot && info->accelOn) {
+	    info->CreateWindow = pScreen->CreateWindow;
+	    pScreen->CreateWindow = RADEONCreateWindow_oneshot;
+	}
+	info->WindowExposures = pScreen->WindowExposures;
+	pScreen->WindowExposures = RADEONWindowExposures_oneshot;
     }
-    info->WindowExposures = pScreen->WindowExposures;
-    pScreen->WindowExposures = RADEONWindowExposures_oneshot;
 
     /* Provide SaveScreen & wrap BlockHandler and CloseScreen */
     /* Wrap CloseScreen */
