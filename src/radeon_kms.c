@@ -733,7 +733,7 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 
     drmmode_crtc = xf86_crtc->driver_private;
     if (drmmode_crtc->scanout_update_pending ||
-	!drmmode_crtc->scanout[0].pixmap ||
+	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 
@@ -1027,7 +1027,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 
     if (!xf86_crtc->enabled ||
 	drmmode_crtc->scanout_update_pending ||
-	!drmmode_crtc->scanout[0].pixmap ||
+	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 

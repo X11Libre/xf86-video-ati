@@ -728,7 +728,8 @@ can_exchange(ScrnInfoPtr pScrn, DrawablePtr draw,
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 	if (crtc->enabled &&
-	    (crtc->rotatedData || drmmode_crtc->scanout[0].bo))
+	    (crtc->rotatedData ||
+	     drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo))
 	    return FALSE;
     }
 
@@ -777,7 +778,7 @@ can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
 	    continue;
 
 	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
-	    drmmode_crtc->scanout[0].bo)
+	    drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo)
 	    return FALSE;
 
 	if (drmmode_crtc->pending_dpms_mode == DPMSModeOn)

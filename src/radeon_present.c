@@ -249,7 +249,7 @@ radeon_present_check_unflip(ScrnInfoPtr scrn)
 	    continue;
 
 	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
-	    drmmode_crtc->scanout[0].bo)
+	    drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo)
 	    return FALSE;
 
 	if (drmmode_crtc->pending_dpms_mode == DPMSModeOn)
