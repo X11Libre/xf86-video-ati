@@ -192,6 +192,8 @@ extern Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 extern void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
 extern Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn);
 
+extern void drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
+					 struct drmmode_scanout *scanout);
 extern void drmmode_scanout_free(ScrnInfoPtr scrn);
 
 extern void drmmode_uevent_init(ScrnInfoPtr scrn, drmmode_ptr drmmode);

@@ -1008,7 +1008,9 @@ static void
 radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 			      void *event_data)
 {
-    radeon_scanout_do_update(crtc, 0);
+    drmmode_crtc_private_ptr drmmode_crtc = event_data;
+
+    radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id);
 
     radeon_scanout_update_abort(crtc, event_data);
 }
@@ -1027,7 +1029,6 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 
     if (!xf86_crtc->enabled ||
 	drmmode_crtc->scanout_update_pending ||
-	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
 	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
 	return;
 
@@ -1128,9 +1129,17 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
 					  drmmode_crtc->flip_pending->handle,
 					  0, drm_queue_seq, 0) != 0) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s, "
+		   "TearFree inactive until next modeset\n",
 		   __func__, strerror(errno));
 	radeon_drm_abort_entry(drm_queue_seq);
+	RegionCopy(DamageRegion(drmmode_crtc->scanout_damage),
+		   &drmmode_crtc->scanout_last_region);
+	RegionEmpty(&drmmode_crtc->scanout_last_region);
+	radeon_scanout_update(xf86_crtc);
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout[scanout_id]);
+	drmmode_crtc->tear_free = FALSE;
 	return;
     }
 
@@ -1172,11 +1181,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 
 	    if (drmmode_crtc->tear_free)
 		radeon_scanout_flip(pScreen, info, crtc);
-	    else if (info->shadow_primary
-#if XF86_CRTC_VERSION >= 4
-		     || crtc->driverIsPerformingTransform
-#endif
-		)
+	    else if (drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap)
 		radeon_scanout_update(crtc);
 	}
     }

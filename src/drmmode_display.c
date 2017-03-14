@@ -496,7 +496,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	return;
 }
 
-static void
+void
 drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 			     struct drmmode_scanout *scanout)
 {
@@ -770,15 +770,17 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScreenPtr screen = scrn->pScreen;
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-	drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[0],
+	drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[scanout_id],
 				    mode->HDisplay, mode->VDisplay);
 	if (drmmode_crtc->tear_free) {
-		drmmode_crtc_scanout_create(crtc, &drmmode_crtc->scanout[1],
+		drmmode_crtc_scanout_create(crtc,
+					    &drmmode_crtc->scanout[scanout_id ^ 1],
 					    mode->HDisplay, mode->VDisplay);
 	}
 
-	if (drmmode_crtc->scanout[0].pixmap &&
-	    (!drmmode_crtc->tear_free || drmmode_crtc->scanout[1].pixmap)) {
+	if (drmmode_crtc->scanout[scanout_id].pixmap &&
+	    (!drmmode_crtc->tear_free ||
+	     drmmode_crtc->scanout[scanout_id ^ 1].pixmap)) {
 		RegionPtr region;
 		BoxPtr box;
 
