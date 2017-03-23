@@ -286,8 +286,8 @@ tearing prevention using the hardware page flipping mechanism. TearFree is
 on for any CRTC associated with one or more outputs with TearFree on. Two
 separate scanout buffers need to be allocated for each CRTC with TearFree
 on. While TearFree is on for any CRTC, it currently prevents clients from using
-DRI page flipping. If this option is set, the default value of the property is
-'on' or 'off' accordingly. If this option isn't set, the default value of the
+DRI page flipping. If this option is set, the default value of the property
+is 'on' or 'off' accordingly. If this option isn't set, the default value of the
 property is
 .B auto,
 which means that TearFree is on for outputs with rotation or other RandR
