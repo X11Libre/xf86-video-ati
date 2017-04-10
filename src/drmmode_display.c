@@ -2826,6 +2826,49 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	Bool changed = FALSE;
 	int num_dvi = 0, num_hdmi = 0;
 
+	/* Try to re-set the mode on all the connectors with a BAD link-state:
+	 * This may happen if a link degrades and a new modeset is necessary, using
+	 * different link-training parameters. If the kernel found that the current
+	 * mode is not achievable anymore, it should have pruned the mode before
+	 * sending the hotplug event. Try to re-set the currently-set mode to keep
+	 * the display alive, this will fail if the mode has been pruned.
+	 * In any case, we will send randr events for the Desktop Environment to
+	 * deal with it, if it wants to.
+	 */
+	for (i = 0; i < config->num_output; i++) {
+		xf86OutputPtr output = config->output[i];
+		drmmode_output_private_ptr drmmode_output = output->driver_private;
+		uint32_t con_id = drmmode_output->mode_output->connector_id;
+		drmModeConnectorPtr koutput;
+
+		/* Get an updated view of the properties for the current connector and
+		 * look for the link-status property
+		 */
+		koutput = drmModeGetConnectorCurrent(pRADEONEnt->fd, con_id);
+		for (j = 0; koutput && j < koutput->count_props; j++) {
+			drmModePropertyPtr props;
+			props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[j]);
+			if (props && props->flags & DRM_MODE_PROP_ENUM &&
+			    !strcmp(props->name, "link-status") &&
+			    koutput->prop_values[j] == DRM_MODE_LINK_STATUS_BAD) {
+				xf86CrtcPtr crtc = output->crtc;
+				if (!crtc)
+					continue;
+
+				/* the connector got a link failure, re-set the current mode */
+				drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
+						       crtc->x, crtc->y);
+
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "hotplug event: connector %u's link-state is BAD, "
+					   "tried resetting the current mode. You may be left "
+					   "with a black screen if this fails...\n", con_id);
+			}
+			drmModeFreeProperty(props);
+		}
+		drmModeFreeConnector(koutput);
+	}
+
 	mode_res = drmModeGetResources(pRADEONEnt->fd);
 	if (!mode_res)
 		goto out;
