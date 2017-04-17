@@ -833,6 +833,12 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int fb_id;
 	drmModeModeInfo kmode;
 
+	/* The root window contents may be undefined before the WindowExposures
+	 * hook is called for it, so bail if we get here before that
+	 */
+	if (pScreen->WindowExposures == RADEONWindowExposures_oneshot)
+		return FALSE;
+
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
 	saved_y = crtc->y;

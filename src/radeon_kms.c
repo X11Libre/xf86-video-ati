@@ -1627,11 +1627,11 @@ static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 }
 
 /* When the root window is mapped, set the initial modes */
-static void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
+void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-					  , RegionPtr pBSRegion
+				   , RegionPtr pBSRegion
 #endif
-    )
+				   )
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
