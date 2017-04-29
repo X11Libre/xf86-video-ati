@@ -373,7 +373,6 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     enum drmmode_flip_sync flip_sync =
 	(radeon_present_screen_info.capabilities & PresentCapabilityAsync) ?
 	FLIP_ASYNC : FLIP_VSYNC;
-    int old_fb_id;
     int i;
 
     radeon_cs_flush_indirect(scrn);
@@ -396,12 +395,6 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 	return;
 
 modeset:
-    /* info->drmmode.fb_id still points to the FB for the last flipped BO.
-     * Clear it, drmmode_set_mode_major will re-create it
-     */
-    old_fb_id = info->drmmode.fb_id;
-    info->drmmode.fb_id = 0;
-
     radeon_bo_wait(info->front_bo);
     for (i = 0; i < config->num_crtc; i++) {
 	xf86CrtcPtr crtc = config->crtc[i];
@@ -417,7 +410,6 @@ modeset:
 	    drmmode_crtc->need_modeset = TRUE;
     }
 
-    drmModeRmFB(info->drmmode.fd, old_fb_id);
     present_event_notify(event_id, 0, 0);
 
     info->drmmode.present_flipping = FALSE;

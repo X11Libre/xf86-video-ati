@@ -300,6 +300,7 @@ void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 
 void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 {
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pScreen));
     struct radeon_exa_pixmap_priv *driver_priv = driverPriv;
 
     if (!driverPriv)
@@ -307,6 +308,7 @@ void RADEONEXADestroyPixmap(ScreenPtr pScreen, void *driverPriv)
 
     if (driver_priv->bo)
 	radeon_bo_unref(driver_priv->bo);
+    drmmode_fb_reference(info->drmmode.fd, &driver_priv->fb, NULL);
     free(driverPriv);
 }
 

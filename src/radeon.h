@@ -288,6 +288,7 @@ struct radeon_pixmap {
 	uint_fast32_t gpu_write;
 
 	struct radeon_bo *bo;
+	struct drmmode_fb *fb;
 
 	uint32_t tiling_flags;
 
@@ -313,6 +314,7 @@ static inline void radeon_set_pixmap_private(PixmapPtr pixmap, struct radeon_pix
 
 struct radeon_exa_pixmap_priv {
     struct radeon_bo *bo;
+    struct drmmode_fb *fb;
     uint32_t tiling_flags;
     struct radeon_surface surface;
     Bool bo_mapped;
@@ -609,6 +611,9 @@ extern void  RADEONCopySwap(uint8_t *dst, uint8_t *src, unsigned int size, int s
 extern void RADEONInit3DEngine(ScrnInfoPtr pScrn);
 extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 
+/* radeon_bo_helper.c */
+extern Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle);
+
 /* radeon_commonfuncs.c */
 extern void RADEONWaitForVLine(ScrnInfoPtr pScrn, PixmapPtr pPix,
 			       xf86CrtcPtr crtc, int start, int stop);
@@ -706,6 +711,8 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 		radeon_bo_unref(priv->bo);
 	    }
 
+	    drmmode_fb_reference(info->drmmode.fd, &priv->fb, NULL);
+
 	    if (!bo) {
 		free(priv);
 		priv = NULL;
@@ -788,6 +795,72 @@ static inline Bool radeon_get_pixmap_shared(PixmapPtr pPix)
 	return driver_priv->shared;
     }
     return FALSE;
+}
+
+static inline struct drmmode_fb*
+radeon_fb_create(int drm_fd, uint32_t width, uint32_t height, uint8_t depth,
+		 uint8_t bpp, uint32_t pitch, uint32_t handle)
+{
+    struct drmmode_fb *fb  = malloc(sizeof(*fb));
+
+    if (!fb)
+	return NULL;
+
+    fb->refcnt = 1;
+    if (drmModeAddFB(drm_fd, width, height, depth, bpp, pitch, handle,
+		     &fb->handle) == 0)
+	return fb;
+
+    free(fb);
+    return NULL;
+}
+
+static inline struct drmmode_fb*
+radeon_pixmap_create_fb(int drm_fd, PixmapPtr pix)
+{
+    uint32_t handle;
+
+    if (!radeon_get_pixmap_handle(pix, &handle))
+	return NULL;
+
+    return radeon_fb_create(drm_fd, pix->drawable.width, pix->drawable.height,
+			    pix->drawable.depth, pix->drawable.bitsPerPixel,
+			    pix->devKind, handle);
+}
+
+static inline struct drmmode_fb*
+radeon_pixmap_get_fb(PixmapPtr pix)
+{
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pix->drawable.pScreen));
+
+#ifdef USE_GLAMOR
+    if (info->use_glamor) {
+	struct radeon_pixmap *priv = radeon_get_pixmap_private(pix);
+
+	if (!priv)
+	    return NULL;
+
+	if (!priv->fb)
+	    priv->fb = radeon_pixmap_create_fb(info->drmmode.fd, pix);
+
+	return priv->fb;
+    } else
+#endif
+    if (info->accelOn)
+    {
+	struct radeon_exa_pixmap_priv *driver_priv =
+	    exaGetPixmapDriverPrivate(pix);
+
+	if (!driver_priv)
+	    return NULL;
+
+	if (!driver_priv->fb)
+	    driver_priv->fb = radeon_pixmap_create_fb(info->drmmode.fd, pix);
+
+	return driver_priv->fb;
+    }
+
+    return NULL;
 }
 
 #define CP_PACKET0(reg, n)						\
