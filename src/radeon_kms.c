@@ -657,8 +657,7 @@ radeon_prime_dirty_to_crtc(PixmapDirtyUpdatePtr dirty)
 	xf86CrtcPtr xf86_crtc = xf86_config->crtc[c];
 	drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
 
-	if (drmmode_crtc->scanout[0].pixmap == dirty->slave_dst ||
-	    drmmode_crtc->scanout[1].pixmap == dirty->slave_dst)
+	if (drmmode_crtc->prime_scanout_pixmap == dirty->src)
 	    return xf86_crtc;
     }
 
@@ -671,13 +670,11 @@ radeon_prime_scanout_do_update(xf86CrtcPtr crtc, unsigned scanout_id)
     ScrnInfoPtr scrn = crtc->scrn;
     ScreenPtr screen = scrn->pScreen;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    PixmapPtr scanoutpix = crtc->randr_crtc->scanout_pixmap;
     PixmapDirtyUpdatePtr dirty;
     Bool ret = FALSE;
 
     xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
-	if (dirty->src == scanoutpix && dirty->slave_dst ==
-	    drmmode_crtc->scanout[scanout_id ^ drmmode_crtc->tear_free].pixmap) {
+	if (dirty->src == drmmode_crtc->prime_scanout_pixmap) {
 	    RegionPtr region;
 
 	    if (master_has_sync_shared_pixmap(scrn, dirty))

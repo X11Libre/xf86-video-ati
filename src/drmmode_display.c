@@ -732,9 +732,7 @@ drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list,
 					 ent) {
-			if (dirty->src == crtc->randr_crtc->scanout_pixmap &&
-			    dirty->slave_dst ==
-			    drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap) {
+			if (dirty->src == drmmode_crtc->prime_scanout_pixmap) {
 				dirty->slave_dst =
 					drmmode_crtc->scanout[scanout_id].pixmap;
 				break;
@@ -887,7 +885,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 #ifdef RADEON_PIXMAP_SHARING
-		if (crtc->randr_crtc && crtc->randr_crtc->scanout_pixmap) {
+		if (drmmode_crtc->prime_scanout_pixmap) {
 			drmmode_crtc_prime_scanout_update(crtc, mode, scanout_id,
 							  &fb, &x, &y);
 		} else
@@ -1278,13 +1276,14 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	PixmapDirtyUpdatePtr dirty;
 
 	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
-		if (dirty->slave_dst != drmmode_crtc->scanout[scanout_id].pixmap)
-			continue;
-
-		PixmapStopDirtyTracking(dirty->src, dirty->slave_dst);
-		drmmode_crtc_scanout_free(drmmode_crtc);
-		break;
+		if (dirty->src == drmmode_crtc->prime_scanout_pixmap) {
+			PixmapStopDirtyTracking(dirty->src, dirty->slave_dst);
+			break;
+		}
 	}
+
+	drmmode_crtc_scanout_free(drmmode_crtc);
+	drmmode_crtc->prime_scanout_pixmap = NULL;
 
 	if (!ppix)
 		return TRUE;
@@ -1301,6 +1300,8 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 		drmmode_crtc_scanout_free(drmmode_crtc);
 		return FALSE;
 	}
+
+	drmmode_crtc->prime_scanout_pixmap = ppix;
 
 #ifdef HAS_DIRTYTRACKING_ROTATION
 	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[scanout_id].pixmap,

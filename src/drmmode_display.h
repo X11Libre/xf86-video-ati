@@ -92,6 +92,9 @@ typedef struct {
     unsigned scanout_id;
     Bool scanout_update_pending;
     Bool tear_free;
+
+    PixmapPtr prime_scanout_pixmap;
+
     int dpms_mode;
     /* For when a flip is pending when DPMS off requested */
     int pending_dpms_mode;
