@@ -812,6 +812,17 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 	}
 }
 
+static void
+drmmode_crtc_gamma_do_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
+			  uint16_t *blue, int size)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+	drmModeCrtcSetGamma(drmmode_crtc->drmmode->fd,
+			    drmmode_crtc->mode_crtc->crtc_id, size, red, green,
+			    blue);
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
@@ -873,8 +884,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (drmmode_crtc->tear_free)
 			scanout_id = drmmode_crtc->scanout_id;
 
-		crtc->funcs->gamma_set(crtc, crtc->gamma_red, crtc->gamma_green,
-				       crtc->gamma_blue, crtc->gamma_size);
+		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red, crtc->gamma_green,
+					  crtc->gamma_blue, crtc->gamma_size);
 
 		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
@@ -1043,6 +1054,31 @@ drmmode_cursor_src_offset(Rotation rotation, int width, int height,
 
 #endif
 
+static uint32_t
+drmmode_cursor_gamma(xf86CrtcPtr crtc, uint32_t argb)
+{
+	uint32_t alpha = argb >> 24;
+	uint32_t rgb[3];
+	int i;
+
+	if (!alpha)
+		return 0;
+
+	if (crtc->scrn->depth != 24 && crtc->scrn->depth != 32)
+		return argb;
+
+	/* Un-premultiply alpha */
+	for (i = 0; i < 3; i++)
+		rgb[i] = ((argb >> (i * 8)) & 0xff) * 0xff / alpha;
+
+	/* Apply gamma correction and pre-multiply alpha */
+	rgb[0] = (crtc->gamma_blue[rgb[0]] >> 8) * alpha / 0xff;
+	rgb[1] = (crtc->gamma_green[rgb[1]] >> 8) * alpha / 0xff;
+	rgb[2] = (crtc->gamma_red[rgb[2]] >> 8) * alpha / 0xff;
+
+	return alpha << 24 | rgb[2] << 16 | rgb[1] << 8 | rgb[0];
+}
+
 static void
 drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 {
@@ -1068,7 +1104,8 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 								      dstx, dsty);
 
 				ptr[dsty * info->cursor_w + dstx] =
-					cpu_to_le32(image[srcoffset]);
+					cpu_to_le32(drmmode_cursor_gamma(crtc,
+									 image[srcoffset]));
 			}
 		}
 	} else
@@ -1078,7 +1115,7 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 		int i;
 
 		for (i = 0; i < cursor_size; i++)
-			ptr[i] = cpu_to_le32(image[i]);
+			ptr[i] = cpu_to_le32(drmmode_cursor_gamma(crtc, image[i]));
 	}
 }
 
@@ -1209,11 +1246,24 @@ static void
 drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
                       uint16_t *blue, int size)
 {
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	ScrnInfoPtr scrn = crtc->scrn;
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	int i;
 
-	drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-			    size, red, green, blue);
+	drmmode_crtc_gamma_do_set(crtc, red, green, blue, size);
+
+	/* Compute index of this CRTC into xf86_config->crtc */
+	for (i = 0; xf86_config->crtc[i] != crtc; i++) {}
+
+	if (info->hwcursor_disabled & (1 << i))
+		return;
+
+#ifdef HAVE_XF86_CURSOR_RESET_CURSOR
+	xf86CursorResetCursor(scrn->pScreen);
+#else
+	xf86_reload_cursors(scrn->pScreen);
+#endif
 }
 
 #ifdef RADEON_PIXMAP_SHARING
