@@ -41,8 +41,6 @@
 
 typedef struct {
   int fd;
-  drmModeFBPtr mode_fb;
-  int cpp;
   struct radeon_bo_manager *bufmgr;
   ScrnInfoPtr scrn;
 #ifdef HAVE_LIBUDEV
