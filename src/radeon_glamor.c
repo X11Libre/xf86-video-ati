@@ -61,11 +61,10 @@ radeon_glamor_create_screen_resources(ScreenPtr screen)
 		return FALSE;
 #endif
 
-	if (!glamor_egl_create_textured_screen_ext(screen,
-						   info->front_bo->handle,
-						   scrn->displayWidth *
-						   info->pixel_bytes,
-						   NULL))
+	if (!glamor_egl_create_textured_screen(screen,
+					       info->front_bo->handle,
+					       scrn->displayWidth *
+					       info->pixel_bytes))
 		return FALSE;
 
 	return TRUE;
