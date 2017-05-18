@@ -24,7 +24,7 @@
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-ati],
         [7.9.99],
-        [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg],
+        [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg&component=Driver/Radeon],
         [xf86-video-ati])
 
 AC_CONFIG_SRCDIR([Makefile.am])
