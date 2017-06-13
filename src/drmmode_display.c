@@ -1685,7 +1685,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 	    if (value->type != XA_ATOM || value->format != 32 || value->size != 1)
 		return FALSE;
 	    memcpy(&atom, value->data, 4);
-	    name = NameForAtom(atom);
+	    if (!(name = NameForAtom(atom)))
+                return FALSE;
 
 	    /* search for matching name string, then set its value down */
 	    for (j = 0; j < p->mode_prop->count_enums; j++) {
