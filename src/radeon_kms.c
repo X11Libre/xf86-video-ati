@@ -2478,7 +2478,8 @@ void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
     radeon_drop_drm_master(pScrn);
 
     xf86RotateFreeShadow(pScrn);
-    drmmode_scanout_free(pScrn);
+    if (!pScrn->is_gpu)
+	drmmode_scanout_free(pScrn);
 
     xf86_hide_cursors (pScrn);
     info->accel_state->XInited3D = FALSE;
