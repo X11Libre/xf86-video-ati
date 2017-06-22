@@ -195,6 +195,27 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     return bo;
 }
 
+/* Clear the pixmap contents to black */
+void
+radeon_pixmap_clear(PixmapPtr pixmap)
+{
+    ScreenPtr screen = pixmap->drawable.pScreen;
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
+    GCPtr gc = GetScratchGC(pixmap->drawable.depth, screen);
+    Bool force = info->accel_state->force;
+    xRectangle rect;
+
+    info->accel_state->force = TRUE;
+    ValidateGC(&pixmap->drawable, gc);
+    rect.x = 0;
+    rect.y = 0;
+    rect.width = pixmap->drawable.width;
+    rect.height = pixmap->drawable.height;
+    gc->ops->PolyFillRect(&pixmap->drawable, gc, 1, &rect);
+    FreeScratchGC(gc);
+    info->accel_state->force = force;
+}
+
 /* Get GEM handle for the pixmap */
 Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 {

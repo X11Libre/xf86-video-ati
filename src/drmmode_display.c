@@ -2211,9 +2211,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	uint32_t tiling_flags = 0, base_align;
 	PixmapPtr ppix = screen->GetScreenPixmap(screen);
 	void *fb_shadow;
-	xRectangle rect;
-	Bool force;
-	GCPtr gc;
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
@@ -2356,18 +2353,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 			goto fail;
 	}
 
-	/* Clear new buffer */
-	gc = GetScratchGC(ppix->drawable.depth, scrn->pScreen);
-	force = info->accel_state->force;
-	info->accel_state->force = TRUE;
-	ValidateGC(&ppix->drawable, gc);
-	rect.x = 0;
-	rect.y = 0;
-	rect.width = width;
-	rect.height = height;
-	(*gc->ops->PolyFillRect)(&ppix->drawable, gc, 1, &rect);
-	FreeScratchGC(gc);
-	info->accel_state->force = force;
+	radeon_pixmap_clear(ppix);
 	radeon_cs_flush_indirect(scrn);
 	radeon_bo_wait(info->front_bo);
 
