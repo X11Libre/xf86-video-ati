@@ -141,28 +141,35 @@ enum drmmode_flip_sync {
 
 
 static inline void
-drmmode_fb_reference(int drm_fd, struct drmmode_fb **old, struct drmmode_fb *new)
+drmmode_fb_reference_loc(int drm_fd, struct drmmode_fb **old, struct drmmode_fb *new,
+			 const char *caller, unsigned line)
 {
     if (new) {
-	if (new->refcnt <= 0)
-	    ErrorF("New FB's refcnt was %d in %s\n", new->refcnt, __func__);
-	else
-	    new->refcnt++;
+	if (new->refcnt <= 0) {
+	    FatalError("New FB's refcnt was %d at %s:%u",
+		       new->refcnt, caller, line);
+	}
+
+	new->refcnt++;
     }
 
     if (*old) {
 	if ((*old)->refcnt <= 0) {
-	    ErrorF("Old FB's refcnt was %d in %s\n", (*old)->refcnt, __func__);
-	} else {
-	    if (--(*old)->refcnt == 0) {
-		drmModeRmFB(drm_fd, (*old)->handle);
-		free(*old);
-	    }
+	    FatalError("Old FB's refcnt was %d at %s:%u",
+		       (*old)->refcnt, caller, line);
+	}
+
+	if (--(*old)->refcnt == 0) {
+	    drmModeRmFB(drm_fd, (*old)->handle);
+	    free(*old);
 	}
     }
 
     *old = new;
 }
+
+#define drmmode_fb_reference(fd, old, new) \
+    drmmode_fb_reference_loc(fd, old, new, __func__, __LINE__)
 
 
 extern int drmmode_page_flip_target_absolute(RADEONEntPtr pRADEONEnt,
