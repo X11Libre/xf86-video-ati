@@ -201,7 +201,9 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
     struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
 #ifdef USE_GLAMOR
     ScreenPtr screen = pixmap->drawable.pScreen;
-    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+    RADEONInfoPtr info = RADEONPTR(scrn);
 #endif
 
     if (bo) {
@@ -230,7 +232,7 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 	if (fd < 0)
 	    return FALSE;
 
-	r = drmPrimeFDToHandle(info->dri2.drm_fd, fd, &priv->handle);
+	r = drmPrimeFDToHandle(pRADEONEnt->fd, fd, &priv->handle);
 	close(fd);
 	if (r == 0) {
 	    struct drm_radeon_gem_set_tiling args = { .handle = priv->handle };
@@ -238,7 +240,7 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 	    priv->handle_valid = TRUE;
 	    *handle = priv->handle;
 
-	    if (drmCommandWriteRead(info->dri2.drm_fd,
+	    if (drmCommandWriteRead(pRADEONEnt->fd,
 				    DRM_RADEON_GEM_GET_TILING, &args,
 				    sizeof(args)) == 0)
 		priv->tiling_flags = args.tiling_flags;

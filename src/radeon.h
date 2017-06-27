@@ -694,7 +694,9 @@ uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
 #ifdef USE_GLAMOR
-    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+    ScrnInfoPtr scrn = xf86ScreenToScrn(pPix->drawable.pScreen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+    RADEONInfoPtr info = RADEONPTR(scrn);
 
     if (info->use_glamor) {
 	struct radeon_pixmap *priv;
@@ -711,7 +713,7 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 		radeon_bo_unref(priv->bo);
 	    }
 
-	    drmmode_fb_reference(info->drmmode.fd, &priv->fb, NULL);
+	    drmmode_fb_reference(pRADEONEnt->fd, &priv->fb, NULL);
 
 	    if (!bo) {
 		free(priv);
@@ -831,7 +833,9 @@ radeon_pixmap_create_fb(int drm_fd, PixmapPtr pix)
 static inline struct drmmode_fb*
 radeon_pixmap_get_fb(PixmapPtr pix)
 {
-    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pix->drawable.pScreen));
+    ScrnInfoPtr scrn = xf86ScreenToScrn(pix->drawable.pScreen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+    RADEONInfoPtr info = RADEONPTR(scrn);
 
 #ifdef USE_GLAMOR
     if (info->use_glamor) {
@@ -841,7 +845,7 @@ radeon_pixmap_get_fb(PixmapPtr pix)
 	    return NULL;
 
 	if (!priv->fb)
-	    priv->fb = radeon_pixmap_create_fb(info->drmmode.fd, pix);
+	    priv->fb = radeon_pixmap_create_fb(pRADEONEnt->fd, pix);
 
 	return priv->fb;
     } else
@@ -855,7 +859,7 @@ radeon_pixmap_get_fb(PixmapPtr pix)
 	    return NULL;
 
 	if (!driver_priv->fb)
-	    driver_priv->fb = radeon_pixmap_create_fb(info->drmmode.fd, pix);
+	    driver_priv->fb = radeon_pixmap_create_fb(pRADEONEnt->fd, pix);
 
 	return driver_priv->fb;
     }

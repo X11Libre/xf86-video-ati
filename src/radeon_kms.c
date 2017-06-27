@@ -187,6 +187,7 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 /* Free our private RADEONInfoRec */
 static void RADEONFreeRec(ScrnInfoPtr pScrn)
 {
+    RADEONEntPtr pRADEONEnt;
     RADEONInfoPtr  info;
 
     if (!pScrn || !pScrn->driverPrivate) return;
@@ -196,7 +197,9 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
     if (info->fbcon_pixmap)
 	pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
 
-    if (info->dri2.drm_fd > 0) {
+    pRADEONEnt = RADEONEntPriv(pScrn);
+
+    if (pRADEONEnt->fd > 0) {
         DevUnion *pPriv;
         RADEONEntPtr pRADEONEnt;
         pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
@@ -719,6 +722,7 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 {
     ScreenPtr screen = dirty->slave_dst->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     xf86CrtcPtr xf86_crtc = radeon_prime_dirty_to_crtc(dirty);
     drmmode_crtc_private_ptr drmmode_crtc;
     uintptr_t drm_queue_seq;
@@ -748,7 +752,7 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
     vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
     vbl.request.sequence = 1;
     vbl.request.signal = drm_queue_seq;
-    if (drmWaitVBlank(RADEONPTR(scrn)->dri2.drm_fd, &vbl)) {
+    if (drmWaitVBlank(pRADEONEnt->fd, &vbl)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "drmWaitVBlank failed for PRIME update: %s\n",
 		   strerror(errno));
@@ -772,9 +776,10 @@ static void
 radeon_prime_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
 				  void *event_data)
 {
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
-    drmmode_fb_reference(drmmode_crtc->drmmode->fd, &drmmode_crtc->fb,
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
 			 drmmode_crtc->flip_pending);
     radeon_prime_scanout_flip_abort(crtc, event_data);
 }
@@ -1012,6 +1017,7 @@ static void
 radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(xf86_crtc->scrn);
     uintptr_t drm_queue_seq;
     ScrnInfoPtr scrn;
     drmVBlank vbl;
@@ -1056,7 +1062,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
     vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
     vbl.request.sequence = 1;
     vbl.request.signal = drm_queue_seq;
-    if (drmWaitVBlank(RADEONPTR(scrn)->dri2.drm_fd, &vbl)) {
+    if (drmWaitVBlank(pRADEONEnt->fd, &vbl)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "drmWaitVBlank failed for scanout update: %s\n",
 		   strerror(errno));
@@ -1136,6 +1142,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int c;
@@ -1151,7 +1158,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 	    drmmode_crtc_private_ptr drmmode_crtc =
 		xf86_config->crtc[c]->driver_private;
 
-	    drmmode_fb_reference(info->drmmode.fd, &drmmode_crtc->fb, NULL);
+	    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
 	}
 
 	return;
@@ -1183,7 +1190,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 
 static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     struct drm_radeon_info ginfo;
     int r;
     uint32_t tmp = 0;
@@ -1191,7 +1198,7 @@ static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_FASTFB_WORKING;
     ginfo.value = (uintptr_t)&tmp;
-    r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    r = drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r) {
 	return FALSE;
     }
@@ -1202,7 +1209,7 @@ static Bool RADEONIsFastFBWorking(ScrnInfoPtr pScrn)
 
 static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr info = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     struct drm_radeon_info ginfo;
     int r;
     uint32_t tmp;
@@ -1210,7 +1217,7 @@ static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_FUSION_GART_WORKING;
     ginfo.value = (uintptr_t)&tmp;
-    r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    r = drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r) {
 	return FALSE;
     }
@@ -1221,6 +1228,7 @@ static Bool RADEONIsFusionGARTWorking(ScrnInfoPtr pScrn)
 
 static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
 {
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr info = RADEONPTR(pScrn);
     struct drm_radeon_info ginfo;
     int r;
@@ -1232,7 +1240,7 @@ static Bool RADEONIsAccelWorking(ScrnInfoPtr pScrn)
     else
 	ginfo.request = RADEON_INFO_ACCEL_WORKING;
     ginfo.value = (uintptr_t)&tmp;
-    r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    r = drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r) {
         /* If kernel is too old before 2.6.32 than assume accel is working */
         if (r == -EINVAL) {
@@ -1470,7 +1478,6 @@ static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
 
 static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info   = RADEONPTR(pScrn);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     drmSetVersion sv;
     int err;
@@ -1478,14 +1485,12 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     if (pRADEONEnt->fd) {
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   " reusing fd for second head\n");
-
-	info->drmmode.fd = info->dri2.drm_fd = pRADEONEnt->fd;
 	pRADEONEnt->fd_ref++;
         return TRUE;
     }
 
-    info->dri2.drm_fd = radeon_get_drm_master_fd(pScrn);
-    if (info->dri2.drm_fd == -1)
+    pRADEONEnt->fd = radeon_get_drm_master_fd(pScrn);
+    if (pRADEONEnt->fd == -1)
 	return FALSE;
 
     /* Check that what we opened was a master or a master-capable FD,
@@ -1496,24 +1501,23 @@ static Bool radeon_open_drm_master(ScrnInfoPtr pScrn)
     sv.drm_di_minor = 1;
     sv.drm_dd_major = -1;
     sv.drm_dd_minor = -1;
-    err = drmSetInterfaceVersion(info->dri2.drm_fd, &sv);
+    err = drmSetInterfaceVersion(pRADEONEnt->fd, &sv);
     if (err != 0) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "[drm] failed to set drm interface version.\n");
-	drmClose(info->dri2.drm_fd);
-	info->dri2.drm_fd = -1;
+	drmClose(pRADEONEnt->fd);
+	pRADEONEnt->fd = -1;
 
 	return FALSE;
     }
 
-    pRADEONEnt->fd = info->dri2.drm_fd;
     pRADEONEnt->fd_ref = 1;
-    info->drmmode.fd = info->dri2.drm_fd;
     return TRUE;
 }
 
 static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 {
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     struct drm_radeon_info ginfo;
     int r;
@@ -1525,7 +1529,7 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
     memset(&ginfo, 0, sizeof(ginfo));
     ginfo.request = RADEON_INFO_TILING_CONFIG;
     ginfo.value = (uintptr_t)&tmp;
-    r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+    r = drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
     if (r)
 	return FALSE;
 
@@ -1622,6 +1626,7 @@ static Bool r600_get_tile_config(ScrnInfoPtr pScrn)
 static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
 {
 #ifdef RADEON_PIXMAP_SHARING
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info = RADEONPTR(pScrn);
     uint64_t value;
     int ret;
@@ -1632,7 +1637,7 @@ static void RADEONSetupCapabilities(ScrnInfoPtr pScrn)
     if (info->r600_shadow_fb)
 	return;
 
-    ret = drmGetCap(info->dri2.drm_fd, DRM_CAP_PRIME, &value);
+    ret = drmGetCap(pRADEONEnt->fd, DRM_CAP_PRIME, &value);
     if (ret == 0) {
 	if (value & DRM_PRIME_CAP_EXPORT)
 	    pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SourceOffload;
@@ -1770,7 +1775,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     info->dri2.available = FALSE;
     info->dri2.enabled = FALSE;
-    info->dri2.pKernelDRMVersion = drmGetVersion(info->dri2.drm_fd);
+    info->dri2.pKernelDRMVersion = drmGetVersion(pRADEONEnt->fd);
     if (info->dri2.pKernelDRMVersion == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RADEONDRIGetVersion failed to get the DRM version\n");
@@ -1935,7 +1940,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     {
 	struct drm_radeon_gem_info mminfo;
 
-	if (!drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_GEM_INFO, &mminfo, sizeof(mminfo)))
+	if (!drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_GEM_INFO, &mminfo, sizeof(mminfo)))
 	{
 	    info->vram_size = mminfo.vram_visible;
 	    info->gart_size = mminfo.gart_size;
@@ -2075,10 +2080,7 @@ static Bool RADEONSaveScreen_KMS(ScreenPtr pScreen, int mode)
 
 static Bool radeon_set_drm_master(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-#ifdef XF86_PDEV_SERVER_FD
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-#endif
     int err;
 
 #ifdef XF86_PDEV_SERVER_FD
@@ -2087,7 +2089,7 @@ static Bool radeon_set_drm_master(ScrnInfoPtr pScrn)
         return TRUE;
 #endif
 
-    err = drmSetMaster(info->dri2.drm_fd);
+    err = drmSetMaster(pRADEONEnt->fd);
     if (err)
         ErrorF("Unable to retrieve master\n");
 
@@ -2096,16 +2098,15 @@ static Bool radeon_set_drm_master(ScrnInfoPtr pScrn)
 
 static void radeon_drop_drm_master(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-#ifdef XF86_PDEV_SERVER_FD
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
+#ifdef XF86_PDEV_SERVER_FD
     if (pRADEONEnt->platform_dev &&
             (pRADEONEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
         return;
 #endif
 
-    drmDropMaster(info->dri2.drm_fd);
+    drmDropMaster(pRADEONEnt->fd);
 }
 
 /* Called at the end of each server generation.  Restore the original
@@ -2177,6 +2178,7 @@ void RADEONFreeScreen_KMS(FREE_SCREEN_ARGS_DECL)
 Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
 {
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
     int            subPixelOrder = SubPixelUnknown;
     MessageType from;
@@ -2201,9 +2203,9 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     if (info->r600_shadow_fb == FALSE)
         info->directRenderingEnabled = radeon_dri2_screen_init(pScreen);
 
-    info->surf_man = radeon_surface_manager_new(info->dri2.drm_fd);
+    info->surf_man = radeon_surface_manager_new(pRADEONEnt->fd);
     if (!info->bufmgr)
-        info->bufmgr = radeon_bo_manager_gem_ctor(info->dri2.drm_fd);
+        info->bufmgr = radeon_bo_manager_gem_ctor(pRADEONEnt->fd);
     if (!info->bufmgr) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "failed to initialise GEM buffer manager");
@@ -2212,7 +2214,7 @@ Bool RADEONScreenInit_KMS(SCREEN_INIT_ARGS_DECL)
     drmmode_set_bufmgr(pScrn, &info->drmmode, info->bufmgr);
 
     if (!info->csm)
-        info->csm = radeon_cs_manager_gem_ctor(info->dri2.drm_fd);
+        info->csm = radeon_cs_manager_gem_ctor(pRADEONEnt->fd);
     if (!info->csm) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "failed to initialise command submission manager");

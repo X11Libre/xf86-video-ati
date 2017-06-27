@@ -40,7 +40,6 @@
 #endif
 
 typedef struct {
-  int fd;
   struct radeon_bo_manager *bufmgr;
   ScrnInfoPtr scrn;
 #ifdef HAVE_LIBUDEV

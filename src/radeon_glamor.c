@@ -74,6 +74,7 @@ radeon_glamor_create_screen_resources(ScreenPtr screen)
 Bool
 radeon_glamor_pre_init(ScrnInfoPtr scrn)
 {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 	RADEONInfoPtr info = RADEONPTR(scrn);
 	pointer glamor_module;
 	CARD32 version;
@@ -135,7 +136,7 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 			"Incompatible glamor version, required >= 0.3.0.\n");
 			return FALSE;
 		} else {
-			if (glamor_egl_init(scrn, info->dri2.drm_fd)) {
+			if (glamor_egl_init(scrn, pRADEONEnt->fd)) {
 				xf86DrvMsg(scrn->scrnIndex, X_INFO,
 					   "glamor detected, initialising EGL layer.\n");
 			} else {

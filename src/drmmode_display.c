@@ -272,7 +272,7 @@ int drmmode_get_current_ust(int drm_fd, CARD64 *ust)
 int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 {
     ScrnInfoPtr scrn = crtc->scrn;
-    RADEONInfoPtr info = RADEONPTR(scrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     drmVBlank vbl;
     int ret;
 
@@ -280,7 +280,7 @@ int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
     vbl.request.type |= radeon_populate_vbl_request_type(crtc);
     vbl.request.sequence = 0;
 
-    ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
     if (ret) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "get vblank counter failed: %s\n", strerror(errno));
@@ -298,7 +298,7 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	ScrnInfoPtr scrn = crtc->scrn;
-	RADEONInfoPtr info = RADEONPTR(scrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 	CARD64 ust;
 	int ret;
 
@@ -318,7 +318,7 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		vbl.request.type = DRM_VBLANK_RELATIVE;
 		vbl.request.type |= radeon_populate_vbl_request_type(crtc);
 		vbl.request.sequence = 0;
-		ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+		ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
 		if (ret)
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 				   "%s cannot get last vblank counter\n",
@@ -345,7 +345,7 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		 * Off->On transition: calculate and accumulate the
 		 * number of interpolated vblanks while we were in Off state
 		 */
-		ret = drmmode_get_current_ust(info->dri2.drm_fd, &ust);
+		ret = drmmode_get_current_ust(pRADEONEnt->fd, &ust);
 		if (ret)
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 				   "%s cannot get current time\n", __func__);
@@ -365,7 +365,7 @@ static void
 drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 
 	/* Disable unused CRTCs */
 	if (!crtc->enabled || mode != DPMSModeOn) {
@@ -373,9 +373,9 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		if (drmmode_crtc->flip_pending)
 			return;
 
-		drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+		drmModeSetCrtc(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
 			       0, 0, 0, NULL, 0, NULL);
-		drmmode_fb_reference(drmmode->fd, &drmmode_crtc->fb, NULL);
+		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
 	} else if (drmmode_crtc->dpms_mode != DPMSModeOn)
 		crtc->funcs->set_mode_major(crtc, &crtc->mode, crtc->rotation,
 					    crtc->x, crtc->y);
@@ -385,6 +385,7 @@ static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode,
 			ScrnInfoPtr pScrn, int fbcon_id)
 {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	PixmapPtr pixmap = info->fbcon_pixmap;
 	struct radeon_bo *bo;
@@ -394,7 +395,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	if (pixmap)
 	    return pixmap;
 
-	fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
+	fbcon = drmModeGetFB(pRADEONEnt->fd, fbcon_id);
 	if (fbcon == NULL)
 		return NULL;
 
@@ -404,7 +405,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 		goto out_free_fb;
 
 	flink.handle = fbcon->handle;
-	if (ioctl(drmmode->fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
+	if (ioctl(pRADEONEnt->fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't flink fbcon handle\n");
 		goto out_free_fb;
@@ -812,8 +813,9 @@ drmmode_crtc_gamma_do_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
 			  uint16_t *blue, int size)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 
-	drmModeCrtcSetGamma(drmmode_crtc->drmmode->fd,
+	drmModeCrtcSetGamma(pRADEONEnt->fd,
 			    drmmode_crtc->mode_crtc->crtc_id, size, red, green,
 			    blue);
 }
@@ -825,6 +827,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	ScrnInfoPtr pScrn = crtc->scrn;
 	ScreenPtr pScreen = pScrn->pScreen;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	unsigned scanout_id = 0;
@@ -907,13 +910,13 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!fb)
 			fb = radeon_pixmap_get_fb(pScreen->GetWindowPixmap(pScreen->root));
 		if (!fb) {
-			fb = radeon_fb_create(drmmode->fd, pScrn->virtualX,
+			fb = radeon_fb_create(pRADEONEnt->fd, pScrn->virtualX,
 					      pScrn->virtualY, pScrn->depth,
 					      pScrn->bitsPerPixel,
 					      pScrn->displayWidth * info->pixel_bytes,
 					      info->front_bo->handle);
 			/* Prevent refcnt of ad-hoc FBs from reaching 2 */
-			drmmode_fb_reference(drmmode->fd, &drmmode_crtc->fb, NULL);
+			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
 			drmmode_crtc->fb = fb;
 		}
 		if (!fb) {
@@ -923,10 +926,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		/* Wait for any pending flip to finish */
 		do {} while (drmmode_crtc->flip_pending &&
-			     drmHandleEvent(drmmode->fd,
+			     drmHandleEvent(pRADEONEnt->fd,
 					    &drmmode->event_context) > 0);
 
-		if (drmModeSetCrtc(drmmode->fd,
+		if (drmModeSetCrtc(pRADEONEnt->fd,
 				   drmmode_crtc->mode_crtc->crtc_id,
 				   fb->handle, x, y, output_ids,
 				   output_count, &kmode) != 0) {
@@ -935,7 +938,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			goto done;
 		} else {
 			ret = TRUE;
-			drmmode_fb_reference(drmmode->fd, &drmmode_crtc->fb, fb);
+			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, fb);
 		}
 
 		if (pScreen)
@@ -1006,7 +1009,7 @@ static void
 drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 
 #if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
 	if (crtc->driverIsPerformingTransform) {
@@ -1016,7 +1019,7 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	}
 #endif
 
-	drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
+	drmModeMoveCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
 
 #if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
@@ -1138,9 +1141,9 @@ drmmode_hide_cursor (xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
+	drmModeSetCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
 			 info->cursor_w, info->cursor_h);
 
 }
@@ -1151,7 +1154,7 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	ScrnInfoPtr pScrn = crtc->scrn;
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	uint32_t handle = drmmode_crtc->cursor_bo->handle;
 	static Bool use_set_cursor2 = TRUE;
 
@@ -1191,7 +1194,7 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	    }
 
 	    ret =
-		drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+		drmModeSetCursor2(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
 				  handle, info->cursor_w, info->cursor_h,
 				  xhot, yhot);
 	    if (ret == -EINVAL)
@@ -1200,7 +1203,7 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 		return;
 	}
 
-	drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, handle,
+	drmModeSetCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, handle,
 			 info->cursor_w, info->cursor_h);
 }
 
@@ -1347,8 +1350,7 @@ int drmmode_get_crtc_id(xf86CrtcPtr crtc)
 void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	ScrnInfoPtr pScrn = crtc->scrn;
-	RADEONInfoPtr info = RADEONPTR(pScrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 	struct drm_radeon_info ginfo;
 	int r;
 	uint32_t tmp;
@@ -1357,7 +1359,7 @@ void drmmode_crtc_hw_id(xf86CrtcPtr crtc)
 	ginfo.request = 0x4;
 	tmp = drmmode_crtc->mode_crtc->crtc_id;
 	ginfo.value = (uintptr_t)&tmp;
-	r = drmCommandWriteRead(info->dri2.drm_fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
+	r = drmCommandWriteRead(pRADEONEnt->fd, DRM_RADEON_INFO, &ginfo, sizeof(ginfo));
 	if (r) {
 		drmmode_crtc->hw_id = -1;
 		return;
@@ -1377,7 +1379,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 		return 0;
 
 	drmmode_crtc = xnfcalloc(sizeof(drmmode_crtc_private_rec), 1);
-	drmmode_crtc->mode_crtc = drmModeGetCrtc(drmmode->fd, mode_res->crtcs[num]);
+	drmmode_crtc->mode_crtc = drmModeGetCrtc(pRADEONEnt->fd, mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
 	drmmode_crtc->dpms_mode = DPMSModeOff;
 	drmmode_crtc->pending_dpms_mode = DPMSModeOff;
@@ -1397,11 +1399,11 @@ drmmode_output_detect(xf86OutputPtr output)
 {
 	/* go to the hw and retrieve a new output struct */
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
-	drmmode_ptr drmmode = drmmode_output->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
 	xf86OutputStatus status;
 	drmModeFreeConnector(drmmode_output->mode_output);
 
-	drmmode_output->mode_output = drmModeGetConnector(drmmode->fd, drmmode_output->output_id);
+	drmmode_output->mode_output = drmModeGetConnector(pRADEONEnt->fd, drmmode_output->output_id);
 	if (!drmmode_output->mode_output)
 		return XF86OutputStatusDisconnected;
 
@@ -1431,7 +1433,7 @@ drmmode_output_get_modes(xf86OutputPtr output)
 {
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
-	drmmode_ptr drmmode = drmmode_output->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
 	drmModePropertyPtr props;
@@ -1442,12 +1444,12 @@ drmmode_output_get_modes(xf86OutputPtr output)
 
 	/* look for an EDID property */
 	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
 		if (props && (props->flags & DRM_MODE_PROP_BLOB)) {
 			if (!strcmp(props->name, "EDID")) {
 				if (drmmode_output->edid_blob)
 					drmModeFreePropertyBlob(drmmode_output->edid_blob);
-				drmmode_output->edid_blob = drmModeGetPropertyBlob(drmmode->fd, koutput->prop_values[i]);
+				drmmode_output->edid_blob = drmModeGetPropertyBlob(pRADEONEnt->fd, koutput->prop_values[i]);
 			}
 		}
 		if (props)
@@ -1501,7 +1503,7 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
 	xf86CrtcPtr crtc = output->crtc;
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
-	drmmode_ptr drmmode = drmmode_output->drmmode;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
 
 	if (!koutput)
 		return;
@@ -1516,7 +1518,7 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 			return;
 	}
 
-	drmModeConnectorSetProperty(drmmode->fd, koutput->connector_id,
+	drmModeConnectorSetProperty(pRADEONEnt->fd, koutput->connector_id,
 				    drmmode_output->dpms_enum_id, mode);
 
 	if (mode == DPMSModeOn && crtc) {
@@ -1553,7 +1555,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
     RADEONInfoPtr info = RADEONPTR(output->scrn);
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     drmModeConnectorPtr mode_output = drmmode_output->mode_output;
-    drmmode_ptr drmmode = drmmode_output->drmmode;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
     drmModePropertyPtr drmmode_prop, tearfree_prop;
     int i, j, err;
 
@@ -1563,7 +1565,7 @@ drmmode_output_create_resources(xf86OutputPtr output)
     
     drmmode_output->num_props = 0;
     for (i = 0, j = 0; i < mode_output->count_props; i++) {
-	drmmode_prop = drmModeGetProperty(drmmode->fd, mode_output->props[i]);
+	drmmode_prop = drmModeGetProperty(pRADEONEnt->fd, mode_output->props[i]);
 	if (drmmode_property_ignore(drmmode_prop)) {
 	    drmModeFreeProperty(drmmode_prop);
 	    continue;
@@ -1657,7 +1659,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		RRPropertyValuePtr value)
 {
     drmmode_output_private_ptr drmmode_output = output->driver_private;
-    drmmode_ptr drmmode = drmmode_output->drmmode;
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
     int i;
 
     for (i = 0; i < drmmode_output->num_props; i++) {
@@ -1674,7 +1676,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 		return FALSE;
 	    val = *(uint32_t *)value->data;
 
-	    drmModeConnectorSetProperty(drmmode->fd, drmmode_output->output_id,
+	    drmModeConnectorSetProperty(pRADEONEnt->fd, drmmode_output->output_id,
 		    p->mode_prop->prop_id, (uint64_t)val);
 	    return TRUE;
 	} else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
@@ -1703,7 +1705,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 			    }
 			}
 		    } else {
-			drmModeConnectorSetProperty(drmmode->fd,
+			drmModeConnectorSetProperty(pRADEONEnt->fd,
 						    drmmode_output->output_id,
 						    p->mode_prop->prop_id,
 						    p->mode_prop->enums[j].value);
@@ -1876,6 +1878,7 @@ static unsigned int
 drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num, int *num_dvi, int *num_hdmi, int dynamic)
 {
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	xf86OutputPtr output;
 	drmModeConnectorPtr koutput;
@@ -1887,15 +1890,15 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	int i;
 	const char *s;
 
-	koutput = drmModeGetConnector(drmmode->fd, mode_res->connectors[num]);
+	koutput = drmModeGetConnector(pRADEONEnt->fd, mode_res->connectors[num]);
 	if (!koutput)
 		return 0;
 
 	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
 		if (props && (props->flags & DRM_MODE_PROP_BLOB)) {
 			if (!strcmp(props->name, "PATH")) {
-				path_blob = drmModeGetPropertyBlob(drmmode->fd, koutput->prop_values[i]);
+				path_blob = drmModeGetPropertyBlob(pRADEONEnt->fd, koutput->prop_values[i]);
 				drmModeFreeProperty(props);
 				break;
 			}
@@ -1909,7 +1912,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	}
 
 	for (i = 0; i < koutput->count_encoders; i++) {
-		kencoders[i] = drmModeGetEncoder(drmmode->fd, koutput->encoders[i]);
+		kencoders[i] = drmModeGetEncoder(pRADEONEnt->fd, koutput->encoders[i]);
 		if (!kencoders[i]) {
 			goto out_free_encoders;
 		}
@@ -1982,7 +1985,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	output->possible_clones = 0;
 
 	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(drmmode->fd, koutput->props[i]);
+		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
 		if (props && (props->flags & DRM_MODE_PROP_ENUM)) {
 			if (!strcmp(props->name, "DPMS")) {
 				drmmode_output->dpms_enum_id = koutput->props[i];
@@ -2418,6 +2421,7 @@ static void
 drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *event_data)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 	drmmode_flipdata_ptr flipdata = event_data;
 
 	/* Is this the event whose info shall be delivered to higher level? */
@@ -2440,7 +2444,7 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 		free(flipdata);
 	}
 
-	drmmode_fb_reference(drmmode_crtc->drmmode->fd, &drmmode_crtc->fb,
+	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
 			     drmmode_crtc->flip_pending);
 	drmmode_clear_pending_flip(crtc);
 }
@@ -2454,23 +2458,26 @@ static void
 drm_wakeup_handler(pointer data, int err, pointer p)
 #endif
 {
-	drmmode_ptr drmmode = data;
+	ScrnInfoPtr scrn = data;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	
 #if !HAVE_NOTIFY_FD
 	fd_set *read_mask = p;
 
-	if (err >= 0 && FD_ISSET(drmmode->fd, read_mask))
+	if (err >= 0 && FD_ISSET(pRADEONEnt->fd, read_mask))
 #endif
 	{
-		drmHandleEvent(drmmode->fd, &drmmode->event_context);
+		drmHandleEvent(pRADEONEnt->fd, &info->drmmode.event_context);
 	}
 }
 
-static Bool drmmode_probe_page_flip_target(drmmode_ptr drmmode)
+static Bool drmmode_probe_page_flip_target(RADEONEntPtr pRADEONEnt)
 {
 #ifdef DRM_CAP_PAGE_FLIP_TARGET
 	uint64_t cap_value;
 
-	return drmGetCap(drmmode->fd, DRM_CAP_PAGE_FLIP_TARGET,
+	return drmGetCap(pRADEONEnt->fd, DRM_CAP_PAGE_FLIP_TARGET,
 			 &cap_value) == 0 && cap_value != 0;
 #else
 	return FALSE;
@@ -2478,13 +2485,12 @@ static Bool drmmode_probe_page_flip_target(drmmode_ptr drmmode)
 }
 
 static int
-drmmode_page_flip(drmmode_crtc_private_ptr drmmode_crtc, int fb_id,
+drmmode_page_flip(RADEONEntPtr pRADEONEnt,
+		  drmmode_crtc_private_ptr drmmode_crtc, int fb_id,
 		  uint32_t flags, uintptr_t drm_queue_seq)
 {
-	drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
 	flags |= DRM_MODE_PAGE_FLIP_EVENT;
-	return drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+	return drmModePageFlip(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
 			       fb_id, flags, (void*)drm_queue_seq);
 }
 
@@ -2496,17 +2502,16 @@ drmmode_page_flip_target_absolute(RADEONEntPtr pRADEONEnt,
 {
 #ifdef DRM_MODE_PAGE_FLIP_TARGET
 	if (pRADEONEnt->has_page_flip_target) {
-		drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
 		flags |= DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE;
-		return drmModePageFlipTarget(drmmode->fd,
+		return drmModePageFlipTarget(pRADEONEnt->fd,
 					     drmmode_crtc->mode_crtc->crtc_id,
 					     fb_id, flags, (void*)drm_queue_seq,
 					     target_msc);
 	}
 #endif
 
-	return drmmode_page_flip(drmmode_crtc, fb_id, flags, drm_queue_seq);
+	return drmmode_page_flip(pRADEONEnt, drmmode_crtc, fb_id, flags,
+				 drm_queue_seq);
 }
 
 int
@@ -2517,17 +2522,16 @@ drmmode_page_flip_target_relative(RADEONEntPtr pRADEONEnt,
 {
 #ifdef DRM_MODE_PAGE_FLIP_TARGET
 	if (pRADEONEnt->has_page_flip_target) {
-		drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
 		flags |= DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_PAGE_FLIP_TARGET_RELATIVE;
-		return drmModePageFlipTarget(drmmode->fd,
+		return drmModePageFlipTarget(pRADEONEnt->fd,
 					     drmmode_crtc->mode_crtc->crtc_id,
 					     fb_id, flags, (void*)drm_queue_seq,
 					     target_msc);
 	}
 #endif
 
-	return drmmode_page_flip(drmmode_crtc, fb_id, flags, drm_queue_seq);
+	return drmmode_page_flip(pRADEONEnt, drmmode_crtc, fb_id, flags,
+				 drm_queue_seq);
 }
 
 Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
@@ -2544,7 +2548,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 
 	drmmode->scrn = pScrn;
-	mode_res = drmModeGetResources(drmmode->fd);
+	mode_res = drmModeGetResources(pRADEONEnt->fd);
 	if (!mode_res)
 		return FALSE;
 
@@ -2594,7 +2598,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode->event_context.vblank_handler = radeon_drm_queue_handler;
 	drmmode->event_context.page_flip_handler = radeon_drm_queue_handler;
 
-	pRADEONEnt->has_page_flip_target = drmmode_probe_page_flip_target(drmmode);
+	pRADEONEnt->has_page_flip_target = drmmode_probe_page_flip_target(pRADEONEnt);
 
 	drmModeFreeResources(mode_res);
 	return TRUE;
@@ -2611,11 +2615,11 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	info->drmmode_inited = TRUE;
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
 #if HAVE_NOTIFY_FD
-		SetNotifyFd(drmmode->fd, drm_notify_fd, X_NOTIFY_READ, drmmode);
+		SetNotifyFd(pRADEONEnt->fd, drm_notify_fd, X_NOTIFY_READ, pScrn);
 #else
-		AddGeneralSocket(drmmode->fd);
+		AddGeneralSocket(pRADEONEnt->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-				drm_wakeup_handler, drmmode);
+				drm_wakeup_handler, pScrn);
 #endif
 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
 		pRADEONEnt->fd_wakeup_ref = 1;
@@ -2636,11 +2640,11 @@ void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
 	    !--pRADEONEnt->fd_wakeup_ref) {
 #if HAVE_NOTIFY_FD
-		RemoveNotifyFd(drmmode->fd);
+		RemoveNotifyFd(pRADEONEnt->fd);
 #else
-		RemoveGeneralSocket(drmmode->fd);
+		RemoveGeneralSocket(pRADEONEnt->fd);
 		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-				drm_wakeup_handler, drmmode);
+				drm_wakeup_handler, pScrn);
 #endif
 	}
 
@@ -2682,6 +2686,7 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 			       Bool set_hw)
 {
 	xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	int c;
 
 	for (c = 0; c < config->num_crtc; c++) {
@@ -2694,10 +2699,10 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 		if (!crtc->enabled) {
 			if (set_hw) {
 				drmmode_do_crtc_dpms(crtc, DPMSModeOff);
-				drmModeSetCrtc(drmmode->fd,
+				drmModeSetCrtc(pRADEONEnt->fd,
 					       drmmode_crtc->mode_crtc->crtc_id,
 					       0, 0, 0, NULL, 0, NULL);
-				drmmode_fb_reference(drmmode->fd,
+				drmmode_fb_reference(pRADEONEnt->fd,
 						     &drmmode_crtc->fb, NULL);
 			}
 			continue;
@@ -2812,7 +2817,7 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	Bool changed = FALSE;
 	int num_dvi = 0, num_hdmi = 0;
 
-	mode_res = drmModeGetResources(drmmode->fd);
+	mode_res = drmModeGetResources(pRADEONEnt->fd);
 	if (!mode_res)
 		goto out;
 

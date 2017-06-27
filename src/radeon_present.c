@@ -105,10 +105,11 @@ static Bool
 radeon_present_flush_drm_events(ScreenPtr screen)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[0]->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
-    struct pollfd p = { .fd = drmmode->fd, .events = POLLIN };
+    struct pollfd p = { .fd = pRADEONEnt->fd, .events = POLLIN };
     int r;
 
     do {
@@ -118,7 +119,7 @@ radeon_present_flush_drm_events(ScreenPtr screen)
     if (r <= 0)
 	return 0;
 
-    return drmHandleEvent(drmmode->fd, &drmmode->event_context) >= 0;
+    return drmHandleEvent(pRADEONEnt->fd, &drmmode->event_context) >= 0;
 }
 
 /*
@@ -155,7 +156,7 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     ScreenPtr screen = crtc->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONInfoPtr info = RADEONPTR(scrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     int crtc_id = drmmode_get_crtc_id(xf86_crtc);
     struct radeon_present_vblank_event *event;
     uintptr_t drm_queue_seq;
@@ -180,7 +181,7 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
     vbl.request.sequence = msc;
     vbl.request.signal = drm_queue_seq;
     for (;;) {
-	ret = drmWaitVBlank(info->dri2.drm_fd, &vbl);
+	ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
 	if (!ret)
 	    break;
 	if (errno != EBUSY || !radeon_present_flush_drm_events(screen)) {
@@ -435,11 +436,11 @@ radeon_present_has_async_flip(ScreenPtr screen)
 {
 #ifdef DRM_CAP_ASYNC_PAGE_FLIP
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONInfoPtr info = RADEONPTR(scrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     int ret;
     uint64_t value;
 
-    ret = drmGetCap(info->dri2.drm_fd, DRM_CAP_ASYNC_PAGE_FLIP, &value);
+    ret = drmGetCap(pRADEONEnt->fd, DRM_CAP_ASYNC_PAGE_FLIP, &value);
     if (ret == 0)
 	return value == 1;
 #endif
