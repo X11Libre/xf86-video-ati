@@ -815,8 +815,8 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 	return;
     }
 
-    drmmode_crtc->flip_pending =
-	radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap);
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			  radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap));
     if (!drmmode_crtc->flip_pending) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Failed to get FB for PRIME flip.\n");
@@ -1110,8 +1110,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
     }
 
-    drmmode_crtc->flip_pending =
-	radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap);
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			  radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap));
     if (!drmmode_crtc->flip_pending) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Failed to get FB for scanout flip.\n");
