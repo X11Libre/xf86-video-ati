@@ -981,7 +981,7 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id)
 	GCPtr gc = GetScratchGC(pDraw->depth, pScreen);
 
 	ValidateGC(pDraw, gc);
-	(*gc->ops->CopyArea)(&pScreen->GetScreenPixmap(pScreen)->drawable,
+	(*gc->ops->CopyArea)(&pScreen->GetWindowPixmap(pScreen->root)->drawable,
 			     pDraw, gc,
 			     xf86_crtc->x + extents.x1, xf86_crtc->y + extents.y1,
 			     extents.x2 - extents.x1, extents.y2 - extents.y1,

@@ -529,11 +529,8 @@ drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
 					     &drmmode_crtc->scanout[1]);
 	}
 
-	if (drmmode_crtc->scanout_damage) {
+	if (drmmode_crtc->scanout_damage)
 		DamageDestroy(drmmode_crtc->scanout_damage);
-		drmmode_crtc->scanout_damage = NULL;
-		RegionUninit(&drmmode_crtc->scanout_last_region);
-	}
 }
 
 void
@@ -603,6 +600,15 @@ radeon_screen_damage_report(DamagePtr damage, RegionPtr region, void *closure)
 	/* Only keep track of the extents */
 	RegionUninit(&damage->damage);
 	damage->damage.data = NULL;
+}
+
+static void
+drmmode_screen_damage_destroy(DamagePtr damage, void *closure)
+{
+	drmmode_crtc_private_ptr drmmode_crtc = closure;
+
+	drmmode_crtc->scanout_damage = NULL;
+	RegionUninit(&drmmode_crtc->scanout_last_region);
 }
 
 static Bool
@@ -793,9 +799,10 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!drmmode_crtc->scanout_damage) {
 			drmmode_crtc->scanout_damage =
 				DamageCreate(radeon_screen_damage_report,
-					     NULL, DamageReportRawRegion,
-					     TRUE, screen, NULL);
-			DamageRegister(&screen->GetScreenPixmap(screen)->drawable,
+					     drmmode_screen_damage_destroy,
+					     DamageReportRawRegion,
+					     TRUE, screen, drmmode_crtc);
+			DamageRegister(&screen->root->drawable,
 				       drmmode_crtc->scanout_damage);
 		}
 
