@@ -3014,7 +3014,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	for (i = 0; i < config->num_crtc; i++) {
 		crtc = config->crtc[i];
 
-		if (!crtc->enabled)
+		if (!drmmode_crtc_can_flip(crtc))
 			continue;
 
 		flipdata->flip_count++;

@@ -146,7 +146,9 @@ drmmode_crtc_can_flip(xf86CrtcPtr crtc)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
     return crtc->enabled &&
-	drmmode_crtc->pending_dpms_mode == DPMSModeOn;
+	drmmode_crtc->pending_dpms_mode == DPMSModeOn &&
+	!drmmode_crtc->rotate.bo &&
+	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo;
 }
 
 

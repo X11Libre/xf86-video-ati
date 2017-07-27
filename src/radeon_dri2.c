@@ -720,18 +720,6 @@ can_exchange(ScrnInfoPtr pScrn, DrawablePtr draw,
     struct dri2_buffer_priv *back_priv = back->driverPrivate;
     PixmapPtr front_pixmap;
     PixmapPtr back_pixmap = back_priv->pixmap;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    int i;
-
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	xf86CrtcPtr crtc = xf86_config->crtc[i];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	if (crtc->enabled &&
-	    (crtc->rotatedData ||
-	     drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo))
-	    return FALSE;
-    }
 
     if (!update_front(draw, front))
 	return FALSE;
@@ -754,9 +742,10 @@ can_exchange(ScrnInfoPtr pScrn, DrawablePtr draw,
 }
 
 static Bool
-can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
+can_flip(xf86CrtcPtr crtc, DrawablePtr draw,
 	 DRI2BufferPtr front, DRI2BufferPtr back)
 {
+    ScrnInfoPtr pScrn = crtc->scrn;
     RADEONInfoPtr info = RADEONPTR(pScrn);
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
     int num_crtcs_on;
@@ -771,15 +760,10 @@ can_flip(ScrnInfoPtr pScrn, DrawablePtr draw,
 	return FALSE;
 
     for (i = 0, num_crtcs_on = 0; i < config->num_crtc; i++) {
-	xf86CrtcPtr crtc = config->crtc[i];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
-	    drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo)
-	    return FALSE;
-
-	if (drmmode_crtc_can_flip(crtc))
+	if (drmmode_crtc_can_flip(config->crtc[i]))
 	    num_crtcs_on++;
+	else if (config->crtc[i] == crtc)
+	    return FALSE;
     }
 
     return num_crtcs_on > 0 && can_exchange(pScrn, draw, front, back);
@@ -859,7 +843,7 @@ static void radeon_dri2_frame_event_handler(xf86CrtcPtr crtc, uint32_t seq,
 
     switch (event->type) {
     case DRI2_FLIP:
-	if (can_flip(scrn, drawable, event->front, event->back) &&
+	if (can_flip(crtc, drawable, event->front, event->back) &&
 	    radeon_dri2_schedule_flip(crtc,
 				      event->client,
 				      drawable,
@@ -1352,7 +1336,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     current_msc &= 0xffffffff;
 
     /* Flips need to be submitted one frame before */
-    if (can_flip(scrn, draw, front, back)) {
+    if (can_flip(crtc, draw, front, back)) {
 	swap_info->type = DRI2_FLIP;
 	flip = 1;
     }

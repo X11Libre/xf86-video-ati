@@ -243,14 +243,7 @@ radeon_present_check_unflip(ScrnInfoPtr scrn)
 	return FALSE;
 
     for (i = 0, num_crtcs_on = 0; i < config->num_crtc; i++) {
-	xf86CrtcPtr crtc = config->crtc[i];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
-	    drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo)
-	    return FALSE;
-
-	if (drmmode_crtc_can_flip(crtc))
+	if (drmmode_crtc_can_flip(config->crtc[i]))
 	    num_crtcs_on++;
     }
 
@@ -284,6 +277,9 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
     screen_pixmap = screen->GetScreenPixmap(screen);
     if (radeon_present_get_pixmap_tiling_flags(info, pixmap) !=
 	radeon_present_get_pixmap_tiling_flags(info, screen_pixmap))
+	return FALSE;
+
+    if (!drmmode_crtc_can_flip(crtc->devPrivate))
 	return FALSE;
 
     return radeon_present_check_unflip(scrn);
