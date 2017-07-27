@@ -139,6 +139,17 @@ enum drmmode_flip_sync {
 };
 
 
+/* Can the page flip ioctl be used for this CRTC? */
+static inline Bool
+drmmode_crtc_can_flip(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    return crtc->enabled &&
+	drmmode_crtc->pending_dpms_mode == DPMSModeOn;
+}
+
+
 static inline void
 drmmode_fb_reference_loc(int drm_fd, struct drmmode_fb **old, struct drmmode_fb *new,
 			 const char *caller, unsigned line)

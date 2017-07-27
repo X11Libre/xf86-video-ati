@@ -243,16 +243,14 @@ radeon_present_check_unflip(ScrnInfoPtr scrn)
 	return FALSE;
 
     for (i = 0, num_crtcs_on = 0; i < config->num_crtc; i++) {
-	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[i]->driver_private;
-
-	if (!config->crtc[i]->enabled)
-	    continue;
+	xf86CrtcPtr crtc = config->crtc[i];
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 	if (!drmmode_crtc || drmmode_crtc->rotate.bo ||
 	    drmmode_crtc->scanout[drmmode_crtc->scanout_id].bo)
 	    return FALSE;
 
-	if (drmmode_crtc->pending_dpms_mode == DPMSModeOn)
+	if (drmmode_crtc_can_flip(crtc))
 	    num_crtcs_on++;
     }
 
