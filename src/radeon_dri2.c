@@ -760,8 +760,6 @@ can_flip(xf86CrtcPtr crtc, DrawablePtr draw,
     for (i = 0, num_crtcs_on = 0; i < config->num_crtc; i++) {
 	if (drmmode_crtc_can_flip(config->crtc[i]))
 	    num_crtcs_on++;
-	else if (config->crtc[i] == crtc)
-	    return FALSE;
     }
 
     return num_crtcs_on > 0 && can_exchange(pScrn, draw, front, back);
