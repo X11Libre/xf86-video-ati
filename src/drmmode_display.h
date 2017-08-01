@@ -219,7 +219,7 @@ extern void drmmode_clear_pending_flip(xf86CrtcPtr crtc);
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			PixmapPtr new_front, uint64_t id, void *data,
-			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
+			xf86CrtcPtr ref_crtc, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort,
 			enum drmmode_flip_sync flip_sync,
 			uint32_t target_msc);

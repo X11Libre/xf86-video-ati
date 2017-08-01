@@ -325,8 +325,6 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     RADEONInfoPtr info = RADEONPTR(scrn);
     struct radeon_present_vblank_event *event;
-    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
-    int crtc_id = xf86_crtc ? drmmode_get_crtc_id(xf86_crtc) : -1;
     Bool ret;
 
     if (!radeon_present_check_flip(crtc, screen->root, pixmap, sync_flip))
@@ -341,7 +339,7 @@ radeon_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
     radeon_cs_flush_indirect(scrn);
 
     ret = radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, pixmap,
-			     event_id, event, crtc_id,
+			     event_id, event, crtc->devPrivate,
 			     radeon_present_flip_event,
 			     radeon_present_flip_abort,
 			     sync_flip ? FLIP_VSYNC : FLIP_ASYNC,
@@ -385,7 +383,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
     event->unflip = TRUE;
 
     if (radeon_do_pageflip(scrn, RADEON_DRM_QUEUE_CLIENT_DEFAULT, pixmap,
-			   event_id, event, -1, radeon_present_flip_event,
+			   event_id, event, NULL, radeon_present_flip_event,
 			   radeon_present_flip_abort, flip_sync, 0))
 	return;
 

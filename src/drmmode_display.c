@@ -2959,7 +2959,7 @@ void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 
 Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			PixmapPtr new_front, uint64_t id, void *data,
-			int ref_crtc_hw_id, radeon_drm_handler_proc handler,
+			xf86CrtcPtr ref_crtc, radeon_drm_handler_proc handler,
 			radeon_drm_abort_proc abort,
 			enum drmmode_flip_sync flip_sync,
 			uint32_t target_msc)
@@ -3000,6 +3000,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
         flipdata->event_data = data;
         flipdata->handler = handler;
         flipdata->abort = abort;
+        flipdata->fe_crtc = ref_crtc;
 
 	for (i = 0; i < config->num_crtc; i++) {
 		crtc = config->crtc[i];
@@ -3009,12 +3010,6 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
 		flipdata->flip_count++;
 		drmmode_crtc = crtc->driver_private;
-
-		/* Only the reference crtc will finally deliver its page flip
-		 * completion event. All other crtc's events will be discarded.
-		 */
-		if (drmmode_crtc->hw_id == ref_crtc_hw_id)
-			flipdata->fe_crtc = crtc;
 
 		drm_queue_seq = radeon_drm_queue_alloc(crtc, client, id,
 						       flipdata,
@@ -3026,7 +3021,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			goto error;
 		}
 
-		if (drmmode_crtc->hw_id == ref_crtc_hw_id) {
+		if (crtc == ref_crtc) {
 			if (drmmode_page_flip_target_absolute(pRADEONEnt,
 							      drmmode_crtc,
 							      fb->handle,
