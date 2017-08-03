@@ -83,7 +83,6 @@ typedef struct {
     struct radeon_bo *cursor_bo;
     struct drmmode_scanout rotate;
     struct drmmode_scanout scanout[2];
-    struct drmmode_scanout scanout_destroy[2];
     DamagePtr scanout_damage;
     RegionRec scanout_last_region;
     unsigned scanout_id;

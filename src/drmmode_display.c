@@ -515,19 +515,10 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 static void
 drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
 {
-	if (drmmode_crtc->flip_pending) {
-		drmmode_crtc->scanout_destroy[0] = drmmode_crtc->scanout[0];
-		drmmode_crtc->scanout[0].pixmap = NULL;
-		drmmode_crtc->scanout[0].bo = NULL;
-		drmmode_crtc->scanout_destroy[1] = drmmode_crtc->scanout[1];
-		drmmode_crtc->scanout[1].pixmap = NULL;
-		drmmode_crtc->scanout[1].bo = NULL;
-	} else {
-		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout[0]);
-		drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-					     &drmmode_crtc->scanout[1]);
-	}
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout[0]);
+	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
+				     &drmmode_crtc->scanout[1]);
 
 	if (drmmode_crtc->scanout_damage)
 		DamageDestroy(drmmode_crtc->scanout_damage);
@@ -2414,11 +2405,6 @@ drmmode_clear_pending_flip(xf86CrtcPtr crtc)
 
 		drmmode_crtc_dpms(crtc, drmmode_crtc->pending_dpms_mode);
 	}
-
-	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-				     &drmmode_crtc->scanout_destroy[0]);
-	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
-				     &drmmode_crtc->scanout_destroy[1]);
 }
 
 static void
