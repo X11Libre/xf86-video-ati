@@ -56,8 +56,9 @@ typedef struct {
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
-  int flip_count;
+  struct drmmode_fb *fb;
   void *event_data;
+  int flip_count;
   unsigned int fe_frame;
   uint64_t fe_usec;
   xf86CrtcPtr fe_crtc;
