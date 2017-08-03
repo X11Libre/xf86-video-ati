@@ -732,7 +732,7 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
     drmmode_crtc = xf86_crtc->driver_private;
     if (drmmode_crtc->scanout_update_pending ||
 	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
-	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
+	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
@@ -761,10 +761,12 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 static void
 radeon_prime_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = event_data;
 
     drmmode_crtc->scanout_update_pending = FALSE;
-    drmmode_clear_pending_flip(crtc);
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			 NULL);
 }
 
 static void
@@ -796,7 +798,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
     drmmode_crtc = crtc->driver_private;
     if (drmmode_crtc->scanout_update_pending ||
 	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
-	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
+	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
     scanout_id = drmmode_crtc->scanout_id ^ 1;
@@ -1022,7 +1024,7 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 
     if (!xf86_crtc->enabled ||
 	drmmode_crtc->scanout_update_pending ||
-	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
+	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
     pDamage = drmmode_crtc->scanout_damage;
@@ -1088,7 +1090,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     unsigned scanout_id;
 
     if (drmmode_crtc->scanout_update_pending ||
-	drmmode_crtc->pending_dpms_mode != DPMSModeOn)
+	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
     scanout_id = drmmode_crtc->scanout_id ^ 1;

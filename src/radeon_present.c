@@ -379,7 +379,7 @@ modeset:
 	if (!crtc->enabled)
 	    continue;
 
-	if (drmmode_crtc->pending_dpms_mode == DPMSModeOn)
+	if (drmmode_crtc->dpms_mode == DPMSModeOn)
 	    crtc->funcs->set_mode_major(crtc, &crtc->mode, crtc->rotation,
 					crtc->x, crtc->y);
 	else

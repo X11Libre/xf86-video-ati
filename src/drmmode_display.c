@@ -337,14 +337,11 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	CARD64 ust;
 	int ret;
 
-	drmmode_crtc->pending_dpms_mode = mode;
-
 	if (drmmode_crtc->dpms_mode == DPMSModeOn && mode != DPMSModeOn) {
 		uint32_t seq;
 
-		/* Wait for any pending flip to finish */
-		if (drmmode_crtc->flip_pending)
-			return;
+		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
+						drmmode_crtc->flip_pending);
 
 		/*
 		 * On->Off transition: record the last vblank time,
@@ -398,10 +395,8 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Disable unused CRTCs */
 	if (!crtc->enabled || mode != DPMSModeOn) {
-		/* Wait for any pending flip to finish */
-		if (drmmode_crtc->flip_pending)
-			return;
-
+		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
+						drmmode_crtc->flip_pending);
 		drmModeSetCrtc(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
 			       0, 0, 0, NULL, 0, NULL);
 		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
@@ -1419,7 +1414,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	drmmode_crtc->mode_crtc = drmModeGetCrtc(pRADEONEnt->fd, mode_res->crtcs[num]);
 	drmmode_crtc->drmmode = drmmode;
 	drmmode_crtc->dpms_mode = DPMSModeOff;
-	drmmode_crtc->pending_dpms_mode = DPMSModeOff;
 	crtc->driver_private = drmmode_crtc;
 	drmmode_crtc_hw_id(crtc);
 
@@ -1545,15 +1539,8 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 	if (!koutput)
 		return;
 
-	if (mode != DPMSModeOn && crtc) {
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
+	if (mode != DPMSModeOn && crtc)
 		drmmode_do_crtc_dpms(crtc, mode);
-
-		/* Wait for any pending flip to finish */
-		if (drmmode_crtc->flip_pending)
-			return;
-	}
 
 	drmModeConnectorSetProperty(pRADEONEnt->fd, koutput->connector_id,
 				    drmmode_output->dpms_enum_id, mode);
@@ -2405,38 +2392,11 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	drmmode_xf86crtc_resize
 };
 
-void
-drmmode_clear_pending_flip(xf86CrtcPtr crtc)
-{
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-	ScrnInfoPtr scrn = crtc->scrn;
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-
-	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-			     NULL);
-
-	if (!crtc->enabled ||
-	    (drmmode_crtc->pending_dpms_mode != DPMSModeOn &&
-	     drmmode_crtc->dpms_mode != drmmode_crtc->pending_dpms_mode)) {
-		xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-		int o;
-
-		for (o = 0; o < xf86_config->num_output; o++) {
-			xf86OutputPtr output = xf86_config->output[o];
-
-			if (output->crtc != crtc)
-				continue;
-
-			drmmode_output_dpms(output, drmmode_crtc->pending_dpms_mode);
-		}
-
-		drmmode_crtc_dpms(crtc, drmmode_crtc->pending_dpms_mode);
-	}
-}
-
 static void
 drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 	drmmode_flipdata_ptr flipdata = event_data;
 
 	if (--flipdata->flip_count == 0) {
@@ -2446,7 +2406,8 @@ drmmode_flip_abort(xf86CrtcPtr crtc, void *event_data)
 		free(flipdata);
 	}
 
-	drmmode_clear_pending_flip(crtc);
+	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			     NULL);
 }
 
 static void
@@ -2478,7 +2439,8 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 
 	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
 			     drmmode_crtc->flip_pending);
-	drmmode_clear_pending_flip(crtc);
+	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			     NULL);
 }
 
 
