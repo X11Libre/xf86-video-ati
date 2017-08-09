@@ -35,6 +35,13 @@
 #define xorg_list_del			list_del
 #define xorg_list_for_each_entry	list_for_each_entry
 #define xorg_list_for_each_entry_safe	list_for_each_entry_safe
+
+static inline void
+xorg_list_append(struct list *entry, struct list *head)
+{
+    __list_add(entry, head->prev, head);
+}
+
 #endif
 
 #endif /* _RADEON_LIST_H_ */
