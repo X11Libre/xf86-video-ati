@@ -518,6 +518,38 @@ radeon_sync_scanout_pixmaps(xf86CrtcPtr xf86_crtc, RegionPtr new_region,
     RegionUninit(&remaining);
 }
 
+static void
+radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
+{
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    drmmode_crtc->scanout_update_pending = FALSE;
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			 NULL);
+}
+
+static void
+radeon_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
+				  void *event_data)
+{
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
+			 drmmode_crtc->flip_pending);
+    radeon_scanout_flip_abort(crtc, event_data);
+
+#ifdef HAVE_PRESENT_H
+    if (drmmode_crtc->present_vblank_event_id) {
+	present_event_notify(drmmode_crtc->present_vblank_event_id,
+			     drmmode_crtc->present_vblank_usec,
+			     drmmode_crtc->present_vblank_msc);
+	drmmode_crtc->present_vblank_event_id = 0;
+    }
+#endif
+}
+
 #ifdef RADEON_PIXMAP_SHARING
 
 static RegionPtr
@@ -763,38 +795,6 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 }
 
 static void
-radeon_prime_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
-{
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
-    drmmode_crtc_private_ptr drmmode_crtc = event_data;
-
-    drmmode_crtc->scanout_update_pending = FALSE;
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-			 NULL);
-}
-
-static void
-radeon_prime_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
-				  void *event_data)
-{
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
-    drmmode_crtc_private_ptr drmmode_crtc = event_data;
-
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
-			 drmmode_crtc->flip_pending);
-    radeon_prime_scanout_flip_abort(crtc, event_data);
-
-#ifdef HAVE_PRESENT_H
-    if (drmmode_crtc->present_vblank_event_id) {
-	present_event_notify(drmmode_crtc->present_vblank_event_id,
-			     drmmode_crtc->present_vblank_usec,
-			     drmmode_crtc->present_vblank_msc);
-	drmmode_crtc->present_vblank_event_id = 0;
-    }
-#endif
-}
-
-static void
 radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 {
     ScreenPtr screen = ent->slave_dst->drawable.pScreen;
@@ -821,9 +821,9 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
     drm_queue_seq = radeon_drm_queue_alloc(crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
-					   drmmode_crtc,
-					   radeon_prime_scanout_flip_handler,
-					   radeon_prime_scanout_flip_abort);
+					   NULL,
+					   radeon_scanout_flip_handler,
+					   radeon_scanout_flip_abort);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM event queue entry failed for PRIME flip.\n");
@@ -1082,19 +1082,6 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 }
 
 static void
-radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
-{
-    radeon_prime_scanout_flip_abort(crtc, event_data);
-}
-
-static void
-radeon_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
-			    void *event_data)
-{
-    radeon_prime_scanout_flip_handler(crtc, msc, usec, event_data);
-}
-
-static void
 radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 		    xf86CrtcPtr xf86_crtc)
 {
@@ -1120,7 +1107,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
-					   drmmode_crtc,
+					   NULL,
 					   radeon_scanout_flip_handler,
 					   radeon_scanout_flip_abort);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
