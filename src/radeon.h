@@ -693,8 +693,6 @@ extern void radeon_ddx_cs_start(ScrnInfoPtr pScrn,
 void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, uint32_t new_fb_size);
 extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 
-drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc);
-
 static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 {
 #ifdef USE_GLAMOR

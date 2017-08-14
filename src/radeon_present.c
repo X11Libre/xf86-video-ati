@@ -55,16 +55,6 @@ struct radeon_present_vblank_event {
     Bool unflip;
 };
 
-static uint32_t crtc_select(int crtc_id)
-{
-    if (crtc_id > 1)
-	return crtc_id << DRM_VBLANK_HIGH_CRTC_SHIFT;
-    else if (crtc_id > 0)
-	return DRM_VBLANK_SECONDARY;
-    else
-	return 0;
-}
-
 static RRCrtcPtr
 radeon_present_get_crtc(WindowPtr window)
 {
@@ -155,13 +145,8 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
 {
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     ScreenPtr screen = crtc->pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-    int crtc_id = drmmode_get_crtc_id(xf86_crtc);
     struct radeon_present_vblank_event *event;
     uintptr_t drm_queue_seq;
-    drmVBlank vbl;
-    int ret;
 
     event = calloc(sizeof(struct radeon_present_vblank_event), 1);
     if (!event)
@@ -177,12 +162,10 @@ radeon_present_queue_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
 	return BadAlloc;
     }
 
-    vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT | crtc_select(crtc_id);
-    vbl.request.sequence = msc;
-    vbl.request.signal = drm_queue_seq;
     for (;;) {
-	ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-	if (!ret)
+	if (drmmode_wait_vblank(xf86_crtc,
+				DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT, msc,
+				drm_queue_seq, NULL, NULL))
 	    break;
 	if (errno != EBUSY || !radeon_present_flush_drm_events(screen)) {
 	    radeon_drm_abort_entry(drm_queue_seq);

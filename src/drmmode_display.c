@@ -243,6 +243,41 @@ drmmode_ConvertToKMode(ScrnInfoPtr	scrn,
 }
 
 /*
+ * Utility helper for drmWaitVBlank
+ */
+Bool
+drmmode_wait_vblank(xf86CrtcPtr crtc, drmVBlankSeqType type,
+		    uint32_t target_seq, unsigned long signal, uint64_t *ust,
+		    uint32_t *result_seq)
+{
+	int crtc_id = drmmode_get_crtc_id(crtc);
+	ScrnInfoPtr scrn = crtc->scrn;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	drmVBlank vbl;
+
+	if (crtc_id == 1)
+		type |= DRM_VBLANK_SECONDARY;
+	else if (crtc_id > 1)
+		type |= (crtc_id << DRM_VBLANK_HIGH_CRTC_SHIFT) &
+			DRM_VBLANK_HIGH_CRTC_MASK;
+
+	vbl.request.type = type;
+	vbl.request.sequence = target_seq;
+	vbl.request.signal = signal;
+
+	if (drmWaitVBlank(pRADEONEnt->fd, &vbl) != 0)
+		return FALSE;
+
+	if (ust)
+		*ust = (uint64_t)vbl.reply.tval_sec * 1000000 +
+			vbl.reply.tval_usec;
+	if (result_seq)
+		*result_seq = vbl.reply.sequence;
+
+	return TRUE;
+}
+
+/*
  * Retrieves present time in microseconds that is compatible
  * with units used by vblank timestamps. Depending on the kernel
  * version and DRM kernel module configuration, the vblank
@@ -272,23 +307,15 @@ int drmmode_get_current_ust(int drm_fd, CARD64 *ust)
 int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 {
     ScrnInfoPtr scrn = crtc->scrn;
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-    drmVBlank vbl;
-    int ret;
+    uint32_t seq;
 
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-    vbl.request.sequence = 0;
-
-    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-    if (ret) {
+    if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, ust, &seq)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "get vblank counter failed: %s\n", strerror(errno));
-	return ret;
+	return -1;
     }
 
-    *ust = ((CARD64)vbl.reply.tval_sec * 1000000) + vbl.reply.tval_usec;
-    *msc = vbl.reply.sequence;
+    *msc = seq;
 
     return Success;
 }
@@ -305,7 +332,7 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	drmmode_crtc->pending_dpms_mode = mode;
 
 	if (drmmode_crtc->dpms_mode == DPMSModeOn && mode != DPMSModeOn) {
-		drmVBlank vbl;
+		uint32_t seq;
 
 		/* Wait for any pending flip to finish */
 		if (drmmode_crtc->flip_pending)
@@ -315,20 +342,14 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		 * On->Off transition: record the last vblank time,
 		 * sequence number and frame period.
 		 */
-		vbl.request.type = DRM_VBLANK_RELATIVE;
-		vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-		vbl.request.sequence = 0;
-		ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-		if (ret)
+		if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, &ust,
+					 &seq))
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 				   "%s cannot get last vblank counter\n",
 				   __func__);
 		else {
-			CARD64 seq = (CARD64)vbl.reply.sequence;
 			CARD64 nominal_frame_rate, pix_in_frame;
 
-			ust = ((CARD64)vbl.reply.tval_sec * 1000000) +
-				vbl.reply.tval_usec;
 			drmmode_crtc->dpms_last_ust = ust;
 			drmmode_crtc->dpms_last_seq = seq;
 			nominal_frame_rate = crtc->mode.Clock;

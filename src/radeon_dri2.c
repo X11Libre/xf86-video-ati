@@ -889,26 +889,6 @@ cleanup:
     radeon_dri2_frame_event_abort(crtc, event_data);
 }
 
-drmVBlankSeqType radeon_populate_vbl_request_type(xf86CrtcPtr crtc)
-{
-    drmVBlankSeqType type = 0;
-    int crtc_id = drmmode_get_crtc_id(crtc);
-
-    if (crtc_id == 1)
-        type |= DRM_VBLANK_SECONDARY;
-    else if (crtc_id > 1)
-#ifdef DRM_VBLANK_HIGH_CRTC_SHIFT
-	type |= (crtc_id << DRM_VBLANK_HIGH_CRTC_SHIFT) &
-		DRM_VBLANK_HIGH_CRTC_MASK;
-#else
-	ErrorF("radeon driver bug: %s called for CRTC %d > 1, but "
-	       "DRM_VBLANK_HIGH_CRTC_MASK not defined at build time\n",
-	       __func__, crtc_id);
-#endif
-
-    return type; 
-}
-
 /*
  * This function should be called on a disabled CRTC only (i.e., CRTC
  * in DPMS-off state). It will calculate the delay necessary to reach
@@ -1087,13 +1067,11 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 {
     ScreenPtr screen = draw->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     DRI2FrameEventPtr wait_info = NULL;
     uintptr_t drm_queue_seq = 0;
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     uint32_t msc_delta;
-    drmVBlank vbl;
-    int ret;
+    uint32_t seq;
     CARD64 current_msc;
 
     /* Truncate to match kernel interfaces; means occasional overflow
@@ -1132,17 +1110,13 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     }
 
     /* Get current count */
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-    vbl.request.sequence = 0;
-    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-    if (ret) {
+    if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, NULL, &seq)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "get vblank counter failed: %s\n", strerror(errno));
         goto out_complete;
     }
 
-    current_msc = vbl.reply.sequence + msc_delta;
+    current_msc = seq + msc_delta;
     current_msc &= 0xffffffff;
 
     drm_queue_seq = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
@@ -1169,12 +1143,9 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
          */
         if (current_msc >= target_msc)
             target_msc = current_msc;
-        vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-        vbl.request.sequence = target_msc - msc_delta;
-        vbl.request.signal = drm_queue_seq;
-        ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-        if (ret) {
+        if (!drmmode_wait_vblank(crtc, DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT,
+				 target_msc - msc_delta, drm_queue_seq, NULL,
+				 NULL)) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                     "get vblank counter failed: %s\n", strerror(errno));
             goto out_complete;
@@ -1188,11 +1159,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      * If we get here, target_msc has already passed or we don't have one,
      * so we queue an event that will satisfy the divisor/remainder equation.
      */
-    vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-
-    vbl.request.sequence = current_msc - (current_msc % divisor) +
-        remainder - msc_delta;
+    target_msc = current_msc - (current_msc % divisor) + remainder - msc_delta;
 
     /*
      * If calculated remainder is larger than requested remainder,
@@ -1201,11 +1168,10 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
      * that will happen.
      */
     if ((current_msc % divisor) >= remainder)
-        vbl.request.sequence += divisor;
+        target_msc += divisor;
 
-    vbl.request.signal = drm_queue_seq;
-    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-    if (ret) {
+    if (!drmmode_wait_vblank(crtc, DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT,
+			     target_msc, drm_queue_seq, NULL, NULL)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "get vblank counter failed: %s\n", strerror(errno));
         goto out_complete;
@@ -1249,14 +1215,14 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 {
     ScreenPtr screen = draw->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
     uint32_t msc_delta;
-    drmVBlank vbl;
-    int ret, flip = 0;
+    drmVBlankSeqType type;
+    uint32_t seq;
+    int flip = 0;
     DRI2FrameEventPtr swap_info = NULL;
     uintptr_t drm_queue_seq;
-    CARD64 current_msc;
+    CARD64 current_msc, event_msc;
     BoxRec box;
     RegionRec region;
 
@@ -1319,18 +1285,14 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     }
 
     /* Get current count */
-    vbl.request.type = DRM_VBLANK_RELATIVE;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
-    vbl.request.sequence = 0;
-    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-    if (ret) {
+    if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, NULL, &seq)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "first get vblank counter failed: %s\n",
                 strerror(errno));
 	goto blit_fallback;
     }
 
-    current_msc = vbl.reply.sequence + msc_delta;
+    current_msc = seq + msc_delta;
     current_msc &= 0xffffffff;
 
     /* Flips need to be submitted one frame before */
@@ -1352,14 +1314,13 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      * the swap.
      */
     if (divisor == 0 || current_msc < *target_msc) {
-        vbl.request.type =  DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+        type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
         /* If non-pageflipping, but blitting/exchanging, we need to use
          * DRM_VBLANK_NEXTONMISS to avoid unreliable timestamping later
          * on.
          */
         if (flip == 0)
-            vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-	vbl.request.type |= radeon_populate_vbl_request_type(crtc);
+            type |= DRM_VBLANK_NEXTONMISS;
 
         /* If target_msc already reached or passed, set it to
          * current_msc to ensure we return a reasonable value back
@@ -1368,17 +1329,15 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
         if (current_msc >= *target_msc)
             *target_msc = current_msc;
 
-        vbl.request.sequence = *target_msc - msc_delta;
-        vbl.request.signal = drm_queue_seq;
-        ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-        if (ret) {
+        if (!drmmode_wait_vblank(crtc, type, *target_msc - msc_delta,
+				 drm_queue_seq, NULL, &seq)) {
             xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                     "divisor 0 get vblank counter failed: %s\n",
                     strerror(errno));
 	    goto blit_fallback;
         }
 
-        *target_msc = vbl.reply.sequence + flip + msc_delta;
+        *target_msc = seq + flip + msc_delta;
         swap_info->frame = *target_msc;
 
         return TRUE;
@@ -1389,13 +1348,11 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      * and we need to queue an event that will satisfy the divisor/remainder
      * equation.
      */
-    vbl.request.type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
+    type = DRM_VBLANK_ABSOLUTE | DRM_VBLANK_EVENT;
     if (flip == 0)
-        vbl.request.type |= DRM_VBLANK_NEXTONMISS;
-    vbl.request.type |= radeon_populate_vbl_request_type(crtc);
+        type |= DRM_VBLANK_NEXTONMISS;
 
-    vbl.request.sequence = current_msc - (current_msc % divisor) +
-        remainder - msc_delta;
+    event_msc = current_msc - (current_msc % divisor) + remainder - msc_delta;
 
     /*
      * If the calculated deadline vbl.request.sequence is smaller than
@@ -1408,15 +1365,13 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
      * into account, as well as a potential DRM_VBLANK_NEXTONMISS delay
      * if we are blitting/exchanging instead of flipping.
      */
-    if (vbl.request.sequence <= current_msc)
-        vbl.request.sequence += divisor;
+    if (event_msc <= current_msc)
+        event_msc += divisor;
 
     /* Account for 1 frame extra pageflip delay if flip > 0 */
-    vbl.request.sequence -= flip;
+    event_msc -= flip;
 
-    vbl.request.signal = drm_queue_seq;
-    ret = drmWaitVBlank(pRADEONEnt->fd, &vbl);
-    if (ret) {
+    if (!drmmode_wait_vblank(crtc, type, event_msc, drm_queue_seq, NULL, &seq)) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                 "final get vblank counter failed: %s\n",
                 strerror(errno));
@@ -1424,7 +1379,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     }
 
     /* Adjust returned value for 1 fame pageflip offset of flip > 0 */
-    *target_msc = vbl.reply.sequence + flip + msc_delta;
+    *target_msc = seq + flip + msc_delta;
     *target_msc &= 0xffffffff;
     swap_info->frame = *target_msc;
 

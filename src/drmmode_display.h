@@ -226,5 +226,10 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc);
 int drmmode_get_current_ust(int drm_fd, CARD64 *ust);
 
+Bool drmmode_wait_vblank(xf86CrtcPtr crtc, drmVBlankSeqType type,
+			 uint32_t target_seq, unsigned long signal,
+			 uint64_t *ust, uint32_t *result_seq);
+
+
 #endif
 

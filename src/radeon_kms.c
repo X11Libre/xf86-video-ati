@@ -722,11 +722,9 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 {
     ScreenPtr screen = dirty->slave_dst->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     xf86CrtcPtr xf86_crtc = radeon_prime_dirty_to_crtc(dirty);
     drmmode_crtc_private_ptr drmmode_crtc;
     uintptr_t drm_queue_seq;
-    drmVBlank vbl;
 
     if (!xf86_crtc || !xf86_crtc->enabled)
 	return;
@@ -748,13 +746,10 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 	return;
     }
 
-    vbl.request.type = DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT;
-    vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
-    vbl.request.sequence = 1;
-    vbl.request.signal = drm_queue_seq;
-    if (drmWaitVBlank(pRADEONEnt->fd, &vbl)) {
+    if (!drmmode_wait_vblank(xf86_crtc, DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT,
+			     1, drm_queue_seq, NULL, NULL)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "drmWaitVBlank failed for PRIME update: %s\n",
+		   "drmmode_wait_vblank failed for PRIME update: %s\n",
 		   strerror(errno));
 	radeon_drm_abort_entry(drm_queue_seq);
 	return;
@@ -1019,10 +1014,8 @@ static void
 radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(xf86_crtc->scrn);
     uintptr_t drm_queue_seq;
     ScrnInfoPtr scrn;
-    drmVBlank vbl;
     DamagePtr pDamage;
     RegionPtr pRegion;
     BoxRec extents;
@@ -1059,13 +1052,10 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 	return;
     }
 
-    vbl.request.type = DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT;
-    vbl.request.type |= radeon_populate_vbl_request_type(xf86_crtc);
-    vbl.request.sequence = 1;
-    vbl.request.signal = drm_queue_seq;
-    if (drmWaitVBlank(pRADEONEnt->fd, &vbl)) {
+    if (!drmmode_wait_vblank(xf86_crtc, DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT,
+			     1, drm_queue_seq, NULL, NULL)) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "drmWaitVBlank failed for scanout update: %s\n",
+		   "drmmode_wait_vblank failed for scanout update: %s\n",
 		   strerror(errno));
 	radeon_drm_abort_entry(drm_queue_seq);
 	return;
