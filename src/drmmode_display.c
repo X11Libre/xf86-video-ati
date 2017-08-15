@@ -745,7 +745,7 @@ drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list,
 					 ent) {
-			if (dirty->src == drmmode_crtc->prime_scanout_pixmap) {
+			if (radeon_dirty_src_equals(dirty, drmmode_crtc->prime_scanout_pixmap)) {
 				dirty->slave_dst =
 					drmmode_crtc->scanout[scanout_id].pixmap;
 				break;
@@ -1294,7 +1294,7 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	PixmapDirtyUpdatePtr dirty;
 
 	xorg_list_for_each_entry(dirty, &screen->pixmap_dirty_list, ent) {
-		if (dirty->src == drmmode_crtc->prime_scanout_pixmap) {
+		if (radeon_dirty_src_equals(dirty, drmmode_crtc->prime_scanout_pixmap)) {
 			PixmapStopDirtyTracking(dirty->src, dirty->slave_dst);
 			break;
 		}
@@ -1321,7 +1321,11 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 
 	drmmode_crtc->prime_scanout_pixmap = ppix;
 
-#ifdef HAS_DIRTYTRACKING_ROTATION
+#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
+	PixmapStartDirtyTracking(&ppix->drawable,
+				 drmmode_crtc->scanout[scanout_id].pixmap,
+				 0, 0, 0, 0, RR_Rotate_0);
+#elif defined(HAS_DIRTYTRACKING_ROTATION)
 	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[scanout_id].pixmap,
 				 0, 0, 0, 0, RR_Rotate_0);
 #elif defined(HAS_DIRTYTRACKING2)
