@@ -904,7 +904,7 @@ radeon_dirty_update(ScrnInfoPtr scrn)
 
 Bool
 radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
-			 DrawablePtr src_draw, BoxPtr extents)
+			 PixmapPtr src_pix, BoxPtr extents)
 {
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
     RegionRec region = { .extents = *extents, .data = NULL };
@@ -937,10 +937,9 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 	PictFormatPtr format = PictureWindowFormat(pScreen->root);
 	int error;
 	PicturePtr src, dst;
-	XID include_inferiors = IncludeInferiors;
 
-	src = CreatePicture(None, src_draw, format, CPSubwindowMode,
-			    &include_inferiors, serverClient, &error);
+	src = CreatePicture(None, &src_pix->drawable, format, 0L, NULL,
+			    serverClient, &error);
 	if (!src) {
 	    ErrorF("Failed to create source picture for transformed scanout "
 		   "update\n");
@@ -984,7 +983,7 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 	GCPtr gc = GetScratchGC(pDraw->depth, pScreen);
 
 	ValidateGC(pDraw, gc);
-	(*gc->ops->CopyArea)(src_draw, pDraw, gc,
+	(*gc->ops->CopyArea)(&src_pix->drawable, pDraw, gc,
 			     xf86_crtc->x + extents->x1, xf86_crtc->y + extents->y1,
 			     extents->x2 - extents->x1, extents->y2 - extents->y1,
 			     extents->x1, extents->y1);
@@ -1018,7 +1017,7 @@ radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 	!drmmode_crtc->flip_pending &&
 	drmmode_crtc->dpms_mode == DPMSModeOn) {
 	if (radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id,
-				     &screen->GetWindowPixmap(screen->root)->drawable,
+				     screen->GetWindowPixmap(screen->root),
 				     &region->extents))
 	    RegionEmpty(region);
     }
@@ -1099,7 +1098,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 
     scanout_id = drmmode_crtc->scanout_id ^ 1;
     if (!radeon_scanout_do_update(xf86_crtc, scanout_id,
-				  &pScreen->GetWindowPixmap(pScreen->root)->drawable,
+				  pScreen->GetWindowPixmap(pScreen->root),
 				  &region->extents))
 	return;
     RegionEmpty(region);
