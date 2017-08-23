@@ -536,7 +536,7 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 	}
 }
 
-static void
+void
 drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
 {
 	drmmode_crtc_scanout_destroy(drmmode_crtc->drmmode,
@@ -558,7 +558,7 @@ drmmode_scanout_free(ScrnInfoPtr scrn)
 		drmmode_crtc_scanout_free(xf86_config->crtc[c]->driver_private);
 }
 
-static PixmapPtr
+PixmapPtr
 drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 			    int width, int height)
 {

@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 /* Driver data structures */
 #include "radeon.h"
+#include "radeon_bo_helper.h"
 #include "radeon_drm_queue.h"
 #include "radeon_glamor.h"
 #include "radeon_reg.h"
@@ -1158,9 +1159,10 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
-    if (!pScrn->vtSema) {
-	radeon_cs_flush_indirect(pScrn);
-
+    if (!xf86ScreenToScrn(radeon_master_screen(pScreen))->vtSema) {
+	/* Unreference the all-black FB created by RADEONLeaveVT_KMS. After
+	 * this, there should be no FB left created by this driver.
+	 */
 	for (c = 0; c < xf86_config->num_crtc; c++) {
 	    drmmode_crtc_private_ptr drmmode_crtc =
 		xf86_config->crtc[c]->driver_private;
@@ -2472,21 +2474,105 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
 }
 
 
+static void
+pixmap_unref_fb(void *value, XID id, void *cdata)
+{
+    PixmapPtr pixmap = value;
+    RADEONEntPtr pRADEONEnt = cdata;
+    struct drmmode_fb **fb_ptr = radeon_pixmap_get_fb_ptr(pixmap);
+
+    if (fb_ptr)
+	drmmode_fb_reference(pRADEONEnt->fd, fb_ptr, NULL);
+}
+
 void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
 {
     SCRN_INFO_PTR(arg);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+    ScreenPtr pScreen = pScrn->pScreen;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    struct drmmode_scanout black_scanout = { .pixmap = NULL, .bo = NULL };
+    xf86CrtcPtr crtc;
+    drmmode_crtc_private_ptr drmmode_crtc;
+    unsigned w = 0, h = 0;
+    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONLeaveVT_KMS\n");
 
-    radeon_drop_drm_master(pScrn);
+    /* Compute maximum scanout dimensions of active CRTCs */
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+	crtc = xf86_config->crtc[i];
+	drmmode_crtc = crtc->driver_private;
+
+	if (!drmmode_crtc->fb)
+	    continue;
+
+	w = max(w, crtc->mode.HDisplay);
+	h = max(h, crtc->mode.VDisplay);
+    }
+
+    /* Make all active CRTCs scan out from an all-black framebuffer */
+    if (w > 0 && h > 0) {
+	if (drmmode_crtc_scanout_create(crtc, &black_scanout, w, h)) {
+	    struct drmmode_fb *black_fb =
+		radeon_pixmap_get_fb(black_scanout.pixmap);
+
+	    radeon_pixmap_clear(black_scanout.pixmap);
+	    radeon_cs_flush_indirect(pScrn);
+	    radeon_bo_wait(black_scanout.bo);
+
+	    for (i = 0; i < xf86_config->num_crtc; i++) {
+		crtc = xf86_config->crtc[i];
+		drmmode_crtc = crtc->driver_private;
+
+		if (drmmode_crtc->fb) {
+		    if (black_fb) {
+			drmmode_set_mode(crtc, black_fb, &crtc->mode, 0, 0);
+		    } else {
+			drmModeSetCrtc(pRADEONEnt->fd,
+				       drmmode_crtc->mode_crtc->crtc_id, 0, 0,
+				       0, NULL, 0, NULL);
+			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
+					     NULL);
+		    }
+
+		    if (pScrn->is_gpu) {
+			if (drmmode_crtc->scanout[0].pixmap)
+			    pixmap_unref_fb(drmmode_crtc->scanout[0].pixmap,
+					    None, pRADEONEnt);
+			if (drmmode_crtc->scanout[1].pixmap)
+			    pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap,
+					    None, pRADEONEnt);
+		    } else {
+			drmmode_crtc_scanout_free(drmmode_crtc);
+		    }
+		}
+	    }
+	}
+    }
 
     xf86RotateFreeShadow(pScrn);
-    if (!pScrn->is_gpu)
-	drmmode_scanout_free(pScrn);
+    drmmode_crtc_scanout_destroy(&info->drmmode, &black_scanout);
+
+    /* Unreference FBs of all pixmaps. After this, the only FB remaining
+     * should be the all-black one being scanned out by active CRTCs
+     */
+    for (i = 0; i < currentMaxClients; i++) {
+	if (i > 0 &&
+	    (!clients[i] || clients[i]->clientState != ClientStateRunning))
+            continue;
+
+	FindClientResourcesByType(clients[i], RT_PIXMAP, pixmap_unref_fb,
+				  pRADEONEnt);
+    }
+    pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen), None, pRADEONEnt);
 
     xf86_hide_cursors (pScrn);
+
+    radeon_drop_drm_master(pScrn);
+
     info->accel_state->XInited3D = FALSE;
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
