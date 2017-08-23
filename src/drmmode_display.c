@@ -860,6 +860,52 @@ drmmode_crtc_gamma_do_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
 			    blue);
 }
 
+Bool
+drmmode_set_mode(xf86CrtcPtr crtc, struct drmmode_fb *fb, DisplayModePtr mode,
+		 int x, int y)
+{
+	ScrnInfoPtr scrn = crtc->scrn;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	uint32_t *output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
+	int output_count = 0;
+	drmModeModeInfo kmode;
+	Bool ret;
+	int i;
+
+	if (!output_ids)
+		return FALSE;
+
+	for (i = 0; i < xf86_config->num_output; i++) {
+		xf86OutputPtr output = xf86_config->output[i];
+		drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+		if (output->crtc != crtc)
+			continue;
+
+		output_ids[output_count] = drmmode_output->mode_output->connector_id;
+		output_count++;
+	}
+
+	drmmode_ConvertToKMode(scrn, &kmode, mode);
+
+	ret = drmModeSetCrtc(pRADEONEnt->fd,
+			     drmmode_crtc->mode_crtc->crtc_id,
+			     fb->handle, x, y, output_ids,
+			     output_count, &kmode) == 0;
+
+	if (ret) {
+		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, fb);
+	} else {
+		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+			   "failed to set mode: %s\n", strerror(errno));
+	}
+
+	free(output_ids);
+	return ret;
+}
+
 static Bool
 drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		     Rotation rotation, int x, int y)
@@ -875,12 +921,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	int saved_x, saved_y;
 	Rotation saved_rotation;
 	DisplayModeRec saved_mode;
-	uint32_t *output_ids = NULL;
-	int output_count = 0;
 	Bool ret = FALSE;
 	int i;
 	struct drmmode_fb *fb = NULL;
-	drmModeModeInfo kmode;
 
 	/* The root window contents may be undefined before the WindowExposures
 	 * hook is called for it, so bail if we get here before that
@@ -899,22 +942,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		crtc->y = y;
 		crtc->rotation = rotation;
 
-		output_ids = calloc(sizeof(uint32_t), xf86_config->num_output);
-		if (!output_ids)
-			goto done;
-
-		for (i = 0; i < xf86_config->num_output; i++) {
-			xf86OutputPtr output = xf86_config->output[i];
-			drmmode_output_private_ptr drmmode_output;
-
-			if (output->crtc != crtc)
-				continue;
-
-			drmmode_output = output->driver_private;
-			output_ids[output_count] = drmmode_output->mode_output->connector_id;
-			output_count++;
-		}
-
 		if (!drmmode_handle_transform(crtc))
 			goto done;
 
@@ -924,8 +951,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red, crtc->gamma_green,
 					  crtc->gamma_blue, crtc->gamma_size);
-
-		drmmode_ConvertToKMode(crtc->scrn, &kmode, mode);
 
 #ifdef RADEON_PIXMAP_SHARING
 		if (drmmode_crtc->prime_scanout_pixmap) {
@@ -967,17 +992,10 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
 						drmmode_crtc->flip_pending);
 
-		if (drmModeSetCrtc(pRADEONEnt->fd,
-				   drmmode_crtc->mode_crtc->crtc_id,
-				   fb->handle, x, y, output_ids,
-				   output_count, &kmode) != 0) {
-			xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-				   "failed to set mode: %s\n", strerror(errno));
+		if (!drmmode_set_mode(crtc, fb, mode, x, y))
 			goto done;
-		} else {
-			ret = TRUE;
-			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, fb);
-		}
+
+		ret = TRUE;
 
 		if (pScreen)
 			xf86CrtcSetScreenSubpixelOrder(pScreen);
@@ -1031,8 +1049,6 @@ done:
 						     &drmmode_crtc->scanout[1]);
 		}
 	}
-
-	free(output_ids);
 
 	return ret;
 }
