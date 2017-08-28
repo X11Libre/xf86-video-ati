@@ -548,16 +548,6 @@ drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc)
 		DamageDestroy(drmmode_crtc->scanout_damage);
 }
 
-void
-drmmode_scanout_free(ScrnInfoPtr scrn)
-{
-	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	int c;
-
-	for (c = 0; c < xf86_config->num_crtc; c++)
-		drmmode_crtc_scanout_free(xf86_config->crtc[c]->driver_private);
-}
-
 PixmapPtr
 drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 			    int width, int height)

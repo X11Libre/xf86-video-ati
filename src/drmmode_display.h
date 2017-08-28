@@ -215,7 +215,6 @@ extern Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn);
 
 extern void drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 					 struct drmmode_scanout *scanout);
-extern void drmmode_scanout_free(ScrnInfoPtr scrn);
 void drmmode_crtc_scanout_free(drmmode_crtc_private_ptr drmmode_crtc);
 PixmapPtr drmmode_crtc_scanout_create(xf86CrtcPtr crtc,
 				      struct drmmode_scanout *scanout,
