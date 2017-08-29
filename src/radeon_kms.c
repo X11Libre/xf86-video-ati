@@ -1150,7 +1150,6 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 {
     SCREEN_PTR(arg);
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int c;
@@ -1159,19 +1158,8 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
-    if (!xf86ScreenToScrn(radeon_master_screen(pScreen))->vtSema) {
-	/* Unreference the all-black FB created by RADEONLeaveVT_KMS. After
-	 * this, there should be no FB left created by this driver.
-	 */
-	for (c = 0; c < xf86_config->num_crtc; c++) {
-	    drmmode_crtc_private_ptr drmmode_crtc =
-		xf86_config->crtc[c]->driver_private;
-
-	    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
-	}
-
+    if (!xf86ScreenToScrn(radeon_master_screen(pScreen))->vtSema)
 	return;
-    }
 
     if (!radeon_is_gpu_screen(pScreen))
     {
@@ -2473,6 +2461,30 @@ Bool RADEONEnterVT_KMS(VT_FUNC_ARGS_DECL)
     return TRUE;
 }
 
+static
+CARD32 cleanup_black_fb(OsTimerPtr timer, CARD32 now, pointer data)
+{
+    ScreenPtr screen = data;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    int c;
+
+    if (xf86ScreenToScrn(radeon_master_screen(screen))->vtSema)
+	return 0;
+
+    /* Unreference the all-black FB created by RADEONLeaveVT_KMS. After
+     * this, there should be no FB left created by this driver.
+     */
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+	drmmode_crtc_private_ptr drmmode_crtc =
+	    xf86_config->crtc[c]->driver_private;
+
+	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
+    }
+
+    return 0;
+}
 
 static void
 pixmap_unref_fb(void *value, XID id, void *cdata)
@@ -2568,6 +2580,8 @@ void RADEONLeaveVT_KMS(VT_FUNC_ARGS_DECL)
 				  pRADEONEnt);
     }
     pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen), None, pRADEONEnt);
+
+    TimerSet(NULL, 0, 1000, cleanup_black_fb, pScreen);
 
     xf86_hide_cursors (pScrn);
 
