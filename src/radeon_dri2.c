@@ -42,16 +42,12 @@
 
 #include "radeon_bo_helper.h"
 #include "radeon_version.h"
-#include "radeon_list.h"
 
 #include "radeon_bo_gem.h"
 
+#include <list.h>
 #include <xf86Priv.h>
 #include <X11/extensions/dpmsconst.h>
-
-#if DRI2INFOREC_VERSION >= 9
-#define USE_DRI2_PRIME
-#endif
 
 #define FALLBACK_SWAP_DELAY 16
 
@@ -283,14 +279,6 @@ error:
     return NULL;
 }
 
-DRI2BufferPtr
-radeon_dri2_create_buffer(DrawablePtr pDraw, unsigned int attachment,
-			   unsigned int format)
-{
-	return radeon_dri2_create_buffer2(pDraw->pScreen, pDraw,
-					  attachment, format);
-}
-
 static void
 radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
 			    DrawablePtr drawable, BufferPtr buffers)
@@ -319,12 +307,6 @@ radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
             free(buffers);
         }
     }
-}
-
-void
-radeon_dri2_destroy_buffer(DrawablePtr pDraw, DRI2BufferPtr buf)
-{
-    radeon_dri2_destroy_buffer2(pDraw->pScreen, pDraw, buf);
 }
 
 
@@ -362,17 +344,14 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     dst_drawable = &dst_private->pixmap->drawable;
 
     if (src_private->attachment == DRI2BufferFrontLeft) {
-#ifdef USE_DRI2_PRIME
 	if (drawable->pScreen != pScreen) {
 	    src_drawable = DRI2UpdatePrime(drawable, src_buffer);
 	    if (!src_drawable)
 		return;
 	} else
-#endif
 	    src_drawable = drawable;
     }
     if (dst_private->attachment == DRI2BufferFrontLeft) {
-#ifdef USE_DRI2_PRIME
 	if (drawable->pScreen != pScreen) {
 	    dst_drawable = DRI2UpdatePrime(drawable, dest_buffer);
 	    if (!dst_drawable)
@@ -381,7 +360,6 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
 	    if (dst_drawable != drawable)
 		translate = TRUE;
 	} else
-#endif
 	    dst_drawable = drawable;
     }
 
@@ -435,14 +413,6 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     FreeScratchGC(gc);
 }
 
-void
-radeon_dri2_copy_region(DrawablePtr pDraw, RegionPtr pRegion,
-			 DRI2BufferPtr pDstBuffer, DRI2BufferPtr pSrcBuffer)
-{
-    return radeon_dri2_copy_region2(pDraw->pScreen, pDraw, pRegion,
-				     pDstBuffer, pSrcBuffer);
-}
-
 enum DRI2FrameEventType {
     DRI2_SWAP,
     DRI2_FLIP,
@@ -479,7 +449,9 @@ radeon_dri2_unref_buffer(BufferPtr buffer)
 {
     if (buffer) {
         struct dri2_buffer_priv *private = buffer->driverPrivate;
-        radeon_dri2_destroy_buffer(&(private->pixmap->drawable), buffer);
+        DrawablePtr draw = &private->pixmap->drawable;
+
+        radeon_dri2_destroy_buffer2(draw->pScreen, draw, buffer);
     }
 }
 
@@ -863,7 +835,8 @@ static void radeon_dri2_frame_event_handler(xf86CrtcPtr crtc, uint32_t seq,
 	    box.x2 = drawable->width;
 	    box.y2 = drawable->height;
 	    REGION_INIT(pScreen, &region, &box, 0);
-	    radeon_dri2_copy_region(drawable, &region, event->front, event->back);
+	    radeon_dri2_copy_region2(drawable->pScreen, drawable, &region,
+				     event->front, event->back);
 	    swap_type = DRI2_BLIT_COMPLETE;
 	}
 
@@ -1394,7 +1367,7 @@ blit_fallback:
 	box.y2 = draw->height;
 	REGION_INIT(pScreen, &region, &box, 0);
 
-	radeon_dri2_copy_region(draw, &region, front, back);
+	radeon_dri2_copy_region2(draw->pScreen, draw, &region, front, back);
 
 	DRI2SwapComplete(client, draw, 0, 0, 0, DRI2_BLIT_COMPLETE, func, data);
 
@@ -1435,10 +1408,6 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     }
     dri2_info.fd = pRADEONEnt->fd;
     dri2_info.deviceName = info->dri2.device_name;
-    dri2_info.version = DRI2INFOREC_VERSION;
-    dri2_info.CreateBuffer = radeon_dri2_create_buffer;
-    dri2_info.DestroyBuffer = radeon_dri2_destroy_buffer;
-    dri2_info.CopyRegion = radeon_dri2_copy_region;
 
     if (info->dri2.pKernelDRMVersion->version_minor < 4) {
 	xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "You need a newer kernel for "
@@ -1467,11 +1436,10 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
     }
 
     if (scheduling_works) {
-        dri2_info.version = 4;
         dri2_info.ScheduleSwap = radeon_dri2_schedule_swap;
         dri2_info.GetMSC = radeon_dri2_get_msc;
         dri2_info.ScheduleWaitMSC = radeon_dri2_schedule_wait_msc;
-        dri2_info.numDrivers = RADEON_ARRAY_SIZE(driverNames);
+        dri2_info.numDrivers = ARRAY_SIZE(driverNames);
         dri2_info.driverNames = driverNames;
         driverNames[0] = dri2_info.driverName;
 
@@ -1495,12 +1463,10 @@ radeon_dri2_screen_init(ScreenPtr pScreen)
 	DRI2InfoCnt++;
     }
 
-#if DRI2INFOREC_VERSION >= 9
     dri2_info.version = 9;
     dri2_info.CreateBuffer2 = radeon_dri2_create_buffer2;
     dri2_info.DestroyBuffer2 = radeon_dri2_destroy_buffer2;
     dri2_info.CopyRegion2 = radeon_dri2_copy_region2;
-#endif
 
     info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
     return info->dri2.enabled;

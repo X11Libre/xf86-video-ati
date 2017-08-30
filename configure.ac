@@ -74,7 +74,7 @@ PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.78])
 PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 1.10 xproto fontsproto xf86driproto $REQUIRED_MODULES])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 1.13 xproto fontsproto xf86driproto $REQUIRED_MODULES])
 PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
                   HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
                   HAVE_XEXTPROTO_71="no")
@@ -171,12 +171,6 @@ AC_CHECK_DECL(xf86CursorResetCursor,
 	      [Have xf86CursorResetCursor API])], [],
 	      [#include <xorg-server.h>
 	       #include <xf86Cursor.h>])
-
-AC_CHECK_DECL(xorg_list_init,
-	      [AC_DEFINE(HAVE_XORG_LIST, 1, [Have xorg_list API])], [],
-	      [#include <X11/Xdefs.h>
-	      #include "xorg-server.h"
-	      #include "list.h"])
 
 AC_CHECK_HEADERS([misyncshm.h], [], [],
                  [#include <X11/Xdefs.h>

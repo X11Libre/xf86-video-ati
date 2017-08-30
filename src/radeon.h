@@ -180,11 +180,6 @@ typedef enum {
 } RADEONOpts;
 
 
-#if XF86_CRTC_VERSION >= 5
-#define RADEON_PIXMAP_SHARING 1
-#define radeon_is_gpu_screen(screen) (screen)->isGPU
-#define radeon_is_gpu_scrn(scrn) (scrn)->is_gpu
-
 static inline ScreenPtr
 radeon_master_screen(ScreenPtr screen)
 {
@@ -216,10 +211,6 @@ radeon_dirty_src_equals(PixmapDirtyUpdatePtr dirty, PixmapPtr pixmap)
 #endif
 }
 
-#else
-#define radeon_is_gpu_screen(screen) 0
-#define radeon_is_gpu_scrn(scrn) 0
-#endif
 
 #define RADEON_VSYNC_TIMEOUT	20000 /* Maximum wait for VSYNC (in usecs) */
 
@@ -236,7 +227,6 @@ radeon_dirty_src_equals(PixmapDirtyUpdatePtr dirty, PixmapPtr pixmap)
 #define MAKE_ATOM(a) MakeAtom(a, sizeof(a) - 1, TRUE)
 
 /* Other macros */
-#define RADEON_ARRAY_SIZE(x)  (sizeof(x)/sizeof(x[0]))
 #define RADEON_ALIGN(x,bytes) (((x) + ((bytes) - 1)) & ~((bytes) - 1))
 #define RADEONPTR(pScrn)      ((RADEONInfoPtr)(pScrn)->driverPrivate)
 
@@ -516,7 +506,7 @@ typedef struct {
     int               Chipset;
     RADEONChipFamily  ChipFamily;
 
-    Bool              (*CloseScreen)(CLOSE_SCREEN_ARGS_DECL);
+    Bool              (*CloseScreen)(ScreenPtr pScreen);
 
     void              (*BlockHandler)(BLOCKHANDLER_ARGS_DECL);
 
@@ -628,10 +618,8 @@ typedef struct {
 	AddTrapsProcPtr SavedAddTraps;
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
 #endif
-#ifdef RADEON_PIXMAP_SHARING
 	SharePixmapBackingProcPtr SavedSharePixmapBacking;
 	SetSharedPixmapBackingProcPtr SavedSetSharedPixmapBacking;
-#endif
     } glamor;
 #endif /* USE_GLAMOR */
 } RADEONInfoRec, *RADEONInfoPtr;

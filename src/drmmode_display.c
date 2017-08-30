@@ -34,18 +34,16 @@
 #include <time.h>
 #include "cursorstr.h"
 #include "damagestr.h"
+#include "list.h"
 #include "micmap.h"
 #include "xf86cmap.h"
 #include "xf86Priv.h"
 #include "radeon.h"
 #include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
-#include "radeon_list.h"
 #include "radeon_reg.h"
 
-#ifdef RADEON_PIXMAP_SHARING
 #include <dri.h>
-#endif
 
 #include "drmmode_display.h"
 
@@ -637,7 +635,7 @@ drmmode_can_use_hw_cursor(xf86CrtcPtr crtc)
 	if (crtc->transformPresent)
 		return FALSE;
 
-#if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
+#if XF86_CRTC_VERSION < 7
 	/* Xorg doesn't correctly handle cursor position transform in the
 	 * rotation case
 	 */
@@ -646,12 +644,10 @@ drmmode_can_use_hw_cursor(xf86CrtcPtr crtc)
 		return FALSE;
 #endif
 
-#if defined(RADEON_PIXMAP_SHARING)
 	/* HW cursor not supported with RandR 1.4 multihead up to 1.18.99.901 */
 	if (xorgGetVersion() <= XORG_VERSION_NUMERIC(1,18,99,901,0) &&
 	    !xorg_list_is_empty(&crtc->scrn->pScreen->pixmap_dirty_list))
 		return FALSE;
-#endif
 
 	return TRUE;
 }
@@ -675,7 +671,7 @@ drmmode_crtc_update_tear_free(xf86CrtcPtr crtc)
 
 		if (drmmode_output->tear_free == 1 ||
 		    (drmmode_output->tear_free == 2 &&
-		     (radeon_is_gpu_screen(crtc->scrn->pScreen) ||
+		     (crtc->scrn->pScreen->isGPU ||
 		      info->shadow_primary ||
 		      crtc->transformPresent || crtc->rotation != RR_Rotate_0))) {
 			drmmode_crtc->tear_free = TRUE;
@@ -683,8 +679,6 @@ drmmode_crtc_update_tear_free(xf86CrtcPtr crtc)
 		}
 	}
 }
-
-#if XF86_CRTC_VERSION >= 4
 
 #if XF86_CRTC_VERSION < 7
 #define XF86DriverTransformOutput TRUE
@@ -714,17 +708,6 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 	return ret;
 }
 
-#else
-
-static Bool
-drmmode_handle_transform(xf86CrtcPtr crtc)
-{
-	return xf86CrtcRotate(crtc);
-}
-
-#endif
-
-#ifdef RADEON_PIXMAP_SHARING
 
 static void
 drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
@@ -784,7 +767,6 @@ drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 	drmmode_crtc->scanout_id = scanout_id;
 }
 	
-#endif /* RADEON_PIXMAP_SHARING */
 
 static void
 drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
@@ -942,21 +924,16 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red, crtc->gamma_green,
 					  crtc->gamma_blue, crtc->gamma_size);
 
-#ifdef RADEON_PIXMAP_SHARING
 		if (drmmode_crtc->prime_scanout_pixmap) {
 			drmmode_crtc_prime_scanout_update(crtc, mode, scanout_id,
 							  &fb, &x, &y);
-		} else
-#endif
-		if (drmmode_crtc->rotate.pixmap) {
+		} else if (drmmode_crtc->rotate.pixmap) {
 			fb = radeon_pixmap_get_fb(drmmode_crtc->rotate.pixmap);
 			x = y = 0;
 
-		} else if (!radeon_is_gpu_screen(pScreen) &&
+		} else if (!pScreen->isGPU &&
 			   (drmmode_crtc->tear_free ||
-#if XF86_CRTC_VERSION >= 4
 			    crtc->driverIsPerformingTransform ||
-#endif
 			    info->shadow_primary)) {
 			drmmode_crtc_scanout_update(crtc, mode, scanout_id,
 						    &fb, &x, &y);
@@ -1055,7 +1032,7 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
 
-#if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
+#if XF86_CRTC_VERSION < 7
 	if (crtc->driverIsPerformingTransform) {
 		x += crtc->x;
 		y += crtc->y;
@@ -1066,7 +1043,7 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	drmModeMoveCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
 
-#if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
+#if XF86_CRTC_VERSION < 7
 
 static int
 drmmode_cursor_src_offset(Rotation rotation, int width, int height,
@@ -1137,7 +1114,7 @@ drmmode_load_cursor_argb (xf86CrtcPtr crtc, CARD32 *image)
 	/* cursor should be mapped already */
 	ptr = (uint32_t *)(drmmode_crtc->cursor_bo->ptr);
 
-#if XF86_CRTC_VERSION >= 4 && XF86_CRTC_VERSION < 7
+#if XF86_CRTC_VERSION < 7
 	if (crtc->driverIsPerformingTransform) {
 		uint32_t cursor_w = info->cursor_w, cursor_h = info->cursor_h;
 		int dstx, dsty;
@@ -1313,7 +1290,6 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t *red, uint16_t *green,
 #endif
 }
 
-#ifdef RADEON_PIXMAP_SHARING
 static Bool
 drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 {
@@ -1365,7 +1341,6 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 #endif
 	return TRUE;
 }
-#endif
 
 static xf86CrtcFuncsRec drmmode_crtc_funcs = {
     .dpms = drmmode_crtc_dpms,
@@ -1384,9 +1359,7 @@ static xf86CrtcFuncsRec drmmode_crtc_funcs = {
     .shadow_allocate = drmmode_crtc_shadow_allocate,
     .shadow_destroy = drmmode_crtc_shadow_destroy,
     .destroy = NULL, /* XXX */
-#ifdef RADEON_PIXMAP_SHARING
     .set_scanout_pixmap = drmmode_set_scanout_pixmap,
-#endif
 };
 
 int drmmode_get_crtc_id(xf86CrtcPtr crtc)
@@ -1873,16 +1846,14 @@ drmmode_create_name(ScrnInfoPtr pScrn, drmModeConnectorPtr koutput, char *name,
 	if (output) {
 		snprintf(name, 32, "%s-%s", output->name, extra_path);
 	} else {
-		if (koutput->connector_type >= NUM_OUTPUT_NAMES)
+		if (koutput->connector_type >= NUM_OUTPUT_NAMES) {
 			snprintf(name, 32, "Unknown%d-%d", koutput->connector_type,
 				 koutput->connector_type_id - 1);
-#ifdef RADEON_PIXMAP_SHARING
-		else if (pScrn->is_gpu)
+		} else if (pScrn->is_gpu) {
 			snprintf(name, 32, "%s-%d-%d",
 				 output_names[koutput->connector_type], pScrn->scrnIndex - GPU_SCREEN_OFFSET + 1,
 				 koutput->connector_type_id - 1);
-#endif
-		else {
+		} else {
 			/* need to do smart conversion here for compat with non-kms ATI driver */
 			if (koutput->connector_type_id == 1) {
 				switch(koutput->connector_type) {
@@ -2542,9 +2513,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	int i, num_dvi = 0, num_hdmi = 0;
 	drmModeResPtr mode_res;
 	unsigned int crtcs_needed = 0;
-#ifdef RADEON_PIXMAP_SHARING
 	char *bus_id_string, *provider_name;
-#endif
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
 
@@ -2585,13 +2554,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode, mode_res);
 
-#ifdef RADEON_PIXMAP_SHARING
 	bus_id_string = DRICreatePCIBusID(info->PciInfo);
 	XNFasprintf(&provider_name, "%s @ %s", pScrn->chipset, bus_id_string);
 	free(bus_id_string);
 	xf86ProviderSetup(pScrn, NULL, provider_name);
 	free(provider_name);
-#endif
 
 	xf86InitialConfiguration(pScrn, TRUE);
 

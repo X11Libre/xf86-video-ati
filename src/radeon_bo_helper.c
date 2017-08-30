@@ -26,10 +26,7 @@
 
 #include "radeon.h"
 #include "radeon_glamor.h"
-
-#ifdef RADEON_PIXMAP_SHARING
 #include "radeon_bo_gem.h"
-#endif
 
 static const unsigned MicroBlockTable[5][3][2] = {
     /*linear  tiled   square-tiled */
@@ -89,11 +86,8 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 		tiling |= RADEON_TILING_MACRO | RADEON_TILING_MICRO;
 
 	if ((usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP &&
-	     info->shadow_primary)
-#ifdef CREATE_PIXMAP_USAGE_SHARED
-	    || (usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED
-#endif
-	    ) {
+	     info->shadow_primary) ||
+	    (usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED) {
 		tiling = 0;
 		domain = RADEON_GEM_DOMAIN_GTT;
 	}
@@ -299,7 +293,6 @@ uint32_t radeon_get_pixmap_tiling_flags(PixmapPtr pPix)
     }
 }
 
-#ifdef RADEON_PIXMAP_SHARING
 
 Bool radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p)
 {
@@ -406,5 +399,3 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     radeon_bo_unref(bo);
     return ret;
 }
-
-#endif /* RADEON_PIXMAP_SHARING */

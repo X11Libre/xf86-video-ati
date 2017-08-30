@@ -31,10 +31,11 @@
 #endif
 
 #include <xorg-server.h>
+#include <X11/Xdefs.h>
+#include <list.h>
 
 #include "radeon.h"
 #include "radeon_drm_queue.h"
-#include "radeon_list.h"
 
 
 struct radeon_drm_queue_entry {
