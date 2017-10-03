@@ -2423,6 +2423,31 @@ Bool RADEONEnterVT_KMS(ScrnInfoPtr pScrn)
 
     radeon_set_drm_master(pScrn);
 
+    if (info->r600_shadow_fb) {
+	int base_align = drmmode_get_base_align(pScrn, info->pixel_bytes, 0);
+	struct radeon_bo *front_bo = radeon_bo_open(info->bufmgr, 0,
+						    info->front_bo->size,
+						    base_align,
+						    RADEON_GEM_DOMAIN_VRAM, 0);
+
+	if (front_bo) {
+	    if (radeon_bo_map(front_bo, 1) == 0) {
+		memset(front_bo->ptr, 0, front_bo->size);
+		radeon_bo_unref(info->front_bo);
+		info->front_bo = front_bo;
+	    } else {
+		radeon_bo_unref(front_bo);
+		front_bo = NULL;
+	    }
+	}
+
+	if (!front_bo) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+		       "Failed to allocate new scanout BO after VT switch, "
+		       "other DRM masters may see screen contents\n");
+	}
+    }
+
     info->accel_state->XInited3D = FALSE;
     info->accel_state->engineMode = EXA_ENGINEMODE_UNKNOWN;
 
@@ -2473,85 +2498,91 @@ pixmap_unref_fb(void *value, XID id, void *cdata)
 void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
-    RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
     ScreenPtr pScreen = pScrn->pScreen;
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
-    struct drmmode_scanout black_scanout = { .pixmap = NULL, .bo = NULL };
-    xf86CrtcPtr crtc;
-    drmmode_crtc_private_ptr drmmode_crtc;
-    unsigned w = 0, h = 0;
-    int i;
 
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONLeaveVT_KMS\n");
 
-    /* Compute maximum scanout dimensions of active CRTCs */
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-	crtc = xf86_config->crtc[i];
-	drmmode_crtc = crtc->driver_private;
+    if (!info->r600_shadow_fb) {
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	struct drmmode_scanout black_scanout = { .pixmap = NULL, .bo = NULL };
+	xf86CrtcPtr crtc;
+	drmmode_crtc_private_ptr drmmode_crtc;
+	unsigned w = 0, h = 0;
+	int i;
 
-	if (!drmmode_crtc->fb)
-	    continue;
+	/* Compute maximum scanout dimensions of active CRTCs */
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+	    crtc = xf86_config->crtc[i];
+	    drmmode_crtc = crtc->driver_private;
 
-	w = max(w, crtc->mode.HDisplay);
-	h = max(h, crtc->mode.VDisplay);
-    }
+	    if (!drmmode_crtc->fb)
+		continue;
 
-    /* Make all active CRTCs scan out from an all-black framebuffer */
-    if (w > 0 && h > 0) {
-	if (drmmode_crtc_scanout_create(crtc, &black_scanout, w, h)) {
-	    struct drmmode_fb *black_fb =
-		radeon_pixmap_get_fb(black_scanout.pixmap);
+	    w = max(w, crtc->mode.HDisplay);
+	    h = max(h, crtc->mode.VDisplay);
+	}
 
-	    radeon_pixmap_clear(black_scanout.pixmap);
-	    radeon_cs_flush_indirect(pScrn);
-	    radeon_bo_wait(black_scanout.bo);
+	/* Make all active CRTCs scan out from an all-black framebuffer */
+	if (w > 0 && h > 0) {
+	    if (drmmode_crtc_scanout_create(crtc, &black_scanout, w, h)) {
+		struct drmmode_fb *black_fb =
+		    radeon_pixmap_get_fb(black_scanout.pixmap);
 
-	    for (i = 0; i < xf86_config->num_crtc; i++) {
-		crtc = xf86_config->crtc[i];
-		drmmode_crtc = crtc->driver_private;
+		radeon_pixmap_clear(black_scanout.pixmap);
+		radeon_cs_flush_indirect(pScrn);
+		radeon_bo_wait(black_scanout.bo);
 
-		if (drmmode_crtc->fb) {
-		    if (black_fb) {
-			drmmode_set_mode(crtc, black_fb, &crtc->mode, 0, 0);
-		    } else {
-			drmModeSetCrtc(pRADEONEnt->fd,
-				       drmmode_crtc->mode_crtc->crtc_id, 0, 0,
-				       0, NULL, 0, NULL);
-			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
-					     NULL);
-		    }
+		for (i = 0; i < xf86_config->num_crtc; i++) {
+		    crtc = xf86_config->crtc[i];
+		    drmmode_crtc = crtc->driver_private;
 
-		    if (pScrn->is_gpu) {
-			if (drmmode_crtc->scanout[0].pixmap)
-			    pixmap_unref_fb(drmmode_crtc->scanout[0].pixmap,
-					    None, pRADEONEnt);
-			if (drmmode_crtc->scanout[1].pixmap)
-			    pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap,
-					    None, pRADEONEnt);
-		    } else {
-			drmmode_crtc_scanout_free(drmmode_crtc);
+		    if (drmmode_crtc->fb) {
+			if (black_fb) {
+			    drmmode_set_mode(crtc, black_fb, &crtc->mode, 0, 0);
+			} else {
+			    drmModeSetCrtc(pRADEONEnt->fd,
+					   drmmode_crtc->mode_crtc->crtc_id, 0,
+					   0, 0, NULL, 0, NULL);
+			    drmmode_fb_reference(pRADEONEnt->fd,
+						 &drmmode_crtc->fb, NULL);
+			}
+
+			if (pScrn->is_gpu) {
+			    if (drmmode_crtc->scanout[0].pixmap)
+				pixmap_unref_fb(drmmode_crtc->scanout[0].pixmap,
+						None, pRADEONEnt);
+			    if (drmmode_crtc->scanout[1].pixmap)
+				pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap,
+						None, pRADEONEnt);
+			} else {
+			    drmmode_crtc_scanout_free(drmmode_crtc);
+			}
 		    }
 		}
 	    }
 	}
+
+	xf86RotateFreeShadow(pScrn);
+	drmmode_crtc_scanout_destroy(&info->drmmode, &black_scanout);
+
+	/* Unreference FBs of all pixmaps. After this, the only FB remaining
+	 * should be the all-black one being scanned out by active CRTCs
+	 */
+	for (i = 0; i < currentMaxClients; i++) {
+	    if (i > 0 &&
+		(!clients[i] || clients[i]->clientState != ClientStateRunning))
+		continue;
+
+	    FindClientResourcesByType(clients[i], RT_PIXMAP, pixmap_unref_fb,
+				      pRADEONEnt);
+	}
+
+	pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen), None, pRADEONEnt);
+    } else {
+	memset(info->front_bo->ptr, 0, info->front_bo->size);
     }
-
-    xf86RotateFreeShadow(pScrn);
-    drmmode_crtc_scanout_destroy(&info->drmmode, &black_scanout);
-
-    /* Unreference FBs of all pixmaps. After this, the only FB remaining
-     * should be the all-black one being scanned out by active CRTCs
-     */
-    for (i = 0; i < currentMaxClients; i++) {
-	if (i > 0 &&
-	    (!clients[i] || clients[i]->clientState != ClientStateRunning))
-            continue;
-
-	FindClientResourcesByType(clients[i], RT_PIXMAP, pixmap_unref_fb,
-				  pRADEONEnt);
-    }
-    pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen), None, pRADEONEnt);
 
     TimerSet(NULL, 0, 1000, cleanup_black_fb, pScreen);
 
