@@ -1331,9 +1331,10 @@ static Bool RADEONPreInitAccel_KMS(ScrnInfoPtr pScrn)
 	xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 		   "GPU accel disabled or not working, using shadowfb for KMS\n");
 shadowfb:
-	info->r600_shadow_fb = TRUE;
 	if (!xf86LoadSubModule(pScrn, "shadow"))
-	    info->r600_shadow_fb = FALSE;
+	    return FALSE;
+
+	info->r600_shadow_fb = TRUE;
 	return TRUE;
     }
 
@@ -2215,7 +2216,7 @@ Bool RADEONScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	if (info->fb_shadow == NULL) {
 	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "Failed to allocate shadow framebuffer\n");
-	    info->r600_shadow_fb = FALSE;
+	    return FALSE;
 	} else {
 	    if (!fbScreenInit(pScreen, info->fb_shadow,
 			      pScrn->virtualX, pScrn->virtualY,
