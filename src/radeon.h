@@ -769,6 +769,8 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	    if (driver_priv->bo)
 		radeon_bo_unref(driver_priv->bo);
 
+	    drmmode_fb_reference(pRADEONEnt->fd, &driver_priv->fb, NULL);
+
 	    radeon_bo_ref(bo);
 	    driver_priv->bo = bo;
 
