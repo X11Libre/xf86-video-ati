@@ -218,7 +218,8 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
                     pRADEONEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
 #endif
                 drmClose(pRADEONEnt->fd);
-            pRADEONEnt->fd = 0;
+            free(pPriv->ptr);
+            pPriv->ptr = NULL;
         }
     }
 
