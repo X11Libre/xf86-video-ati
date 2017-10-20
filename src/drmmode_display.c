@@ -1913,8 +1913,8 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 				drmModeFreeProperty(props);
 				break;
 			}
-			drmModeFreeProperty(props);
 		}
+		drmModeFreeProperty(props);
 	}
 
 	kencoders = calloc(sizeof(drmModeEncoderPtr), koutput->count_encoders);
@@ -2003,8 +2003,8 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 				drmModeFreeProperty(props);
 				break;
 			}
-			drmModeFreeProperty(props);
 		}
+		drmModeFreeProperty(props);
 	}
 
 	if (dynamic) {
