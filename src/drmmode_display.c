@@ -2796,12 +2796,14 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 	 */
 	for (i = 0; i < config->num_output; i++) {
 		xf86OutputPtr output = config->output[i];
+		xf86CrtcPtr crtc = output->crtc;
 		drmmode_output_private_ptr drmmode_output = output->driver_private;
 		uint32_t con_id;
 		drmModeConnectorPtr koutput;
 
-		if (drmmode_output->mode_output == NULL)
+		if (!crtc || !drmmode_output->mode_output)
 			continue;
+
 		con_id = drmmode_output->mode_output->connector_id;
 		/* Get an updated view of the properties for the current connector and
 		 * look for the link-status property
@@ -2813,10 +2815,6 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 			if (props && props->flags & DRM_MODE_PROP_ENUM &&
 			    !strcmp(props->name, "link-status") &&
 			    koutput->prop_values[j] == DRM_MODE_LINK_STATUS_BAD) {
-				xf86CrtcPtr crtc = output->crtc;
-				if (!crtc)
-					continue;
-
 				/* the connector got a link failure, re-set the current mode */
 				drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
 						       crtc->x, crtc->y);
