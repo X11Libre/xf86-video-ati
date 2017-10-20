@@ -228,6 +228,7 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 	info->accel_state = NULL;
     }
 
+    free(info->pEnt);
     free(pScrn->driverPrivate);
     pScrn->driverPrivate = NULL;
 }
