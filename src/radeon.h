@@ -712,9 +712,9 @@ uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
 static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 {
-#ifdef USE_GLAMOR
     ScrnInfoPtr scrn = xf86ScreenToScrn(pPix->drawable.pScreen);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+#ifdef USE_GLAMOR
     RADEONInfoPtr info = RADEONPTR(scrn);
 
     if (info->use_glamor) {
