@@ -192,23 +192,23 @@ radeon_master_screen(ScreenPtr screen)
 static inline ScreenPtr
 radeon_dirty_master(PixmapDirtyUpdatePtr dirty)
 {
-#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
-    ScreenPtr screen = dirty->src->pScreen;
-#else
-    ScreenPtr screen = dirty->src->drawable.pScreen;
-#endif
+    return radeon_master_screen(dirty->slave_dst->drawable.pScreen);
+}
 
-    return radeon_master_screen(screen);
+static inline DrawablePtr
+radeon_dirty_src_drawable(PixmapDirtyUpdatePtr dirty)
+{
+#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
+    return dirty->src;
+#else
+    return &dirty->src->drawable;
+#endif
 }
 
 static inline Bool
 radeon_dirty_src_equals(PixmapDirtyUpdatePtr dirty, PixmapPtr pixmap)
 {
-#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
-    return dirty->src == &pixmap->drawable;
-#else
-    return dirty->src == pixmap;
-#endif
+    return radeon_dirty_src_drawable(dirty) == &pixmap->drawable;
 }
 
 
