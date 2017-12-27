@@ -500,6 +500,13 @@ struct radeon_client_priv {
     uint_fast32_t     needs_flush;
 };
 
+struct radeon_device_priv {
+    CursorPtr cursor;
+    Bool sprite_visible;
+};
+
+extern DevScreenPrivateKeyRec radeon_device_private_key;
+
 typedef struct {
     EntityInfoPtr     pEnt;
     pciVideoPtr       PciInfo;
@@ -550,6 +557,12 @@ typedef struct {
     CreateScreenResourcesProcPtr CreateScreenResources;
     CreateWindowProcPtr CreateWindow;
     WindowExposuresProcPtr WindowExposures;
+    void (*SetCursor) (DeviceIntPtr pDev, ScreenPtr pScreen,
+		       CursorPtr pCursor, int x, int y);
+    void (*MoveCursor) (DeviceIntPtr pDev, ScreenPtr pScreen, int x, int y);
+
+    /* Number of SW cursors currently visible on this screen */
+    int sprites_visible;
 
     Bool              IsSecondary;
 

@@ -34,6 +34,7 @@
 #include <time.h>
 #include "cursorstr.h"
 #include "damagestr.h"
+#include "inputstr.h"
 #include "list.h"
 #include "micmap.h"
 #include "xf86cmap.h"
@@ -2628,6 +2629,56 @@ Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo
 }
 
 
+static void drmmode_sprite_do_set_cursor(struct radeon_device_priv *device_priv,
+					 ScrnInfoPtr scrn, int x, int y)
+{
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	CursorPtr cursor = device_priv->cursor;
+	Bool sprite_visible = device_priv->sprite_visible;
+
+	if (cursor) {
+		x -= cursor->bits->xhot;
+		y -= cursor->bits->yhot;
+
+		device_priv->sprite_visible =
+			x < scrn->virtualX && y < scrn->virtualY &&
+			(x + cursor->bits->width > 0) &&
+			(y + cursor->bits->height > 0);
+	} else {
+		device_priv->sprite_visible = FALSE;
+	}
+
+	info->sprites_visible += device_priv->sprite_visible - sprite_visible;
+}
+
+void drmmode_sprite_set_cursor(DeviceIntPtr pDev, ScreenPtr pScreen,
+			       CursorPtr pCursor, int x, int y)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	struct radeon_device_priv *device_priv =
+		dixLookupScreenPrivate(&pDev->devPrivates,
+				       &radeon_device_private_key, pScreen);
+
+	device_priv->cursor = pCursor;
+	drmmode_sprite_do_set_cursor(device_priv, scrn, x, y);
+
+	info->SetCursor(pDev, pScreen, pCursor, x, y);
+}
+
+void drmmode_sprite_move_cursor(DeviceIntPtr pDev, ScreenPtr pScreen, int x,
+				int y)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+	RADEONInfoPtr info = RADEONPTR(scrn);
+	struct radeon_device_priv *device_priv =
+		dixLookupScreenPrivate(&pDev->devPrivates,
+				       &radeon_device_private_key, pScreen);
+
+	drmmode_sprite_do_set_cursor(device_priv, scrn, x, y);
+
+	info->MoveCursor(pDev, pScreen, x, y);
+}
 
 void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, struct radeon_bo *bo)
 {

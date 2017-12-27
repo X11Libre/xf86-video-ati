@@ -38,6 +38,7 @@
 #include "radeon_reg.h"
 #include "radeon_probe.h"
 #include "micmap.h"
+#include "mipointrst.h"
 
 #include "radeon_version.h"
 #include "shadow.h"
@@ -66,6 +67,7 @@
 #include "radeon_vbo.h"
 
 static DevScreenPrivateKeyRec radeon_client_private_key;
+DevScreenPrivateKeyRec radeon_device_private_key;
 
 extern SymTabRec RADEONChipsets[];
 static Bool radeon_setup_kernel_mem(ScreenPtr pScreen);
@@ -1991,6 +1993,23 @@ static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
     /* Cursor setup */
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
+    if (info->allowPageFlip) {
+	miPointerScreenPtr PointPriv =
+	    dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
+
+	if (!dixRegisterScreenPrivateKey(&radeon_device_private_key, pScreen,
+					 PRIVATE_DEVICE,
+					 sizeof(struct radeon_device_priv))) {
+	    xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "dixRegisterScreenPrivateKey failed\n");
+	    return FALSE;
+	}
+
+	info->SetCursor = PointPriv->spriteFuncs->SetCursor;
+	info->MoveCursor = PointPriv->spriteFuncs->MoveCursor;
+	PointPriv->spriteFuncs->SetCursor = drmmode_sprite_set_cursor;
+	PointPriv->spriteFuncs->MoveCursor = drmmode_sprite_move_cursor;
+    }
+
     if (xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
 	return TRUE;
 
@@ -2147,6 +2166,15 @@ static Bool RADEONCloseScreen_KMS(ScreenPtr pScreen)
 
     pScrn->vtSema = FALSE;
     xf86ClearPrimInitDone(info->pEnt->index);
+
+    if (info->allowPageFlip) {
+	miPointerScreenPtr PointPriv =
+	    dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
+
+	PointPriv->spriteFuncs->SetCursor = info->SetCursor;
+	PointPriv->spriteFuncs->MoveCursor = info->MoveCursor;
+    }
+
     pScreen->BlockHandler = info->BlockHandler;
     pScreen->CloseScreen = info->CloseScreen;
     return pScreen->CloseScreen(pScreen);
