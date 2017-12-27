@@ -1982,12 +1982,29 @@ static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
     ScrnInfoPtr    pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info  = RADEONPTR(pScrn);
 
-    return xf86_cursors_init (pScreen, info->cursor_w, info->cursor_h,
-			      (HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
-			       HARDWARE_CURSOR_AND_SOURCE_WITH_MASK |
-			       HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1 |
-			       HARDWARE_CURSOR_UPDATE_UNHIDDEN |
-			       HARDWARE_CURSOR_ARGB));
+    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
+		   "Initializing Cursor\n");
+
+    /* Set Silken Mouse */
+    xf86SetSilkenMouse(pScreen);
+
+    /* Cursor setup */
+    miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
+
+    if (xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
+	return TRUE;
+
+    if (!xf86_cursors_init(pScreen, info->cursor_w, info->cursor_h,
+			   HARDWARE_CURSOR_TRUECOLOR_AT_8BPP |
+			   HARDWARE_CURSOR_AND_SOURCE_WITH_MASK |
+			   HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_1 |
+			   HARDWARE_CURSOR_UPDATE_UNHIDDEN |
+			   HARDWARE_CURSOR_ARGB)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "xf86_cursors_init failed\n");
+	return FALSE;
+    }
+
+    return TRUE;
 }
 
 void
@@ -2330,19 +2347,8 @@ Bool RADEONScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		   "Initializing DPMS\n");
     xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
-		   "Initializing Cursor\n");
-
-    /* Set Silken Mouse */
-    xf86SetSilkenMouse(pScreen);
-
-    /* Cursor setup */
-    miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
-
-    if (!xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE)) {
-	if (RADEONCursorInit_KMS(pScreen)) {
-	}
-    }
+    if (!RADEONCursorInit_KMS(pScreen))
+	return FALSE;
 
     /* DGA setup */
 #ifdef XFreeXDGA
