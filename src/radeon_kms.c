@@ -1250,6 +1250,7 @@ static Bool RADEONPreInitVisual(ScrnInfoPtr pScrn)
     case 15:
     case 16:
     case 24:
+    case 30:
 	break;
 
     default:
@@ -1764,6 +1765,22 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	return FALSE;
 
     if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
+
+    /* Depth 30 not yet supported under glamor. */
+    if (pScrn->depth == 30 && info->use_glamor) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Given depth (%d) is not supported under GLAMOR accel. Select EXA.\n",
+		   pScrn->depth);
+	goto fail;
+    }
+
+    /* Depth 30 only supported since Linux 3.16 / kms driver minor version 39 */
+    if (pScrn->depth == 30 && info->dri2.pKernelDRMVersion->version_minor < 39) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Given depth (%d) is not supported. Kernel too old. Needs Linux 3.16+\n",
+		   pScrn->depth);
+	goto fail;
+    }
 
     radeon_drm_queue_init();
 
