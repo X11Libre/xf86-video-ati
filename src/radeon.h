@@ -635,6 +635,8 @@ typedef struct {
 	SetSharedPixmapBackingProcPtr SavedSetSharedPixmapBacking;
     } glamor;
 #endif /* USE_GLAMOR */
+
+    xf86CrtcFuncsRec drmmode_crtc_funcs;
 } RADEONInfoRec, *RADEONInfoPtr;
 
 /* radeon_accel.c */

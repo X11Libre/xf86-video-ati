@@ -1395,8 +1395,9 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	xf86CrtcPtr crtc;
 	drmmode_crtc_private_ptr drmmode_crtc;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	RADEONInfoPtr info = RADEONPTR(pScrn);
 
-	crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
+	crtc = xf86CrtcCreate(pScrn, &info->drmmode_crtc_funcs);
 	if (crtc == NULL)
 		return 0;
 
@@ -2531,11 +2532,16 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		       "%d crtcs needed for screen.\n", crtcs_needed);
 
+	/* Need per-screen drmmode_crtc_funcs, based on our global template,
+	 * so we can disable some functions, depending on screen settings.
+	 */
+	info->drmmode_crtc_funcs = drmmode_crtc_funcs;
+
 	if (info->r600_shadow_fb) {
 		/* Rotation requires hardware acceleration */
-		drmmode_crtc_funcs.shadow_allocate = NULL;
-		drmmode_crtc_funcs.shadow_create = NULL;
-		drmmode_crtc_funcs.shadow_destroy = NULL;
+		info->drmmode_crtc_funcs.shadow_allocate = NULL;
+		info->drmmode_crtc_funcs.shadow_create = NULL;
+		info->drmmode_crtc_funcs.shadow_destroy = NULL;
 	}
 
 	drmmode->count_crtcs = mode_res->count_crtcs;
