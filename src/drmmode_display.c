@@ -2544,6 +2544,12 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 		info->drmmode_crtc_funcs.shadow_destroy = NULL;
 	}
 
+	/* Hw gamma lut's are currently bypassed by the hw at color depth 30,
+	 * so spare the server the effort to compute and update the cluts.
+	 */
+	if (pScrn->depth == 30)
+		info->drmmode_crtc_funcs.gamma_set = NULL;
+
 	drmmode->count_crtcs = mode_res->count_crtcs;
 	xf86CrtcSetSizeRange(pScrn, 320, 200, mode_res->max_width, mode_res->max_height);
 
@@ -2787,8 +2793,10 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 		       "Initializing kms color map\n");
 	if (!miCreateDefColormap(pScreen))
 	    return FALSE;
-	/* all radeons support 10 bit CLUTs */
-	if (!xf86HandleColormaps(pScreen, 256, 10,
+
+	/* All radeons support 10 bit CLUTs. They get bypassed at depth 30. */
+	if (pScrn->depth != 30 &&
+	    !xf86HandleColormaps(pScreen, 256, 10,
 				 NULL, NULL,
 				 CMAP_PALETTED_TRUECOLOR
 #if 0 /* This option messes up text mode! (eich@suse.de) */
