@@ -125,6 +125,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	    cpp = 2;
 	    break;
 	case 24:
+	case 30:
 	    cpp = 4;
 	    break;
 	default:
