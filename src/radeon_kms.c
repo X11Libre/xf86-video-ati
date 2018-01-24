@@ -1775,15 +1775,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (!RADEONPreInitAccel_KMS(pScrn))
 	return FALSE;
 
-    /* Depth 30 not yet supported under glamor. */
-    if (pScrn->depth == 30 && info->use_glamor &&
-	xorgGetVersion() < XORG_VERSION_NUMERIC(1,19,99,1,0)) {
-	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Given depth (%d) is not supported under GLAMOR accel. Select EXA.\n",
-		   pScrn->depth);
-	return FALSE;
-    }
-
     /* Depth 30 only supported since Linux 3.16 / kms driver minor version 39 */
     if (pScrn->depth == 30 && info->dri2.pKernelDRMVersion->version_minor < 39) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
