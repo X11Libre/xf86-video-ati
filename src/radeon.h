@@ -836,8 +836,8 @@ static inline Bool radeon_get_pixmap_shared(PixmapPtr pPix)
 }
 
 static inline struct drmmode_fb*
-radeon_fb_create(int drm_fd, uint32_t width, uint32_t height, uint8_t depth,
-		 uint8_t bpp, uint32_t pitch, uint32_t handle)
+radeon_fb_create(ScrnInfoPtr scrn, int drm_fd, uint32_t width, uint32_t height,
+		 uint32_t pitch, uint32_t handle)
 {
     struct drmmode_fb *fb  = malloc(sizeof(*fb));
 
@@ -845,8 +845,8 @@ radeon_fb_create(int drm_fd, uint32_t width, uint32_t height, uint8_t depth,
 	return NULL;
 
     fb->refcnt = 1;
-    if (drmModeAddFB(drm_fd, width, height, depth, bpp, pitch, handle,
-		     &fb->handle) == 0)
+    if (drmModeAddFB(drm_fd, width, height, scrn->depth, scrn->bitsPerPixel,
+		     pitch, handle, &fb->handle) == 0)
 	return fb;
 
     free(fb);
@@ -898,9 +898,8 @@ radeon_pixmap_get_fb(PixmapPtr pix)
 	    ScrnInfoPtr scrn = xf86ScreenToScrn(pix->drawable.pScreen);
 	    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 
-	    *fb_ptr = radeon_fb_create(pRADEONEnt->fd, pix->drawable.width,
-				       pix->drawable.height, pix->drawable.depth,
-				       pix->drawable.bitsPerPixel, pix->devKind,
+	    *fb_ptr = radeon_fb_create(scrn, pRADEONEnt->fd, pix->drawable.width,
+				       pix->drawable.height, pix->devKind,
 				       handle);
 	}
     }

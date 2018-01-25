@@ -943,9 +943,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		if (!fb)
 			fb = radeon_pixmap_get_fb(pScreen->GetWindowPixmap(pScreen->root));
 		if (!fb) {
-			fb = radeon_fb_create(pRADEONEnt->fd, pScrn->virtualX,
-					      pScrn->virtualY, pScrn->depth,
-					      pScrn->bitsPerPixel,
+			fb = radeon_fb_create(pScrn, pRADEONEnt->fd,
+					      pScrn->virtualX, pScrn->virtualY,
 					      pScrn->displayWidth * info->pixel_bytes,
 					      info->front_bo->handle);
 			/* Prevent refcnt of ad-hoc FBs from reaching 2 */
