@@ -19,7 +19,7 @@ following features:
 .TP 2
 \(bu
 Full support for 8-, 15-, 16- and 24-bit pixel depths, and for 30-bit depth on Linux 3.16
-and later with EXA acceleration;
+and later;
 .TP
 \(bu
 RandR 1.2 and RandR 1.3 support;
