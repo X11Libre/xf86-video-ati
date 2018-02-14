@@ -194,18 +194,33 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 /* Free our private RADEONInfoRec */
 static void RADEONFreeRec(ScrnInfoPtr pScrn)
 {
+    DevUnion *pPriv;
     RADEONEntPtr pRADEONEnt;
     RADEONInfoPtr  info;
+    EntityInfoPtr pEnt;
 
-    if (!pScrn || !pScrn->driverPrivate) return;
+    if (!pScrn)
+	return;
 
     info = RADEONPTR(pScrn);
+    if (info) {
+	if (info->fbcon_pixmap)
+	    pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
 
-    if (info->fbcon_pixmap)
-	pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
+	if (info->accel_state) {
+	    free(info->accel_state);
+	    info->accel_state = NULL;
+	}
 
-    pRADEONEnt = RADEONEntPriv(pScrn);
+	pEnt = info->pEnt;
+	free(pScrn->driverPrivate);
+	pScrn->driverPrivate = NULL;
+    } else {
+	pEnt = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
+    }
 
+    pPriv = xf86GetEntityPrivate(pEnt->index, gRADEONEntityIndex);
+    pRADEONEnt = pPriv->ptr;
     if (pRADEONEnt->fd > 0) {
         DevUnion *pPriv;
         RADEONEntPtr pRADEONEnt;
@@ -225,14 +240,7 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
         }
     }
 
-    if (info->accel_state) {
-	free(info->accel_state);
-	info->accel_state = NULL;
-    }
-
-    free(info->pEnt);
-    free(pScrn->driverPrivate);
-    pScrn->driverPrivate = NULL;
+    free(pEnt);
 }
 
 static void *
