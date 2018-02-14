@@ -2206,13 +2206,8 @@ static Bool RADEONCloseScreen_KMS(ScreenPtr pScreen)
 
 void RADEONFreeScreen_KMS(ScrnInfoPtr pScrn)
 {
-    RADEONInfoPtr  info  = RADEONPTR(pScrn);
-
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONFreeScreen\n");
-
-    /* when server quits at PreInit, we don't need do this anymore*/
-    if (!info) return;
 
     RADEONFreeRec(pScrn);
 }
