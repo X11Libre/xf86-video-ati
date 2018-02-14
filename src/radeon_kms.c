@@ -1712,7 +1712,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
         && info->pEnt->location.type != BUS_PLATFORM
 #endif
         )
-        goto fail;
+        return FALSE;
 
     pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
 				 getRADEONEntityIndex());
@@ -1739,24 +1739,24 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     pScrn->monitor     = pScrn->confScreen->monitor;
 
     if (!RADEONPreInitVisual(pScrn))
-	goto fail;
+	return FALSE;
 
     xf86CollectOptions(pScrn, NULL);
     if (!(info->Options = malloc(sizeof(RADEONOptions_KMS))))
-	goto fail;
+	return FALSE;
 
     memcpy(info->Options, RADEONOptions_KMS, sizeof(RADEONOptions_KMS));
     xf86ProcessOptions(pScrn->scrnIndex, pScrn->options, info->Options);
 
     if (!RADEONPreInitWeight(pScrn))
-	goto fail;
+	return FALSE;
 
     if (!RADEONPreInitChipType_KMS(pScrn))
-        goto fail;
+        return FALSE;
 
     if (radeon_open_drm_master(pScrn) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
-	goto fail;
+	return FALSE;
     }
 
     info->dri2.available = FALSE;
@@ -1765,14 +1765,15 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     if (info->dri2.pKernelDRMVersion == NULL) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "RADEONDRIGetVersion failed to get the DRM version\n");
-	goto fail;
+	return FALSE;
     }
 
     /* Get ScreenInit function */
     if (!xf86LoadSubModule(pScrn, "fb"))
 	return FALSE;
 
-    if (!RADEONPreInitAccel_KMS(pScrn))              goto fail;
+    if (!RADEONPreInitAccel_KMS(pScrn))
+	return FALSE;
 
     /* Depth 30 not yet supported under glamor. */
     if (pScrn->depth == 30 && info->use_glamor &&
@@ -1780,7 +1781,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Given depth (%d) is not supported under GLAMOR accel. Select EXA.\n",
 		   pScrn->depth);
-	goto fail;
+	return FALSE;
     }
 
     /* Depth 30 only supported since Linux 3.16 / kms driver minor version 39 */
@@ -1788,7 +1789,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 		   "Given depth (%d) is not supported. Kernel too old. Needs Linux 3.16+\n",
 		   pScrn->depth);
-	goto fail;
+	return FALSE;
     }
 
     radeon_drm_queue_init();
@@ -1901,7 +1902,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     if (drmmode_pre_init(pScrn, &info->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Kernel modesetting setup failed\n");
-	goto fail;
+	return FALSE;
     }
 
     RADEONSetupCapabilities(pScrn);
@@ -1995,14 +1996,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 #endif
         ) {
       xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "No modes.\n");
-      goto fail;
-   }
+      return FALSE;
+    }
 
     return TRUE;
- fail:
-    RADEONFreeRec(pScrn);
-    return FALSE;
-
 }
 
 static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
