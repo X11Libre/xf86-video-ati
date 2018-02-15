@@ -1778,8 +1778,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     /* Depth 30 only supported since Linux 3.16 / kms driver minor version 39 */
     if (pScrn->depth == 30 && info->dri2.pKernelDRMVersion->version_minor < 39) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-		   "Given depth (%d) is not supported. Kernel too old. Needs Linux 3.16+\n",
-		   pScrn->depth);
+		   "Depth 30 is not supported. Kernel too old. Needs Linux 3.16+\n");
 	return FALSE;
     }
 
