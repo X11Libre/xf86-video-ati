@@ -2717,6 +2717,7 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 {
 	xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	unsigned num_desired = 0, num_on = 0;
 	int c;
 
 	for (c = 0; c < config->num_crtc; c++) {
@@ -2753,14 +2754,19 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 		if (!output)
 			continue;
 
+		num_desired++;
+
 		/* Mark that we'll need to re-set the mode for sure */
 		memset(&crtc->mode, 0, sizeof(crtc->mode));
 		if (!crtc->desiredMode.CrtcHDisplay)
 		{
 			DisplayModePtr  mode = xf86OutputFindClosestMode (output, pScrn->currentMode);
 
-			if (!mode)
-				return FALSE;
+			if (!mode) {
+				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+					   "Failed to find mode for CRTC %d\n", c);
+				continue;
+			}
 			crtc->desiredMode = *mode;
 			crtc->desiredRotation = RR_Rotate_0;
 			crtc->desiredX = 0;
@@ -2768,18 +2774,30 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 		}
 
 		if (set_hw) {
-			if (!crtc->funcs->set_mode_major(crtc, &crtc->desiredMode, crtc->desiredRotation,
-							 crtc->desiredX, crtc->desiredY))
-				return FALSE;
+			if (crtc->funcs->set_mode_major(crtc, &crtc->desiredMode,
+							crtc->desiredRotation,
+							crtc->desiredX,
+							crtc->desiredY)) {
+				num_on++;
+			} else {
+				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+					   "Failed to set mode on CRTC %d\n", c);
+			}
 		} else {
 			crtc->mode = crtc->desiredMode;
 			crtc->rotation = crtc->desiredRotation;
 			crtc->x = crtc->desiredX;
 			crtc->y = crtc->desiredY;
-			if (!drmmode_handle_transform(crtc))
-				return FALSE;
+			if (drmmode_handle_transform(crtc))
+				num_on++;
 		}
 	}
+
+	if (num_on == 0 && num_desired > 0) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to enable any CRTC\n");
+		return FALSE;
+	}
+
 	return TRUE;
 }
 
