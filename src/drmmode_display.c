@@ -2720,24 +2720,33 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 	unsigned num_desired = 0, num_on = 0;
 	int c;
 
+	/* First, disable all unused CRTCs */
+	if (set_hw) {
+		for (c = 0; c < config->num_crtc; c++) {
+			xf86CrtcPtr crtc = config->crtc[c];
+			drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+			/* Skip disabled CRTCs */
+			if (crtc->enabled)
+				continue;
+
+			drmmode_do_crtc_dpms(crtc, DPMSModeOff);
+			drmModeSetCrtc(pRADEONEnt->fd,
+				       drmmode_crtc->mode_crtc->crtc_id,
+				       0, 0, 0, NULL, 0, NULL);
+			drmmode_fb_reference(pRADEONEnt->fd,
+					     &drmmode_crtc->fb, NULL);
+		}
+	}
+
+	/* Then, try setting the chosen mode on each CRTC */
 	for (c = 0; c < config->num_crtc; c++) {
 		xf86CrtcPtr	crtc = config->crtc[c];
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 		xf86OutputPtr	output = NULL;
 		int		o;
 
-		/* Skip disabled CRTCs */
-		if (!crtc->enabled) {
-			if (set_hw) {
-				drmmode_do_crtc_dpms(crtc, DPMSModeOff);
-				drmModeSetCrtc(pRADEONEnt->fd,
-					       drmmode_crtc->mode_crtc->crtc_id,
-					       0, 0, 0, NULL, 0, NULL);
-				drmmode_fb_reference(pRADEONEnt->fd,
-						     &drmmode_crtc->fb, NULL);
-			}
+		if (!crtc->enabled)
 			continue;
-		}
 
 		if (config->output[config->compat_output]->crtc == crtc)
 			output = config->output[config->compat_output];
