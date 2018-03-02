@@ -1415,6 +1415,72 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	return 1;
 }
 
+/*
+ * Update all of the property values for an output
+ */
+static void
+drmmode_output_update_properties(xf86OutputPtr output)
+{
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	int i, j, k;
+	int err;
+	drmModeConnectorPtr koutput;
+
+	/* Use the most recently fetched values from the kernel */
+	koutput = drmmode_output->mode_output;
+
+	if (!koutput)
+		return;
+
+	for (i = 0; i < drmmode_output->num_props; i++) {
+		drmmode_prop_ptr p = &drmmode_output->props[i];
+
+		for (j = 0; j < koutput->count_props; j++) {
+			if (koutput->props[j] != p->mode_prop->prop_id)
+				continue;
+
+			/* Check to see if the property value has changed */
+			if (koutput->prop_values[j] == p->value)
+				break;
+
+			p->value = koutput->prop_values[j];
+
+			if (p->mode_prop->flags & DRM_MODE_PROP_RANGE) {
+				INT32 value = p->value;
+
+				err = RRChangeOutputProperty(output->randr_output,
+							     p->atoms[0], XA_INTEGER,
+							     32, PropModeReplace, 1,
+							     &value, FALSE, TRUE);
+				if (err != 0) {
+					xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+						   "RRChangeOutputProperty error, %d\n",
+						   err);
+				}
+			} else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
+				for (k = 0; k < p->mode_prop->count_enums; k++) {
+					if (p->mode_prop->enums[k].value == p->value)
+						break;
+				}
+				if (k < p->mode_prop->count_enums) {
+					err = RRChangeOutputProperty(output->randr_output,
+								     p->atoms[0], XA_ATOM,
+								     32, PropModeReplace, 1,
+								     &p->atoms[k + 1], FALSE,
+								     TRUE);
+					if (err != 0) {
+						xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+							   "RRChangeOutputProperty error, %d\n",
+							   err);
+					}
+				}
+			}
+
+			break;
+		}
+        }
+}
+
 static xf86OutputStatus
 drmmode_output_detect(xf86OutputPtr output)
 {
@@ -1430,6 +1496,8 @@ drmmode_output_detect(xf86OutputPtr output)
 		drmmode_output->output_id = -1;
 		return XF86OutputStatusDisconnected;
 	}
+
+	drmmode_output_update_properties(output);
 
 	switch (drmmode_output->mode_output->connection) {
 	case DRM_MODE_CONNECTED:
@@ -2909,35 +2977,35 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 		xf86OutputPtr output = config->output[i];
 		xf86CrtcPtr crtc = output->crtc;
 		drmmode_output_private_ptr drmmode_output = output->driver_private;
-		uint32_t con_id, idx;
-		drmModeConnectorPtr koutput;
+
+		drmmode_output_detect(output);
 
 		if (!crtc || !drmmode_output->mode_output)
 			continue;
 
-		con_id = drmmode_output->mode_output->connector_id;
 		/* Get an updated view of the properties for the current connector and
 		 * look for the link-status property
 		 */
-		koutput = drmModeGetConnectorCurrent(pRADEONEnt->fd, con_id);
-		if (!koutput)
-			continue;
+		for (j = 0; j < drmmode_output->num_props; j++) {
+			drmmode_prop_ptr p = &drmmode_output->props[j];
 
-		idx = koutput_get_prop_idx(pRADEONEnt->fd, koutput,
-					   DRM_MODE_PROP_ENUM, "link-status");
+			if (!strcmp(p->mode_prop->name, "link-status")) {
+				if (p->value != DRM_MODE_LINK_STATUS_BAD)
+					break;
 
-		if ((idx > -1) &&
-		    (koutput->prop_values[idx] == DRM_MODE_LINK_STATUS_BAD)) {
-			/* the connector got a link failure, re-set the current mode */
-			drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
-					       crtc->x, crtc->y);
+				/* the connector got a link failure, re-set the current mode */
+				drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
+						       crtc->x, crtc->y);
 
-			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-				   "hotplug event: connector %u's link-state is BAD, "
-				   "tried resetting the current mode. You may be left"
-				   "with a black screen if this fails...\n", con_id);
+				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+					   "hotplug event: connector %u's link-state is BAD, "
+					   "tried resetting the current mode. You may be left"
+					   "with a black screen if this fails...\n",
+					   drmmode_output->mode_output->connector_id);
+
+				break;
+			}
 		}
-		drmModeFreeConnector(koutput);
 	}
 
 	mode_res = drmModeGetResources(pRADEONEnt->fd);
