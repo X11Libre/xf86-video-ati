@@ -1449,6 +1449,51 @@ drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 	return MODE_OK;
 }
 
+static int
+koutput_get_prop_idx(int fd, drmModeConnectorPtr koutput,
+        int type, const char *name)
+{
+    int idx = -1;
+
+    for (int i = 0; i < koutput->count_props; i++) {
+        drmModePropertyPtr prop = drmModeGetProperty(fd, koutput->props[i]);
+
+        if (!prop)
+            continue;
+
+        if (drm_property_type_is(prop, type) && !strcmp(prop->name, name))
+            idx = i;
+
+        drmModeFreeProperty(prop);
+
+        if (idx > -1)
+            break;
+    }
+
+    return idx;
+}
+
+static int
+koutput_get_prop_id(int fd, drmModeConnectorPtr koutput,
+        int type, const char *name)
+{
+    int idx = koutput_get_prop_idx(fd, koutput, type, name);
+
+    return (idx > -1) ? koutput->props[idx] : -1;
+}
+
+static drmModePropertyBlobPtr
+koutput_get_prop_blob(int fd, drmModeConnectorPtr koutput, const char *name)
+{
+    drmModePropertyBlobPtr blob = NULL;
+    int idx = koutput_get_prop_idx(fd, koutput, DRM_MODE_PROP_BLOB, name);
+
+    if (idx > -1)
+        blob = drmModeGetPropertyBlob(fd, koutput->prop_values[idx]);
+
+    return blob;
+}
+
 static DisplayModePtr
 drmmode_output_get_modes(xf86OutputPtr output)
 {
@@ -1457,25 +1502,16 @@ drmmode_output_get_modes(xf86OutputPtr output)
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
 	int i;
 	DisplayModePtr Modes = NULL, Mode;
-	drmModePropertyPtr props;
 	xf86MonPtr mon = NULL;
 
 	if (!koutput)
 		return NULL;
 
+	drmModeFreePropertyBlob(drmmode_output->edid_blob);
+
 	/* look for an EDID property */
-	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
-		if (props && (props->flags & DRM_MODE_PROP_BLOB)) {
-			if (!strcmp(props->name, "EDID")) {
-				if (drmmode_output->edid_blob)
-					drmModeFreePropertyBlob(drmmode_output->edid_blob);
-				drmmode_output->edid_blob = drmModeGetPropertyBlob(pRADEONEnt->fd, koutput->prop_values[i]);
-			}
-		}
-		if (props)
-			drmModeFreeProperty(props);
-	}
+	drmmode_output->edid_blob =
+		koutput_get_prop_blob(pRADEONEnt->fd, koutput, "EDID");
 
 	if (drmmode_output->edid_blob) {
 		mon = xf86InterpretEDID(output->scrn->scrnIndex,
@@ -1896,7 +1932,6 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	drmModeConnectorPtr koutput;
 	drmModeEncoderPtr *kencoders = NULL;
 	drmmode_output_private_ptr drmmode_output;
-	drmModePropertyPtr props;
 	drmModePropertyBlobPtr path_blob = NULL;
 	char name[32];
 	int i;
@@ -1906,17 +1941,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	if (!koutput)
 		return 0;
 
-	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
-		if (props && (props->flags & DRM_MODE_PROP_BLOB)) {
-			if (!strcmp(props->name, "PATH")) {
-				path_blob = drmModeGetPropertyBlob(pRADEONEnt->fd, koutput->prop_values[i]);
-				drmModeFreeProperty(props);
-				break;
-			}
-		}
-		drmModeFreeProperty(props);
-	}
+	path_blob = koutput_get_prop_blob(pRADEONEnt->fd, koutput, "PATH");
 
 	kencoders = calloc(sizeof(drmModeEncoderPtr), koutput->count_encoders);
 	if (!kencoders) {
@@ -1996,17 +2021,9 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 	/* work out the possible clones later */
 	output->possible_clones = 0;
 
-	for (i = 0; i < koutput->count_props; i++) {
-		props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[i]);
-		if (props && (props->flags & DRM_MODE_PROP_ENUM)) {
-			if (!strcmp(props->name, "DPMS")) {
-				drmmode_output->dpms_enum_id = koutput->props[i];
-				drmModeFreeProperty(props);
-				break;
-			}
-		}
-		drmModeFreeProperty(props);
-	}
+	drmmode_output->dpms_enum_id =
+		koutput_get_prop_id(pRADEONEnt->fd, koutput, DRM_MODE_PROP_ENUM,
+				    "DPMS");
 
 	if (dynamic) {
 		output->randr_output = RROutputCreate(xf86ScrnToScreen(pScrn), output->name, strlen(output->name), output);
@@ -2889,7 +2906,7 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 		xf86OutputPtr output = config->output[i];
 		xf86CrtcPtr crtc = output->crtc;
 		drmmode_output_private_ptr drmmode_output = output->driver_private;
-		uint32_t con_id;
+		uint32_t con_id, idx;
 		drmModeConnectorPtr koutput;
 
 		if (!crtc || !drmmode_output->mode_output)
@@ -2900,22 +2917,22 @@ radeon_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 		 * look for the link-status property
 		 */
 		koutput = drmModeGetConnectorCurrent(pRADEONEnt->fd, con_id);
-		for (j = 0; koutput && j < koutput->count_props; j++) {
-			drmModePropertyPtr props;
-			props = drmModeGetProperty(pRADEONEnt->fd, koutput->props[j]);
-			if (props && props->flags & DRM_MODE_PROP_ENUM &&
-			    !strcmp(props->name, "link-status") &&
-			    koutput->prop_values[j] == DRM_MODE_LINK_STATUS_BAD) {
-				/* the connector got a link failure, re-set the current mode */
-				drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
-						       crtc->x, crtc->y);
+		if (!koutput)
+			continue;
 
-				xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-					   "hotplug event: connector %u's link-state is BAD, "
-					   "tried resetting the current mode. You may be left "
-					   "with a black screen if this fails...\n", con_id);
-			}
-			drmModeFreeProperty(props);
+		idx = koutput_get_prop_idx(pRADEONEnt->fd, koutput,
+					   DRM_MODE_PROP_ENUM, "link-status");
+
+		if ((idx > -1) &&
+		    (koutput->prop_values[idx] == DRM_MODE_LINK_STATUS_BAD)) {
+			/* the connector got a link failure, re-set the current mode */
+			drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
+					       crtc->x, crtc->y);
+
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "hotplug event: connector %u's link-state is BAD, "
+				   "tried resetting the current mode. You may be left"
+				   "with a black screen if this fails...\n", con_id);
 		}
 		drmModeFreeConnector(koutput);
 	}
