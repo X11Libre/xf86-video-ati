@@ -2017,12 +2017,8 @@ static Bool RADEONCursorInit_KMS(ScreenPtr pScreen)
 	    return FALSE;
 	}
 
-	if (PointPriv->spriteFuncs->SetCursor != drmmode_sprite_set_cursor) {
-	    info->SetCursor = PointPriv->spriteFuncs->SetCursor;
-	    info->MoveCursor = PointPriv->spriteFuncs->MoveCursor;
-	    PointPriv->spriteFuncs->SetCursor = drmmode_sprite_set_cursor;
-	    PointPriv->spriteFuncs->MoveCursor = drmmode_sprite_move_cursor;
-	}
+	info->SpriteFuncs = PointPriv->spriteFuncs;
+	PointPriv->spriteFuncs = &drmmode_sprite_funcs;
     }
 
     if (xf86ReturnOptValBool(info->Options, OPTION_SW_CURSOR, FALSE))
@@ -2186,10 +2182,8 @@ static Bool RADEONCloseScreen_KMS(ScreenPtr pScreen)
 	miPointerScreenPtr PointPriv =
 	    dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
 
-	if (PointPriv->spriteFuncs->SetCursor == drmmode_sprite_set_cursor) {
-	    PointPriv->spriteFuncs->SetCursor = info->SetCursor;
-	    PointPriv->spriteFuncs->MoveCursor = info->MoveCursor;
-	}
+	if (PointPriv->spriteFuncs == &drmmode_sprite_funcs)
+	    PointPriv->spriteFuncs = info->SpriteFuncs;
     }
 
     pScreen->BlockHandler = info->BlockHandler;

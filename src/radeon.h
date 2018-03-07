@@ -557,9 +557,7 @@ typedef struct {
     CreateScreenResourcesProcPtr CreateScreenResources;
     CreateWindowProcPtr CreateWindow;
     WindowExposuresProcPtr WindowExposures;
-    void (*SetCursor) (DeviceIntPtr pDev, ScreenPtr pScreen,
-		       CursorPtr pCursor, int x, int y);
-    void (*MoveCursor) (DeviceIntPtr pDev, ScreenPtr pScreen, int x, int y);
+    miPointerSpriteFuncPtr SpriteFuncs;
 
     /* Number of SW cursors currently visible on this screen */
     int sprites_visible;
