@@ -817,7 +817,7 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		radeon_scanout_do_update(crtc, scanout_id,
 					 screen->GetWindowPixmap(screen->root),
-					 box);
+					 *box);
 		radeon_bo_wait(drmmode_crtc->scanout[scanout_id].bo);
 	}
 }
@@ -3282,7 +3282,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			}
 
 			radeon_scanout_do_update(crtc, scanout_id, new_front,
-						 &extents);
+						 extents);
 
 			drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
 							drmmode_crtc->scanout_update_pending);
