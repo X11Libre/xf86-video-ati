@@ -214,6 +214,9 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 	struct radeon_pixmap *priv;
 	PixmapPtr pixmap, new_pixmap = NULL;
 
+	if (!xf86GetPixFormat(scrn, depth))
+		return NULL;
+
 	if (!RADEON_CREATE_PIXMAP_SHARED(usage)) {
 		if (info->shadow_primary) {
 			if (usage != CREATE_PIXMAP_USAGE_BACKING_PIXMAP)
