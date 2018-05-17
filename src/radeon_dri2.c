@@ -233,37 +233,36 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 					  flags | RADEON_CREATE_PIXMAP_DRI2);
     }
 
+    if (!pixmap)
+	return NULL;
+
     buffers = calloc(1, sizeof *buffers);
     if (buffers == NULL)
         goto error;
 
-    if (pixmap) {
-	if (!info->use_glamor) {
-	    info->exa_force_create = TRUE;
-	    exaMoveInPixmap(pixmap);
-	    info->exa_force_create = FALSE;
-	    if (exaGetPixmapDriverPrivate(pixmap) == NULL) {
-		/* this happen if pixmap is non accelerable */
-		goto error;
-	    }
-	} else if (is_glamor_pixmap) {
-	    pixmap = radeon_glamor_set_pixmap_bo(drawable, pixmap);
-	    pixmap->refcnt++;
-	}
-
-	if (!radeon_get_flink_name(pRADEONEnt, pixmap, &buffers->name))
+    if (!info->use_glamor) {
+	info->exa_force_create = TRUE;
+	exaMoveInPixmap(pixmap);
+	info->exa_force_create = FALSE;
+	if (exaGetPixmapDriverPrivate(pixmap) == NULL) {
+	    /* this happen if pixmap is non accelerable */
 	    goto error;
+	}
+    } else if (is_glamor_pixmap) {
+	pixmap = radeon_glamor_set_pixmap_bo(drawable, pixmap);
+	pixmap->refcnt++;
     }
+
+    if (!radeon_get_flink_name(pRADEONEnt, pixmap, &buffers->name))
+	goto error;
 
     privates = calloc(1, sizeof(struct dri2_buffer_priv));
     if (privates == NULL)
         goto error;
 
     buffers->attachment = attachment;
-    if (pixmap) {
-	buffers->pitch = pixmap->devKind;
-	buffers->cpp = cpp;
-    }
+    buffers->pitch = pixmap->devKind;
+    buffers->cpp = cpp;
     buffers->driverPrivate = privates;
     buffers->format = format;
     buffers->flags = 0; /* not tiled */
@@ -275,8 +274,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 
 error:
     free(buffers);
-    if (pixmap)
-        (*pScreen->DestroyPixmap)(pixmap);
+    (*pScreen->DestroyPixmap)(pixmap);
     return NULL;
 }
 
