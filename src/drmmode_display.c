@@ -111,7 +111,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
 					  int pitch,
-					  struct radeon_bo *bo, struct radeon_surface *psurf)
+					  struct radeon_bo *bo)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
@@ -137,9 +137,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 
 	if (info->ChipFamily >= CHIP_FAMILY_R600) {
 		surface = radeon_get_pixmap_surface(pixmap);
-		if (surface && psurf) 
-			*surface = *psurf;
-		else if (surface) {
+		if (surface) {
 			memset(surface, 0, sizeof(struct radeon_surface));
 			surface->npix_x = width;
 			surface->npix_y = height;
@@ -444,7 +442,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 
 	pixmap = drmmode_create_bo_pixmap(pScrn, fbcon->width, fbcon->height,
 					  fbcon->depth, fbcon->bpp, fbcon->pitch,
-					  bo, NULL);
+					  bo);
 	info->fbcon_pixmap = pixmap;
 	radeon_bo_unref(bo);
 out_free_fb:
@@ -581,7 +579,7 @@ drmmode_crtc_scanout_create(xf86CrtcPtr crtc, struct drmmode_scanout *scanout,
 						 width, height,
 						 pScrn->depth,
 						 pScrn->bitsPerPixel,
-						 pitch, scanout->bo, NULL);
+						 pitch, scanout->bo);
 	if (!scanout->pixmap) {
 		ErrorF("failed to create CRTC scanout pixmap\n");
 		goto error;
