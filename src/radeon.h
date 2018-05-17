@@ -304,8 +304,6 @@ radeon_dirty_src_equals(PixmapDirtyUpdatePtr dirty, PixmapPtr pixmap)
 #ifdef USE_GLAMOR
 
 struct radeon_pixmap {
-	struct radeon_surface surface;
-
 	uint_fast32_t gpu_read;
 	uint_fast32_t gpu_write;
 
@@ -703,22 +701,9 @@ extern RADEONEntPtr RADEONEntPriv(ScrnInfoPtr pScrn);
 
 static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 {
-#ifdef USE_GLAMOR
-    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
+    struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(pPix);
 
-    if (info->use_glamor) {
-	struct radeon_pixmap *priv;
-	priv = radeon_get_pixmap_private(pPix);
-	return priv ? &priv->surface : NULL;
-    } else
-#endif
-    {
-	struct radeon_exa_pixmap_priv *driver_priv;
-	driver_priv = exaGetPixmapDriverPrivate(pPix);
-	return &driver_priv->surface;
-    }
-
-    return NULL;
+    return &driver_priv->surface;
 }
 
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);

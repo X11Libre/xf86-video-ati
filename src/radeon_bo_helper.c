@@ -174,6 +174,9 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 				break;
 			}
 		}
+
+		if (new_surface)
+		    *new_surface = surface;
 	}
 
     if (tiling)
@@ -185,7 +188,6 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     if (bo && tiling && radeon_bo_set_tiling(bo, tiling, pitch) == 0)
 	*new_tiling = tiling;
 
-    *new_surface = surface;
     *new_pitch = pitch;
     return bo;
 }
@@ -335,26 +337,18 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     if (!bo)
         goto error;
 
-    memset(surface, 0, sizeof(struct radeon_surface));
-
     ret = radeon_set_pixmap_bo(ppix, bo);
     if (!ret)
 	goto error;
 
-    if (info->surf_man) {
+    if (surface) {
+	struct radeon_exa_pixmap_priv *driver_priv;
 	uint32_t tiling_flags;
 
-#ifdef USE_GLAMOR
-	if (info->use_glamor) {
-	    tiling_flags = radeon_get_pixmap_private(ppix)->tiling_flags;
-	} else
-#endif
-	{
-	    struct radeon_exa_pixmap_priv *driver_priv;
+	driver_priv = exaGetPixmapDriverPrivate(ppix);
+	tiling_flags = driver_priv->tiling_flags;
 
-	    driver_priv = exaGetPixmapDriverPrivate(ppix);
-	    tiling_flags = driver_priv->tiling_flags;
-	}
+	memset(surface, 0, sizeof(struct radeon_surface));
 
 	surface->npix_x = ppix->drawable.width;
 	surface->npix_y = ppix->drawable.height;

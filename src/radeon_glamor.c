@@ -250,8 +250,7 @@ radeon_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 
 		priv->bo = radeon_alloc_pixmap_bo(scrn, w, h, depth, usage,
 						  pixmap->drawable.bitsPerPixel,
-						  &stride,
-						  &priv->surface,
+						  &stride, NULL,
 						  &priv->tiling_flags);
 		if (!priv->bo)
 			goto fallback_priv;
@@ -391,15 +390,12 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 {
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	struct radeon_surface surface;
 	struct radeon_pixmap *priv;
 
-	if (!radeon_set_shared_pixmap_backing(pixmap, handle, &surface))
+	if (!radeon_set_shared_pixmap_backing(pixmap, handle, NULL))
 		return FALSE;
 
 	priv = radeon_get_pixmap_private(pixmap);
-	priv->surface = surface;
-
 	if (!radeon_glamor_create_textured_pixmap(pixmap, priv)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to get PRIME drawable for glamor pixmap.\n");

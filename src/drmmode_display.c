@@ -116,7 +116,6 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
 	PixmapPtr pixmap;
-	struct radeon_surface *surface;
 	uint32_t tiling;
 
 	pixmap = (*pScreen->CreatePixmap)(pScreen, 0, 0, depth,
@@ -135,41 +134,41 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	if (!radeon_set_pixmap_bo(pixmap, bo))
 		goto fail;
 
-	if (info->surf_man) {
-		surface = radeon_get_pixmap_surface(pixmap);
-		if (surface) {
-			memset(surface, 0, sizeof(struct radeon_surface));
-			surface->npix_x = width;
-			surface->npix_y = height;
-			surface->npix_z = 1;
-			surface->blk_w = 1;
-			surface->blk_h = 1;
-			surface->blk_d = 1;
-			surface->array_size = 1;
-			surface->last_level = 0;
-			surface->bpe = bpp / 8;
-			surface->nsamples = 1;
-			surface->flags = RADEON_SURF_SCANOUT;
-			/* we are requiring a recent enough libdrm version */
-			surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
-			surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
-			tiling = radeon_get_pixmap_tiling_flags(pixmap);
-			if (tiling & RADEON_TILING_MICRO) {
-				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
-				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-			}
-			if (tiling & RADEON_TILING_MACRO) {
-				surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
-				surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-			}
-			if (radeon_surface_best(info->surf_man, surface)) {
-				goto fail;
-			}
-			if (radeon_surface_init(info->surf_man, surface)) {
-				goto fail;
-			}
+	if (info->surf_man && !info->use_glamor) {
+		struct radeon_surface *surface = radeon_get_pixmap_surface(pixmap);
+
+		memset(surface, 0, sizeof(struct radeon_surface));
+		surface->npix_x = width;
+		surface->npix_y = height;
+		surface->npix_z = 1;
+		surface->blk_w = 1;
+		surface->blk_h = 1;
+		surface->blk_d = 1;
+		surface->array_size = 1;
+		surface->last_level = 0;
+		surface->bpe = bpp / 8;
+		surface->nsamples = 1;
+		surface->flags = RADEON_SURF_SCANOUT;
+		/* we are requiring a recent enough libdrm version */
+		surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
+		surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
+		surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
+		tiling = radeon_get_pixmap_tiling_flags(pixmap);
+
+		if (tiling & RADEON_TILING_MICRO) {
+			surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
 		}
+		if (tiling & RADEON_TILING_MACRO) {
+			surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+			surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
+		}
+
+		if (radeon_surface_best(info->surf_man, surface))
+			goto fail;
+
+		if (radeon_surface_init(info->surf_man, surface))
+			goto fail;
 	}
 
 	if (!info->use_glamor ||
@@ -2272,7 +2271,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	int cpp = info->pixel_bytes;
 	struct radeon_bo *front_bo;
 	struct radeon_surface surface;
-	struct radeon_surface *psurface;
 	uint32_t tiling_flags = 0, base_align;
 	PixmapPtr ppix = screen->GetScreenPixmap(screen);
 	void *fb_shadow;
@@ -2353,7 +2351,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		default:
 			break;
 		}
-		info->front_surface = surface;
+		if (!info->use_glamor)
+			info->front_surface = surface;
 	}
 
 	xf86DrvMsg(scrn->scrnIndex, X_INFO,
@@ -2394,8 +2393,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	    radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
 
 	if (!info->r600_shadow_fb) {
-		psurface = radeon_get_pixmap_surface(ppix);
-		*psurface = info->front_surface;
+		if (info->surf_man && !info->use_glamor)
+			*radeon_get_pixmap_surface(ppix) = info->front_surface;
 		screen->ModifyPixmapHeader(ppix,
 					   width, height, -1, -1, pitch, NULL);
 	} else {

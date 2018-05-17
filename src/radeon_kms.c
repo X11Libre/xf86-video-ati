@@ -326,7 +326,6 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info   = RADEONPTR(pScrn);
     PixmapPtr pixmap;
-    struct radeon_surface *surface;
 
     pScreen->CreateScreenResources = info->CreateScreenResources;
     if (!(*pScreen->CreateScreenResources)(pScreen))
@@ -364,10 +363,9 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	    PixmapPtr pPix = pScreen->GetScreenPixmap(pScreen);
 	    if (!radeon_set_pixmap_bo(pPix, info->front_bo))
 		return FALSE;
-	    surface = radeon_get_pixmap_surface(pPix);
-	    if (surface) {
-		*surface = info->front_surface;
-	    }
+
+	    if (info->surf_man && !info->use_glamor)
+		*radeon_get_pixmap_surface(pPix) = info->front_surface;
 	}
     }
 
@@ -2758,7 +2756,8 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 		default:
 			break;
 		}
-		info->front_surface = surface;
+		if (!info->use_glamor)
+		    info->front_surface = surface;
 	}
     {
 	int cursor_size;
