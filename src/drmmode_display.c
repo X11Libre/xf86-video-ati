@@ -135,7 +135,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	if (!radeon_set_pixmap_bo(pixmap, bo))
 		goto fail;
 
-	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	if (info->surf_man) {
 		surface = radeon_get_pixmap_surface(pixmap);
 		if (surface) {
 			memset(surface, 0, sizeof(struct radeon_surface));
@@ -2301,7 +2301,8 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	aligned_height = RADEON_ALIGN(height, drmmode_get_height_align(scrn, tiling_flags));
 	screen_size = RADEON_ALIGN(pitch * aligned_height, RADEON_GPU_PAGE_SIZE);
 	base_align = 4096;
-	if (info->ChipFamily >= CHIP_FAMILY_R600) {
+
+	if (info->surf_man) {
 		memset(&surface, 0, sizeof(struct radeon_surface));
 		surface.npix_x = width;
 		surface.npix_y = height;

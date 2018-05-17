@@ -2228,7 +2228,16 @@ Bool RADEONScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
     if (info->r600_shadow_fb == FALSE)
         info->directRenderingEnabled = radeon_dri2_screen_init(pScreen);
 
-    info->surf_man = radeon_surface_manager_new(pRADEONEnt->fd);
+    if (info->ChipFamily >= CHIP_FAMILY_R600) {
+	info->surf_man = radeon_surface_manager_new(pRADEONEnt->fd);
+
+	if (!info->surf_man) {
+	    xf86DrvMsg(pScreen->myNum, X_ERROR,
+		       "Failed to initialize surface manager\n");
+	    return FALSE;
+	}
+    }
+
     if (!info->bufmgr)
         info->bufmgr = radeon_bo_manager_gem_ctor(pRADEONEnt->fd);
     if (!info->bufmgr) {
@@ -2694,12 +2703,7 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     pitch = RADEON_ALIGN(pScrn->virtualX, drmmode_get_pitch_align(pScrn, cpp, tiling_flags)) * cpp;
     screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
     base_align = drmmode_get_base_align(pScrn, cpp, tiling_flags);
-	if (info->ChipFamily >= CHIP_FAMILY_R600) {
-		if(!info->surf_man) {
-			xf86DrvMsg(pScreen->myNum, X_ERROR,
-				   "failed to initialise surface manager\n");
-			return FALSE;
-		}
+	if (info->surf_man) {
 		memset(&surface, 0, sizeof(struct radeon_surface));
 		surface.npix_x = pScrn->virtualX;
 		surface.npix_y = pScrn->virtualY;

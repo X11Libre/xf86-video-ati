@@ -107,9 +107,10 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(pScrn, cpp, tiling)) * cpp;
     base_align = drmmode_get_base_align(pScrn, cpp, tiling);
     size = RADEON_ALIGN(heighta * pitch, RADEON_GPU_PAGE_SIZE);
-    memset(&surface, 0, sizeof(struct radeon_surface));
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
+    if (info->surf_man) {
+	memset(&surface, 0, sizeof(struct radeon_surface));
+
 		if (width) {
 			surface.npix_x = width;
 			/* need to align height to 8 for old kernel */
@@ -340,7 +341,7 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     if (!ret)
 	goto error;
 
-    if (info->ChipFamily >= CHIP_FAMILY_R600 && info->surf_man) {
+    if (info->surf_man) {
 	uint32_t tiling_flags;
 
 #ifdef USE_GLAMOR
