@@ -55,7 +55,7 @@ radeon_glamor_prepare_access_cpu(ScrnInfoPtr scrn, RADEONInfoPtr info,
 				 PixmapPtr pixmap, struct radeon_pixmap *priv,
 				 Bool need_sync)
 {
-	struct radeon_bo *bo = priv->bo;
+	struct radeon_buffer *bo = priv->bo;
 	int ret;
 
 	if (!pixmap->devPrivate.ptr) {
@@ -65,7 +65,7 @@ radeon_glamor_prepare_access_cpu(ScrnInfoPtr scrn, RADEONInfoPtr info,
 			info->gpu_flushed++;
 		}
 
-		ret = radeon_bo_map(bo, 1);
+		ret = radeon_bo_map(bo->bo.radeon, 1);
 		if (ret) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "%s: bo map (tiling_flags %d) failed: %s\n",
@@ -75,7 +75,7 @@ radeon_glamor_prepare_access_cpu(ScrnInfoPtr scrn, RADEONInfoPtr info,
 			return FALSE;
 		}
 
-		pixmap->devPrivate.ptr = bo->ptr;
+		pixmap->devPrivate.ptr = bo->bo.radeon->ptr;
 	} else if (need_sync)
 		radeon_finish(scrn, bo);
 

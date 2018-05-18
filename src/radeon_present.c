@@ -422,7 +422,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 	return;
 
 modeset:
-    radeon_finish(scrn, info->front_bo);
+    radeon_finish(scrn, info->front_buffer);
     for (i = 0; i < config->num_crtc; i++) {
 	xf86CrtcPtr crtc = config->crtc[i];
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;

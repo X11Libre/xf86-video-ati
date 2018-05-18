@@ -83,6 +83,7 @@
 #include "radeon_dri2.h"
 #include "drmmode_display.h"
 #include "radeon_surface.h"
+#include "radeon_bo_helper.h"
 
 				/* Render support */
 #ifdef RENDER
@@ -300,14 +301,13 @@ radeon_dirty_src_equals(PixmapDirtyUpdatePtr dirty, PixmapPtr pixmap)
 #define CURSOR_WIDTH_CIK	128
 #define CURSOR_HEIGHT_CIK	128
 
-
 #ifdef USE_GLAMOR
 
 struct radeon_pixmap {
 	uint_fast32_t gpu_read;
 	uint_fast32_t gpu_write;
 
-	struct radeon_bo *bo;
+	struct radeon_buffer *bo;
 	struct drmmode_fb *fb;
 
 	uint32_t tiling_flags;
@@ -333,7 +333,7 @@ static inline void radeon_set_pixmap_private(PixmapPtr pixmap, struct radeon_pix
 
 
 struct radeon_exa_pixmap_priv {
-    struct radeon_bo *bo;
+    struct radeon_buffer *bo;
     struct drmmode_fb *fb;
     uint32_t tiling_flags;
     struct radeon_surface surface;
@@ -567,7 +567,7 @@ typedef struct {
 
     void (*reemit_current2d)(ScrnInfoPtr pScrn, int op); // emit the current 2D state into the IB 
     struct radeon_2d_state state_2d;
-    struct radeon_bo *front_bo;
+    struct radeon_buffer *front_buffer;
     struct radeon_bo_manager *bufmgr;
     struct radeon_cs_manager *csm;
     struct radeon_cs *cs;
@@ -713,7 +713,7 @@ static inline struct radeon_surface *radeon_get_pixmap_surface(PixmapPtr pPix)
 
 uint32_t radeon_get_pixmap_tiling(PixmapPtr pPix);
 
-static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
+static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(pPix->drawable.pScreen);
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
@@ -732,7 +732,7 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 		if (priv->bo == bo)
 		    return TRUE;
 
-		radeon_bo_unref(priv->bo);
+		radeon_buffer_unref(&priv->bo);
 	    }
 
 	    drmmode_fb_reference(pRADEONEnt->fd, &priv->fb, NULL);
@@ -752,10 +752,10 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 		    return FALSE;
 	    }
 
-	    radeon_bo_ref(bo);
+	    radeon_buffer_ref(bo);
 	    priv->bo = bo;
 
-	    radeon_bo_get_tiling(bo, &priv->tiling_flags, &pitch);
+	    radeon_bo_get_tiling(bo->bo.radeon, &priv->tiling_flags, &pitch);
 	}
 
 	radeon_set_pixmap_private(pPix, priv);
@@ -769,15 +769,14 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
 	if (driver_priv) {
 	    uint32_t pitch;
 
-	    if (driver_priv->bo)
-		radeon_bo_unref(driver_priv->bo);
-
+	    radeon_buffer_unref(&driver_priv->bo);
 	    drmmode_fb_reference(pRADEONEnt->fd, &driver_priv->fb, NULL);
 
-	    radeon_bo_ref(bo);
+	    radeon_buffer_ref(bo);
 	    driver_priv->bo = bo;
 
-	    radeon_bo_get_tiling(bo, &driver_priv->tiling_flags, &pitch);
+	    radeon_bo_get_tiling(bo->bo.radeon, &driver_priv->tiling_flags,
+				 &pitch);
 	    return TRUE;
 	}
 
@@ -785,7 +784,7 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_bo *bo)
     }
 }
 
-static inline struct radeon_bo *radeon_get_pixmap_bo(PixmapPtr pPix)
+static inline struct radeon_buffer *radeon_get_pixmap_bo(PixmapPtr pPix)
 {
 #ifdef USE_GLAMOR
     RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(pPix->drawable.pScreen));
@@ -1004,7 +1003,7 @@ do {									\
 #define EMIT_OFFSET(reg, value, pPix, rd, wd) do {		\
     driver_priv = exaGetPixmapDriverPrivate(pPix);		\
     OUT_RING_REG((reg), (value));				\
-    OUT_RING_RELOC(driver_priv->bo, (rd), (wd));			\
+    OUT_RING_RELOC(driver_priv->bo->bo.radeon, (rd), (wd));	\
     } while(0)
 
 #define EMIT_READ_OFFSET(reg, value, pPix) EMIT_OFFSET(reg, value, pPix, (RADEON_GEM_DOMAIN_VRAM | RADEON_GEM_DOMAIN_GTT), 0)
@@ -1018,7 +1017,7 @@ do {									\
 #define EMIT_COLORPITCH(reg, value, pPix) do {			\
     driver_priv = exaGetPixmapDriverPrivate(pPix);			\
     OUT_RING_REG((reg), value);					\
-    OUT_RING_RELOC(driver_priv->bo, 0, RADEON_GEM_DOMAIN_VRAM);		\
+    OUT_RING_RELOC(driver_priv->bo->bo.radeon, 0, RADEON_GEM_DOMAIN_VRAM);	\
 } while(0)
 
 static __inline__ void RADEON_SYNC(RADEONInfoPtr info, ScrnInfoPtr pScrn)

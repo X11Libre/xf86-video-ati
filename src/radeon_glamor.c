@@ -62,7 +62,7 @@ radeon_glamor_create_screen_resources(ScreenPtr screen)
 #endif
 
 	if (!glamor_egl_create_textured_screen(screen,
-					       info->front_bo->handle,
+					       info->front_buffer->bo.radeon->handle,
 					       scrn->displayWidth *
 					       info->pixel_bytes))
 		return FALSE;
@@ -166,7 +166,7 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 Bool
 radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_pixmap *priv)
 {
-	return glamor_egl_create_textured_pixmap(pixmap, priv->bo->handle,
+	return glamor_egl_create_textured_pixmap(pixmap, priv->bo->bo.radeon->handle,
 						 pixmap->devKind);
 }
 
@@ -180,10 +180,10 @@ static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 
 	if (pixmap->refcnt == 1) {
 		if (pixmap->devPrivate.ptr) {
-			struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+			struct radeon_buffer *bo = radeon_get_pixmap_bo(pixmap);
 
 			if (bo)
-				radeon_bo_unmap(bo);
+				radeon_bo_unmap(bo->bo.radeon);
 		}
 
 #ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
@@ -289,7 +289,7 @@ fallback_glamor:
 	 * afterwards.
 	 */
 	new_pixmap = glamor_create_pixmap(screen, w, h,	depth, usage);
-	radeon_bo_unref(priv->bo);
+	radeon_buffer_unref(&priv->bo);
 fallback_priv:
 	free(priv);
 fallback_pixmap:

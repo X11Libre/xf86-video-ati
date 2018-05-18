@@ -72,7 +72,7 @@ struct drmmode_fb {
 };
 
 struct drmmode_scanout {
-    struct radeon_bo *bo;
+    struct radeon_buffer *bo;
     PixmapPtr pixmap;
     int width, height;
 };

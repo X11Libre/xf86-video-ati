@@ -111,7 +111,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
 					  int pitch,
-					  struct radeon_bo *bo)
+					  struct radeon_buffer *bo)
 {
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
@@ -379,7 +379,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	PixmapPtr pixmap = info->fbcon_pixmap;
-	struct radeon_bo *bo;
+	struct radeon_buffer *bo;
 	drmModeFBPtr fbcon;
 	struct drm_gem_flink flink;
 
@@ -402,10 +402,18 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 		goto out_free_fb;
 	}
 
-	bo = radeon_bo_open(drmmode->bufmgr, flink.name, 0, 0, 0, 0);
+	bo = calloc(1, sizeof(struct radeon_buffer));
+	if (!bo) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+			   "Couldn't allocate BO for fbcon handle\n");
+		goto out_free_fb;
+	}
+	bo->ref_count = 1;
+
+	bo->bo.radeon = radeon_bo_open(drmmode->bufmgr, flink.name, 0, 0, 0, 0);
 	if (bo == NULL) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-			   "Couldn't allocate bo for fbcon handle\n");
+			   "Couldn't open BO for fbcon handle\n");
 		goto out_free_fb;
 	}
 
@@ -413,7 +421,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 					  fbcon->depth, fbcon->bpp, fbcon->pitch,
 					  bo);
 	info->fbcon_pixmap = pixmap;
-	radeon_bo_unref(bo);
+	radeon_buffer_unref(&bo);
 out_free_fb:
 	drmModeFreeFB(fbcon);
 	return pixmap;
@@ -496,11 +504,7 @@ drmmode_crtc_scanout_destroy(drmmode_ptr drmmode,
 		scanout->pixmap = NULL;
 	}
 
-	if (scanout->bo) {
-		radeon_bo_unmap(scanout->bo);
-		radeon_bo_unref(scanout->bo);
-		scanout->bo = NULL;
-	}
+	radeon_buffer_unref(&scanout->bo);
 }
 
 void
@@ -913,7 +917,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			fb = radeon_fb_create(pScrn, pRADEONEnt->fd,
 					      pScrn->virtualX, pScrn->virtualY,
 					      pScrn->displayWidth * info->pixel_bytes,
-					      info->front_bo->handle);
+					      info->front_buffer->bo.radeon->handle);
 			/* Prevent refcnt of ad-hoc FBs from reaching 2 */
 			drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
 			drmmode_crtc->fb = fb;
@@ -2232,14 +2236,12 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
 	RADEONInfoPtr info = RADEONPTR(scrn);
-	struct radeon_bo *old_front = NULL;
+	struct radeon_buffer *old_front = NULL;
 	ScreenPtr   screen = xf86ScrnToScreen(scrn);
 	int	    i, pitch, old_width, old_height, old_pitch;
-	int aligned_height;
-	uint32_t screen_size;
+	int usage = CREATE_PIXMAP_USAGE_BACKING_PIXMAP;
 	int cpp = info->pixel_bytes;
-	struct radeon_surface surface;
-	uint32_t tiling_flags = 0, base_align;
+	uint32_t tiling_flags;
 	PixmapPtr ppix = screen->GetScreenPixmap(screen);
 	void *fb_shadow;
 
@@ -2247,70 +2249,33 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		return TRUE;
 
 	if (info->allowColorTiling && !info->shadow_primary) {
-		if (info->ChipFamily >= CHIP_FAMILY_R600) {
-			if (info->allowColorTiling2D) {
-				tiling_flags |= RADEON_TILING_MACRO;
-			} else {
-				tiling_flags |= RADEON_TILING_MICRO;
-			}
-		} else
-			tiling_flags |= RADEON_TILING_MACRO;
+		if (info->ChipFamily < CHIP_FAMILY_R600 || info->allowColorTiling2D)
+			usage |= RADEON_CREATE_PIXMAP_TILING_MACRO;
+		else
+			usage |= RADEON_CREATE_PIXMAP_TILING_MICRO;
 	}
 
-	pitch = RADEON_ALIGN(width, drmmode_get_pitch_align(scrn, cpp, tiling_flags)) * cpp;
-	aligned_height = RADEON_ALIGN(height, drmmode_get_height_align(scrn, tiling_flags));
-	screen_size = RADEON_ALIGN(pitch * aligned_height, RADEON_GPU_PAGE_SIZE);
-	base_align = 4096;
-
-	if (info->surf_man) {
-		if (!radeon_surface_initialize(info, &surface, width, height,
-					       cpp, tiling_flags, 0))
-			return FALSE;
-
-		screen_size = surface.bo_size;
-		base_align = surface.bo_alignment;
-		pitch = surface.level[0].pitch_bytes;
-		tiling_flags = 0;
-		switch (surface.level[0].mode) {
-		case RADEON_SURF_MODE_2D:
-			tiling_flags |= RADEON_TILING_MACRO;
-			tiling_flags |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
-			tiling_flags |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
-			tiling_flags |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
-			if (surface.tile_split)
-				tiling_flags |= eg_tile_split(surface.tile_split)
-						<< RADEON_TILING_EG_TILE_SPLIT_SHIFT;
-			break;
-		case RADEON_SURF_MODE_1D:
-			tiling_flags |= RADEON_TILING_MICRO;
-			break;
-		default:
-			break;
-		}
-		if (!info->use_glamor)
-			info->front_surface = surface;
-	}
-
-	xf86DrvMsg(scrn->scrnIndex, X_INFO,
-		   "Allocate new frame buffer %dx%d stride %d\n",
-		   width, height, pitch / cpp);
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "Allocate new frame buffer %dx%d\n",
+		   width, height);
 
 	old_width = scrn->virtualX;
 	old_height = scrn->virtualY;
 	old_pitch = scrn->displayWidth;
-	old_front = info->front_bo;
+	old_front = info->front_buffer;
 
 	scrn->virtualX = width;
 	scrn->virtualY = height;
-	scrn->displayWidth = pitch / cpp;
 
-	info->front_bo = radeon_bo_open(info->bufmgr, 0, screen_size, base_align,
-					info->shadow_primary ?
-					RADEON_GEM_DOMAIN_GTT :
-					RADEON_GEM_DOMAIN_VRAM,
-					tiling_flags ? RADEON_GEM_NO_CPU_ACCESS : 0);
-	if (!info->front_bo)
+	info->front_buffer = radeon_alloc_pixmap_bo(scrn, scrn->virtualX,
+						    scrn->virtualY, scrn->depth,
+						    usage, scrn->bitsPerPixel,
+						    &pitch,
+						    &info->front_surface,
+						    &tiling_flags);
+	if (!info->front_buffer)
 		goto fail;
+
+	scrn->displayWidth = pitch / cpp;
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
 	switch (cpp) {
@@ -2326,7 +2291,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	    tiling_flags |= RADEON_TILING_SURFACE;
 #endif
 	if (tiling_flags)
-	    radeon_bo_set_tiling(info->front_bo, tiling_flags, pitch);
+	    radeon_bo_set_tiling(info->front_buffer->bo.radeon, tiling_flags, pitch);
 
 	if (!info->r600_shadow_fb) {
 		if (info->surf_man && !info->use_glamor)
@@ -2334,9 +2299,9 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		screen->ModifyPixmapHeader(ppix,
 					   width, height, -1, -1, pitch, NULL);
 	} else {
-		if (radeon_bo_map(info->front_bo, 1))
+		if (radeon_bo_map(info->front_buffer->bo.radeon, 1))
 			goto fail;
-		fb_shadow = calloc(1, screen_size);
+		fb_shadow = calloc(1, pitch * scrn->virtualY);
 		if (fb_shadow == NULL)
 			goto fail;
 		free(info->fb_shadow);
@@ -2350,12 +2315,12 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		radeon_glamor_create_screen_resources(scrn->pScreen);
 
 	if (!info->r600_shadow_fb) {
-		if (!radeon_set_pixmap_bo(ppix, info->front_bo))
+		if (!radeon_set_pixmap_bo(ppix, info->front_buffer))
 			goto fail;
 	}
 
 	radeon_pixmap_clear(ppix);
-	radeon_finish(scrn, info->front_bo);
+	radeon_finish(scrn, info->front_buffer);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];
@@ -2367,16 +2332,14 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 				       crtc->rotation, crtc->x, crtc->y);
 	}
 
-	if (old_front)
-		radeon_bo_unref(old_front);
+	radeon_buffer_unref(&old_front);
 
-	radeon_kms_update_vram_limit(scrn, screen_size);
+	radeon_kms_update_vram_limit(scrn, pitch * scrn->virtualY);
 	return TRUE;
 
  fail:
-	if (info->front_bo)
-		radeon_bo_unref(info->front_bo);
-	info->front_bo = old_front;
+	radeon_buffer_unref(&info->front_buffer);
+	info->front_buffer = old_front;
 	scrn->virtualX = old_width;
 	scrn->virtualY = old_height;
 	scrn->displayWidth = old_pitch;

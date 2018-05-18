@@ -79,7 +79,7 @@ static DevPrivateKeyRec dri2_window_private_key_rec;
 static Bool
 radeon_get_flink_name(RADEONEntPtr pRADEONEnt, PixmapPtr pixmap, uint32_t *name)
 {
-    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap)->bo.radeon;
     struct drm_gem_flink flink;
 
     if (bo)
@@ -719,7 +719,7 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
 {
     struct dri2_buffer_priv *front_priv = front->driverPrivate;
     struct dri2_buffer_priv *back_priv = back->driverPrivate;
-    struct radeon_bo *front_bo, *back_bo;
+    struct radeon_buffer *front_buffer, *back_buffer;
     ScreenPtr screen;
     RADEONInfoPtr info;
     RegionRec region;
@@ -737,19 +737,19 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
     back->name = tmp;
 
     /* Swap pixmap bos */
-    front_bo = radeon_get_pixmap_bo(front_priv->pixmap);
-    back_bo = radeon_get_pixmap_bo(back_priv->pixmap);
-    radeon_set_pixmap_bo(front_priv->pixmap, back_bo);
-    radeon_set_pixmap_bo(back_priv->pixmap, front_bo);
+    front_buffer = radeon_get_pixmap_bo(front_priv->pixmap);
+    back_buffer = radeon_get_pixmap_bo(back_priv->pixmap);
+    radeon_set_pixmap_bo(front_priv->pixmap, back_buffer);
+    radeon_set_pixmap_bo(back_priv->pixmap, front_buffer);
 
     /* Do we need to update the Screen? */
     screen = draw->pScreen;
     info = RADEONPTR(xf86ScreenToScrn(screen));
-    if (front_bo == info->front_bo) {
-	radeon_bo_ref(back_bo);
-	radeon_bo_unref(info->front_bo);
-	info->front_bo = back_bo;
-	radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), back_bo);
+    if (front_buffer == info->front_buffer) {
+	radeon_buffer_ref(back_buffer);
+	radeon_buffer_unref(&info->front_buffer);
+	info->front_buffer = back_buffer;
+	radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), back_buffer);
     }
 
     radeon_glamor_exchange_buffers(front_priv->pixmap, back_priv->pixmap);

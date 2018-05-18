@@ -145,7 +145,7 @@ radeon_surface_initialize(RADEONInfoPtr info, struct radeon_surface *surface,
 /* Calculate appropriate tiling and pitch for a pixmap and allocate a BO that
  * can hold it.
  */
-struct radeon_bo*
+struct radeon_buffer *
 radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 		       int usage_hint, int bitsPerPixel, int *new_pitch,
 		       struct radeon_surface *new_surface, uint32_t *new_tiling)
@@ -156,7 +156,7 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     int cpp = bitsPerPixel / 8;
     uint32_t tiling = 0, flags = 0;
     struct radeon_surface surface;
-    struct radeon_bo *bo;
+    struct radeon_buffer *bo;
     int domain = RADEON_GEM_DOMAIN_VRAM;
     if (usage_hint) {
 	if (info->allowColorTiling) {
@@ -225,10 +225,15 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     if (tiling)
 	flags |= RADEON_GEM_NO_CPU_ACCESS;
 
-    bo = radeon_bo_open(info->bufmgr, 0, size, base_align,
-			domain, flags);
+    bo = calloc(1, sizeof(struct radeon_buffer));
+    if (!bo)
+	return NULL;
 
-    if (bo && tiling && radeon_bo_set_tiling(bo, tiling, pitch) == 0)
+    bo->ref_count = 1;
+    bo->bo.radeon = radeon_bo_open(info->bufmgr, 0, size, base_align,
+				   domain, flags);
+
+    if (bo && tiling && radeon_bo_set_tiling(bo->bo.radeon, tiling, pitch) == 0)
 	*new_tiling = tiling;
 
     *new_pitch = pitch;
@@ -238,10 +243,10 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 
 /* Flush and wait for the BO to become idle */
 void
-radeon_finish(ScrnInfoPtr scrn, struct radeon_bo *bo)
+radeon_finish(ScrnInfoPtr scrn, struct radeon_buffer *bo)
 {
     radeon_cs_flush_indirect(scrn);
-    radeon_bo_wait(bo);
+    radeon_bo_wait(bo->bo.radeon);
 }
 
 
@@ -269,7 +274,7 @@ radeon_pixmap_clear(PixmapPtr pixmap)
 /* Get GEM handle for the pixmap */
 Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 {
-    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap);
+    struct radeon_buffer *bo = radeon_get_pixmap_bo(pixmap);
 #ifdef USE_GLAMOR
     ScreenPtr screen = pixmap->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -278,7 +283,7 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
 #endif
 
     if (bo) {
-	*handle = bo->handle;
+	*handle = bo->bo.radeon->handle;
 	return TRUE;
     }
 
@@ -366,15 +371,20 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
     RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_bo *bo;
+    struct radeon_buffer *bo;
     int ihandle = (int)(long)fd_handle;
     uint32_t size = ppix->devKind * ppix->drawable.height;
     Bool ret = FALSE;
 
-    bo = radeon_gem_bo_open_prime(info->bufmgr, ihandle, size);
+    bo = (struct radeon_buffer *)calloc(1, sizeof(struct radeon_buffer));
+    if (!bo)
+	goto error;
+
+    bo->bo.radeon = radeon_gem_bo_open_prime(info->bufmgr, ihandle, size);
     if (!bo)
         goto error;
 
+    bo->ref_count = 1;
     ret = radeon_set_pixmap_bo(ppix, bo);
     if (!ret)
 	goto error;
@@ -404,6 +414,6 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     close(ihandle);
     /* we have a reference from the alloc and one from set pixmap bo,
        drop one */
-    radeon_bo_unref(bo);
+    radeon_buffer_unref(&bo);
     return ret;
 }
