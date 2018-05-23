@@ -2044,7 +2044,6 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->MarkSync = R600MarkSync;
     info->accel_state->exa->WaitMarker = R600Sync;
 
-    info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
     info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
     info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;

@@ -345,7 +345,6 @@ R600SetAccelState(ScrnInfoPtr pScrn,
 
 extern Bool RADEONPrepareAccess_CS(PixmapPtr pPix, int index);
 extern void RADEONFinishAccess_CS(PixmapPtr pPix, int index);
-extern void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align);
 extern void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 				    int depth, int usage_hint, int bitsPerPixel,
 				    int *new_pitch);

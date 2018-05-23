@@ -2065,7 +2065,6 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->MarkSync = EVERGREENMarkSync;
     info->accel_state->exa->WaitMarker = EVERGREENSync;
 
-    info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
     info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
     info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;

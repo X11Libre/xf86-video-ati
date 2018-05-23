@@ -638,7 +638,6 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
     }
 #endif
 
-    info->accel_state->exa->CreatePixmap = RADEONEXACreatePixmap;
     info->accel_state->exa->DestroyPixmap = RADEONEXADestroyPixmap;
     info->accel_state->exa->PixmapIsOffscreen = RADEONEXAPixmapIsOffscreen;
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;

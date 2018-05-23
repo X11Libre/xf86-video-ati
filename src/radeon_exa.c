@@ -235,35 +235,6 @@ void RADEONFinishAccess_CS(PixmapPtr pPix, int index)
 }
 
 
-void *RADEONEXACreatePixmap(ScreenPtr pScreen, int size, int align)
-{
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    RADEONInfoPtr info = RADEONPTR(pScrn);
-    struct radeon_exa_pixmap_priv *new_priv;
-
-    if (size != 0 && !info->exa_force_create &&
-	info->exa_pixmaps == FALSE)
-        return NULL;
-	    
-    new_priv = calloc(1, sizeof(struct radeon_exa_pixmap_priv));
-    if (!new_priv)
-	return NULL;
-
-    if (size == 0)
-	return new_priv;
-
-    new_priv->bo = radeon_bo_open(info->bufmgr, 0, size, align,
-				  RADEON_GEM_DOMAIN_VRAM, 0);
-    if (!new_priv->bo) {
-	free(new_priv);
-	ErrorF("Failed to alloc memory\n");
-	return NULL;
-    }
-    
-    return new_priv;
-
-}
-
 void *RADEONEXACreatePixmap2(ScreenPtr pScreen, int width, int height,
 			     int depth, int usage_hint, int bitsPerPixel,
 			     int *new_pitch)
