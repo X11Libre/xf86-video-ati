@@ -2702,38 +2702,11 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
     screen_size = RADEON_ALIGN(pScrn->virtualY, drmmode_get_height_align(pScrn, tiling_flags)) * pitch;
     base_align = drmmode_get_base_align(pScrn, cpp, tiling_flags);
 	if (info->surf_man) {
-		memset(&surface, 0, sizeof(struct radeon_surface));
-		surface.npix_x = pScrn->virtualX;
-		surface.npix_y = pScrn->virtualY;
-		surface.npix_z = 1;
-		surface.blk_w = 1;
-		surface.blk_h = 1;
-		surface.blk_d = 1;
-		surface.array_size = 1;
-		surface.last_level = 0;
-		surface.bpe = cpp;
-		surface.nsamples = 1;
-		surface.flags = RADEON_SURF_SCANOUT;
-		/* we are requiring a recent enough libdrm version */
-		surface.flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
-		surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-		surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
-		if (tiling_flags & RADEON_TILING_MICRO) {
-			surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-		}
-		if (tiling_flags & RADEON_TILING_MACRO) {
-			surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-		}
-		if (radeon_surface_best(info->surf_man, &surface)) {
+		if (!radeon_surface_initialize(info, &surface, pScrn->virtualX,
+					       pScrn->virtualY, cpp,
+					       tiling_flags, 0)) {
 			xf86DrvMsg(pScreen->myNum, X_ERROR,
-				   "radeon_surface_best failed\n");
-			return FALSE;
-		}
-		if (radeon_surface_init(info->surf_man, &surface)) {
-			xf86DrvMsg(pScreen->myNum, X_ERROR,
-				   "radeon_surface_init failed\n");
+				   "radeon_surface_initialize failed\n");
 			return FALSE;
 		}
 		pitch = surface.level[0].pitch_bytes;

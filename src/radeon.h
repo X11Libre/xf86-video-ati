@@ -643,6 +643,11 @@ extern void RADEONInit3DEngine(ScrnInfoPtr pScrn);
 extern int radeon_cs_space_remaining(ScrnInfoPtr pScrn);
 
 /* radeon_bo_helper.c */
+extern Bool
+radeon_surface_initialize(RADEONInfoPtr info, struct radeon_surface *surface,
+			  int width, int height, int cpp, uint32_t tiling_flags,
+			  int usage_hint);
+
 extern Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle);
 
 /* radeon_commonfuncs.c */

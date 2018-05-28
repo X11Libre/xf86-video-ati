@@ -59,6 +59,89 @@ static Bool RADEONMacroSwitch(int width, int height, int bpp,
     }
 }
 
+static unsigned eg_tile_split_opp(unsigned tile_split)
+{
+    switch (tile_split) {
+        case 0:     tile_split = 64;    break;
+        case 1:     tile_split = 128;   break;
+        case 2:     tile_split = 256;   break;
+        case 3:     tile_split = 512;   break;
+        default:
+        case 4:     tile_split = 1024;  break;
+        case 5:     tile_split = 2048;  break;
+        case 6:     tile_split = 4096;  break;
+    }
+    return tile_split;
+}
+
+Bool
+radeon_surface_initialize(RADEONInfoPtr info, struct radeon_surface *surface,
+			  int width, int height, int cpp, uint32_t tiling_flags,
+			  int usage_hint)
+{
+	memset(surface, 0, sizeof(struct radeon_surface));
+
+	surface->npix_x = width;
+	/* need to align height to 8 for old kernel */
+	surface->npix_y = RADEON_ALIGN(height, 8);
+	surface->npix_z = 1;
+	surface->blk_w = 1;
+	surface->blk_h = 1;
+	surface->blk_d = 1;
+	surface->array_size = 1;
+	surface->last_level = 0;
+	surface->bpe = cpp;
+	surface->nsamples = 1;
+	if (height < 128) {
+	    /* disable 2d tiling for small surface to work around
+	     * the fact that ddx align height to 8 pixel for old
+	     * obscure reason i can't remember
+	     */
+	    tiling_flags &= ~RADEON_TILING_MACRO;
+	}
+
+	surface->flags = RADEON_SURF_SCANOUT | RADEON_SURF_HAS_TILE_MODE_INDEX |
+	    RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
+
+	if (usage_hint & RADEON_CREATE_PIXMAP_SZBUFFER) {
+	    surface->flags |= RADEON_SURF_ZBUFFER;
+	    surface->flags |= RADEON_SURF_SBUFFER;
+	}
+
+	if ((tiling_flags & RADEON_TILING_MACRO)) {
+	    surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
+	} else if ((tiling_flags & RADEON_TILING_MICRO)) {
+	    surface->flags = RADEON_SURF_CLR(surface->flags, MODE);
+	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
+	} else
+	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
+
+	if (info->ChipFamily >= CHIP_FAMILY_CEDAR) {
+	    surface->bankw = (tiling_flags >> RADEON_TILING_EG_BANKW_SHIFT) &
+		RADEON_TILING_EG_BANKW_MASK;
+	    surface->bankh = (tiling_flags >> RADEON_TILING_EG_BANKH_SHIFT) &
+		RADEON_TILING_EG_BANKH_MASK;
+	    surface->tile_split = eg_tile_split_opp((tiling_flags >> RADEON_TILING_EG_TILE_SPLIT_SHIFT) &
+						    RADEON_TILING_EG_TILE_SPLIT_MASK);
+	    if (surface->flags & RADEON_SURF_SBUFFER) {
+		surface->stencil_tile_split =
+		    (tiling_flags >> RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT) &
+		    RADEON_TILING_EG_STENCIL_TILE_SPLIT_MASK;
+	    }
+	    surface->mtilea = (tiling_flags >> RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT) &
+		RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK;
+	}
+
+	if (radeon_surface_best(info->surf_man, surface))
+	    return FALSE;
+
+	if (radeon_surface_init(info->surf_man, surface))
+	    return FALSE;
+
+	return TRUE;
+}
+
 /* Calculate appropriate tiling and pitch for a pixmap and allocate a BO that
  * can hold it.
  */
@@ -108,76 +191,36 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     base_align = drmmode_get_base_align(pScrn, cpp, tiling);
     size = RADEON_ALIGN(heighta * pitch, RADEON_GPU_PAGE_SIZE);
 
-    if (info->surf_man) {
-	memset(&surface, 0, sizeof(struct radeon_surface));
+    if (width && info->surf_man) {
+	if (!radeon_surface_initialize(info, &surface, width, height, cpp,
+				       tiling, usage_hint))
+	    return NULL;
 
-		if (width) {
-			surface.npix_x = width;
-			/* need to align height to 8 for old kernel */
-			surface.npix_y = RADEON_ALIGN(height, 8);
-			surface.npix_z = 1;
-			surface.blk_w = 1;
-			surface.blk_h = 1;
-			surface.blk_d = 1;
-			surface.array_size = 1;
-			surface.last_level = 0;
-			surface.bpe = cpp;
-			surface.nsamples = 1;
-			if (height < 128) {
-				/* disable 2d tiling for small surface to work around
-				 * the fact that ddx align height to 8 pixel for old
-				 * obscure reason i can't remember
-				 */
-				tiling &= ~RADEON_TILING_MACRO;
-			}
-			surface.flags = RADEON_SURF_SCANOUT;
-			/* we are requiring a recent enough libdrm version */
-			surface.flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-			surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR, MODE);
-			if ((tiling & RADEON_TILING_MICRO)) {
-				surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-				surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-			}
-			if ((tiling & RADEON_TILING_MACRO)) {
-				surface.flags = RADEON_SURF_CLR(surface.flags, MODE);
-				surface.flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-			}
-			if (usage_hint & RADEON_CREATE_PIXMAP_SZBUFFER) {
-				surface.flags |= RADEON_SURF_ZBUFFER;
-				surface.flags |= RADEON_SURF_SBUFFER;
-			}
-			if (radeon_surface_best(info->surf_man, &surface)) {
-				return NULL;
-			}
-			if (radeon_surface_init(info->surf_man, &surface)) {
-				return NULL;
-			}
-			size = surface.bo_size;
-			base_align = surface.bo_alignment;
-			pitch = surface.level[0].pitch_bytes;
-			tiling = 0;
-			switch (surface.level[0].mode) {
-			case RADEON_SURF_MODE_2D:
-				tiling |= RADEON_TILING_MACRO;
-				tiling |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
-				tiling |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
-				tiling |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
-				if (surface.tile_split)
-					tiling |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
-				tiling |= eg_tile_split(surface.stencil_tile_split) << RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT;
-				break;
-			case RADEON_SURF_MODE_1D:
-				tiling |= RADEON_TILING_MICRO;
-				break;
-			default:
-				break;
-			}
-		}
-
-		if (new_surface)
-		    *new_surface = surface;
+	size = surface.bo_size;
+	base_align = surface.bo_alignment;
+	pitch = surface.level[0].pitch_bytes;
+	tiling = 0;
+	switch (surface.level[0].mode) {
+	case RADEON_SURF_MODE_2D:
+	    tiling |= RADEON_TILING_MACRO;
+	    tiling |= surface.bankw << RADEON_TILING_EG_BANKW_SHIFT;
+	    tiling |= surface.bankh << RADEON_TILING_EG_BANKH_SHIFT;
+	    tiling |= surface.mtilea << RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT;
+	    if (surface.tile_split)
+		tiling |= eg_tile_split(surface.tile_split) << RADEON_TILING_EG_TILE_SPLIT_SHIFT;
+	    if (surface.flags & RADEON_SURF_SBUFFER)
+		tiling |= eg_tile_split(surface.stencil_tile_split) << RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT;
+	    break;
+	case RADEON_SURF_MODE_1D:
+	    tiling |= RADEON_TILING_MICRO;
+	    break;
+	default:
+	    break;
 	}
+
+	if (new_surface)
+	    *new_surface = surface;
+    }
 
     if (tiling)
 	flags |= RADEON_GEM_NO_CPU_ACCESS;
@@ -308,21 +351,6 @@ Bool radeon_share_pixmap_backing(struct radeon_bo *bo, void **handle_p)
     return TRUE;
 }
 
-static unsigned eg_tile_split_opp(unsigned tile_split)
-{
-    switch (tile_split) {
-        case 0:     tile_split = 64;    break;
-        case 1:     tile_split = 128;   break;
-        case 2:     tile_split = 256;   break;
-        case 3:     tile_split = 512;   break;
-        default:
-        case 4:     tile_split = 1024;  break;
-        case 5:     tile_split = 2048;  break;
-        case 6:     tile_split = 4096;  break;
-    }
-    return tile_split;
-}
-
 Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 				      struct radeon_surface *surface)
 {
@@ -348,39 +376,14 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
 	driver_priv = exaGetPixmapDriverPrivate(ppix);
 	tiling_flags = driver_priv->tiling_flags;
 
-	memset(surface, 0, sizeof(struct radeon_surface));
+	if (!radeon_surface_initialize(info, surface, ppix->drawable.width,
+				       ppix->drawable.height,
+				       ppix->drawable.bitsPerPixel / 8,
+				       tiling_flags, 0)) {
+	    ret = FALSE;
+	    goto error;
+	}
 
-	surface->npix_x = ppix->drawable.width;
-	surface->npix_y = ppix->drawable.height;
-	surface->npix_z = 1;
-	surface->blk_w = 1;
-	surface->blk_h = 1;
-	surface->blk_d = 1;
-	surface->array_size = 1;
-	surface->bpe = ppix->drawable.bitsPerPixel / 8;
-	surface->nsamples = 1;
-	/* we are requiring a recent enough libdrm version */
-	surface->flags |= RADEON_SURF_HAS_TILE_MODE_INDEX;
-	surface->flags |= RADEON_SURF_SET(RADEON_SURF_TYPE_2D, TYPE);
-	if (tiling_flags & RADEON_TILING_MACRO)
-	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_2D, MODE);
-	else if (tiling_flags & RADEON_TILING_MICRO)
-	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_1D, MODE);
-	else
-	    surface->flags |= RADEON_SURF_SET(RADEON_SURF_MODE_LINEAR_ALIGNED, MODE);
-	surface->bankw = (tiling_flags >> RADEON_TILING_EG_BANKW_SHIFT) & RADEON_TILING_EG_BANKW_MASK;
-	surface->bankh = (tiling_flags >> RADEON_TILING_EG_BANKH_SHIFT) & RADEON_TILING_EG_BANKH_MASK;
-	surface->tile_split = eg_tile_split_opp((tiling_flags >> RADEON_TILING_EG_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_TILE_SPLIT_MASK);
-	surface->stencil_tile_split = (tiling_flags >> RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_STENCIL_TILE_SPLIT_MASK;
-	surface->mtilea = (tiling_flags >> RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK;
-	if (radeon_surface_best(info->surf_man, surface)) {
-	    ret = FALSE;
-	    goto error;
-	}
-	if (radeon_surface_init(info->surf_man, surface)) {
-	    ret = FALSE;
-	    goto error;
-	}
 	/* we have to post hack the surface to reflect the actual size
 	   of the shared pixmap */
 	surface->level[0].pitch_bytes = ppix->devKind;
