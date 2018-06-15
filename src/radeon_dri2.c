@@ -336,9 +336,7 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     Bool vsync;
     Bool translate = FALSE;
     int off_x = 0, off_y = 0;
-    PixmapPtr dst_ppix;
 
-    dst_ppix = dst_private->pixmap;
     src_drawable = &src_private->pixmap->drawable;
     dst_drawable = &dst_private->pixmap->drawable;
 
@@ -355,7 +353,6 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
 	    dst_drawable = DRI2UpdatePrime(drawable, dest_buffer);
 	    if (!dst_drawable)
 		return;
-	    dst_ppix = (PixmapPtr)dst_drawable;
 	    if (dst_drawable != drawable)
 		translate = TRUE;
 	} else
@@ -379,26 +376,7 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     (*gc->funcs->ChangeClip) (gc, CT_REGION, copy_clip, 0);
     ValidateGC(dst_drawable, gc);
 
-    /* If this is a full buffer swap or frontbuffer flush, throttle on the
-     * previous one
-     */
-    if (dst_private->attachment == DRI2BufferFrontLeft) {
-	if (REGION_NUM_RECTS(region) == 1) {
-	    BoxPtr extents = REGION_EXTENTS(pScreen, region);
-
-	    if (extents->x1 == 0 && extents->y1 == 0 &&
-		extents->x2 == drawable->width &&
-		extents->y2 == drawable->height) {
-		struct radeon_bo *bo = radeon_get_pixmap_bo(dst_ppix);
-
-		if (bo)
-		    radeon_bo_wait(bo);
-	    }
-	}
-    }
-
     vsync = info->accel_state->vsync;
-
     /* Driver option "SwapbuffersWait" defines if we vsync DRI2 copy-swaps. */ 
     info->accel_state->vsync = info->swapBuffersWait;
     info->accel_state->force = TRUE;
