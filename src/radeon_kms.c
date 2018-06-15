@@ -1681,8 +1681,7 @@ void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
     pScreen->WindowExposures(pWin, pRegion);
 #endif
 
-    radeon_cs_flush_indirect(pScrn);
-    radeon_bo_wait(info->front_bo);
+    radeon_finish(pScrn, info->front_bo);
     drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
 }
 
@@ -2585,8 +2584,7 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 		    radeon_pixmap_get_fb(black_scanout.pixmap);
 
 		radeon_pixmap_clear(black_scanout.pixmap);
-		radeon_cs_flush_indirect(pScrn);
-		radeon_bo_wait(black_scanout.bo);
+		radeon_finish(pScrn, black_scanout.bo);
 
 		for (i = 0; i < xf86_config->num_crtc; i++) {
 		    crtc = xf86_config->crtc[i];

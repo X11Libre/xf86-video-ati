@@ -726,8 +726,7 @@ drmmode_crtc_prime_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 					  gc, 0, 0, mode->HDisplay, mode->VDisplay,
 					  0, 0);
 			FreeScratchGC(gc);
-			radeon_cs_flush_indirect(scrn);
-			radeon_bo_wait(drmmode_crtc->scanout[0].bo);
+			radeon_finish(scrn, drmmode_crtc->scanout[0].bo);
 		}
 	}
 
@@ -785,8 +784,7 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 		radeon_scanout_do_update(crtc, scanout_id,
 					 screen->GetWindowPixmap(screen->root),
 					 *box);
-		radeon_cs_flush_indirect(scrn);
-		radeon_bo_wait(drmmode_crtc->scanout[scanout_id].bo);
+		radeon_finish(scrn, drmmode_crtc->scanout[scanout_id].bo);
 	}
 }
 
@@ -2240,7 +2238,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	int aligned_height;
 	uint32_t screen_size;
 	int cpp = info->pixel_bytes;
-	struct radeon_bo *front_bo;
 	struct radeon_surface surface;
 	uint32_t tiling_flags = 0, base_align;
 	PixmapPtr ppix = screen->GetScreenPixmap(screen);
@@ -2248,12 +2245,6 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	if (scrn->virtualX == width && scrn->virtualY == height)
 		return TRUE;
-
-	front_bo = info->front_bo;
-	radeon_cs_flush_indirect(scrn);
-
-	if (front_bo)
-		radeon_bo_wait(front_bo);
 
 	if (info->allowColorTiling && !info->shadow_primary) {
 		if (info->ChipFamily >= CHIP_FAMILY_R600) {
@@ -2364,8 +2355,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	}
 
 	radeon_pixmap_clear(ppix);
-	radeon_cs_flush_indirect(scrn);
-	radeon_bo_wait(info->front_bo);
+	radeon_finish(scrn, info->front_bo);
 
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 		xf86CrtcPtr crtc = xf86_config->crtc[i];

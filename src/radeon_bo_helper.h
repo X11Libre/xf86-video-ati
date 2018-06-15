@@ -29,6 +29,9 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 		       struct radeon_surface *new_surface, uint32_t *new_tiling);
 
 extern void
+radeon_finish(ScrnInfoPtr scrn, struct radeon_bo *bo);
+
+extern void
 radeon_pixmap_clear(PixmapPtr pixmap);
 
 extern uint32_t

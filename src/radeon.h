@@ -895,6 +895,7 @@ radeon_pixmap_get_fb(PixmapPtr pix)
     return *fb_ptr;
 }
 
+
 #define CP_PACKET0(reg, n)						\
 	(RADEON_CP_PACKET0 | ((n) << 16) | ((reg) >> 2))
 #define CP_PACKET1(reg0, reg1)						\

@@ -404,8 +404,6 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 	FLIP_ASYNC : FLIP_VSYNC;
     int i;
 
-    radeon_cs_flush_indirect(scrn);
-
     if (!radeon_present_check_unflip(scrn))
 	goto modeset;
 
@@ -424,7 +422,7 @@ radeon_present_unflip(ScreenPtr screen, uint64_t event_id)
 	return;
 
 modeset:
-    radeon_bo_wait(info->front_bo);
+    radeon_finish(scrn, info->front_bo);
     for (i = 0; i < config->num_crtc; i++) {
 	xf86CrtcPtr crtc = config->crtc[i];
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;

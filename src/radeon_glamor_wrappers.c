@@ -58,13 +58,13 @@ radeon_glamor_prepare_access_cpu(ScrnInfoPtr scrn, RADEONInfoPtr info,
 	struct radeon_bo *bo = priv->bo;
 	int ret;
 
-	/* When falling back to swrast, flush all pending operations */
-	if (need_sync) {
-		glamor_block_handler(scrn->pScreen);
-		info->gpu_flushed++;
-	}
-
 	if (!pixmap->devPrivate.ptr) {
+		/* When falling back to swrast, flush all pending operations */
+		if (need_sync) {
+			glamor_block_handler(scrn->pScreen);
+			info->gpu_flushed++;
+		}
+
 		ret = radeon_bo_map(bo, 1);
 		if (ret) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -76,11 +76,10 @@ radeon_glamor_prepare_access_cpu(ScrnInfoPtr scrn, RADEONInfoPtr info,
 		}
 
 		pixmap->devPrivate.ptr = bo->ptr;
-		info->gpu_synced = info->gpu_flushed;
-	} else if (need_sync) {
-		radeon_bo_wait(bo);
-		info->gpu_synced = info->gpu_flushed;
-	}
+	} else if (need_sync)
+		radeon_finish(scrn, bo);
+
+	info->gpu_synced = info->gpu_flushed;
 
 	return TRUE;
 }

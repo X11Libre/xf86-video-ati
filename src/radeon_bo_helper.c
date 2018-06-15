@@ -235,6 +235,16 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     return bo;
 }
 
+
+/* Flush and wait for the BO to become idle */
+void
+radeon_finish(ScrnInfoPtr scrn, struct radeon_bo *bo)
+{
+    radeon_cs_flush_indirect(scrn);
+    radeon_bo_wait(bo);
+}
+
+
 /* Clear the pixmap contents to black */
 void
 radeon_pixmap_clear(PixmapPtr pixmap)
