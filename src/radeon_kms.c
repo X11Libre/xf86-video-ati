@@ -985,8 +985,6 @@ radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 	FreeScratchGC(gc);
     }
 
-    radeon_cs_flush_indirect(scrn);
-
     info->accel_state->force = force;
 
     return TRUE;
@@ -1013,8 +1011,10 @@ radeon_scanout_update_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 	drmmode_crtc->dpms_mode == DPMSModeOn) {
 	if (radeon_scanout_do_update(crtc, drmmode_crtc->scanout_id,
 				     screen->GetWindowPixmap(screen->root),
-				     region->extents))
+				     region->extents)) {
+	    radeon_cs_flush_indirect(crtc->scrn);
 	    RegionEmpty(region);
+	}
     }
 
     radeon_scanout_update_abort(crtc, event_data);
@@ -1096,6 +1096,8 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 				  pScreen->GetWindowPixmap(pScreen->root),
 				  region->extents))
 	return;
+
+    radeon_cs_flush_indirect(scrn);
     RegionEmpty(region);
 
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
