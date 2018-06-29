@@ -79,11 +79,12 @@ static DevPrivateKeyRec dri2_window_private_key_rec;
 static Bool
 radeon_get_flink_name(RADEONEntPtr pRADEONEnt, PixmapPtr pixmap, uint32_t *name)
 {
-    struct radeon_bo *bo = radeon_get_pixmap_bo(pixmap)->bo.radeon;
+    struct radeon_buffer *bo = radeon_get_pixmap_bo(pixmap);
     struct drm_gem_flink flink;
 
-    if (bo)
-	return radeon_gem_get_kernel_name(bo, name) == 0;
+    if (bo && !(bo->flags & RADEON_BO_FLAGS_GBM) &&
+	radeon_gem_get_kernel_name(bo->bo.radeon, name) == 0)
+	return TRUE;
 
     if (radeon_get_pixmap_handle(pixmap, &flink.handle)) {
 	if (drmIoctl(pRADEONEnt->fd, DRM_IOCTL_GEM_FLINK, &flink) != 0)

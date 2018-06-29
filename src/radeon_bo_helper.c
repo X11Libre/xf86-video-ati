@@ -28,6 +28,37 @@
 #include "radeon_glamor.h"
 #include "radeon_bo_gem.h"
 
+
+#ifdef USE_GLAMOR
+
+static uint32_t
+radeon_get_gbm_format(int depth, int bitsPerPixel)
+{
+    switch (depth) {
+#ifdef GBM_FORMAT_R8
+    case 8:
+	return GBM_FORMAT_R8;
+#endif
+    case 16:
+	return GBM_FORMAT_RGB565;
+    case 32:
+	return GBM_FORMAT_ARGB8888;
+    case 30:
+	return GBM_FORMAT_XRGB2101010;
+    case 24:
+	if (bitsPerPixel == 32)
+	    return GBM_FORMAT_XRGB8888;
+	/* fall through */
+    default:
+	ErrorF("%s: Unsupported depth/bpp %d/%d\n", __func__, depth,
+	       bitsPerPixel);
+	return ~0U;
+    }
+}
+
+#endif /* USE_GLAMOR */
+
+
 static const unsigned MicroBlockTable[5][3][2] = {
     /*linear  tiled   square-tiled */
     {{32, 1}, {8, 4}, {0, 0}}, /*   8 bits per pixel */
@@ -158,6 +189,46 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
     struct radeon_surface surface;
     struct radeon_buffer *bo;
     int domain = RADEON_GEM_DOMAIN_VRAM;
+
+#ifdef USE_GLAMOR
+    if (info->use_glamor &&
+	!(usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP &&
+	  info->shadow_primary)) {
+	uint32_t bo_use = GBM_BO_USE_RENDERING;
+	uint32_t gbm_format = radeon_get_gbm_format(depth, bitsPerPixel);
+
+	if (gbm_format == ~0U)
+	    return NULL;
+
+	bo = calloc(1, sizeof(struct radeon_buffer));
+	if (!bo)
+	    return NULL;
+
+	bo->ref_count = 1;
+
+	if (bitsPerPixel == pScrn->bitsPerPixel)
+	    bo_use |= GBM_BO_USE_SCANOUT;
+
+	if ((usage_hint == CREATE_PIXMAP_USAGE_BACKING_PIXMAP &&
+	     info->shadow_primary) ||
+	    (usage_hint & 0xffff) == CREATE_PIXMAP_USAGE_SHARED)
+	    bo_use |= GBM_BO_USE_LINEAR;
+
+	bo->bo.gbm = gbm_bo_create(info->gbm, width, height, gbm_format, bo_use);
+	if (!bo->bo.gbm) {
+	    free(bo);
+	    return NULL;
+	}
+
+	bo->flags |= RADEON_BO_FLAGS_GBM;
+
+	if (new_pitch)
+	    *new_pitch = gbm_bo_get_stride(bo->bo.gbm);
+
+	return bo;
+    }
+#endif
+
     if (usage_hint) {
 	if (info->allowColorTiling) {
 	    if (usage_hint & RADEON_CREATE_PIXMAP_TILING_MACRO)
@@ -245,6 +316,13 @@ radeon_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width, int height, int depth,
 void
 radeon_finish(ScrnInfoPtr scrn, struct radeon_buffer *bo)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
+
+    if (info->use_glamor) {
+	radeon_glamor_finish(scrn);
+	return;
+    }
+
     radeon_cs_flush_indirect(scrn);
     radeon_bo_wait(bo->bo.radeon);
 }
@@ -282,7 +360,7 @@ Bool radeon_get_pixmap_handle(PixmapPtr pixmap, uint32_t *handle)
     RADEONInfoPtr info = RADEONPTR(scrn);
 #endif
 
-    if (bo) {
+    if (bo && !(bo->flags & RADEON_BO_FLAGS_GBM)) {
 	*handle = bo->bo.radeon->handle;
 	return TRUE;
     }
@@ -379,6 +457,44 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     bo = (struct radeon_buffer *)calloc(1, sizeof(struct radeon_buffer));
     if (!bo)
 	goto error;
+
+#ifdef USE_GLAMOR
+    if (info->use_glamor) {
+	struct gbm_import_fd_data data;
+	uint32_t bo_use = GBM_BO_USE_RENDERING;
+
+	data.format = radeon_get_gbm_format(ppix->drawable.depth,
+					    ppix->drawable.bitsPerPixel);
+	if (data.format == ~0U)
+	    goto error;
+
+	bo->ref_count = 1;
+
+	data.fd = ihandle;
+	data.width = ppix->drawable.width;
+	data.height = ppix->drawable.height;
+	data.stride = ppix->devKind;
+
+	if (ppix->drawable.bitsPerPixel == pScrn->bitsPerPixel)
+	    bo_use |= GBM_BO_USE_SCANOUT;
+
+	bo->bo.gbm = gbm_bo_import(info->gbm, GBM_BO_IMPORT_FD, &data, bo_use);
+	if (!bo->bo.gbm)
+	    goto error;
+
+	bo->flags |= RADEON_BO_FLAGS_GBM;
+
+	if (!radeon_glamor_create_textured_pixmap(ppix, bo)) {
+	    radeon_buffer_unref(&bo);
+	    return FALSE;
+	}
+
+	ret = radeon_set_pixmap_bo(ppix, bo);
+	/* radeon_set_pixmap_bo increments ref_count if it succeeds */
+	radeon_buffer_unref(&bo);
+	return ret;
+    }
+#endif
 
     bo->bo.radeon = radeon_gem_bo_open_prime(info->bufmgr, ihandle, size);
     if (!bo)

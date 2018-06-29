@@ -606,6 +606,8 @@ typedef struct {
     unsigned hwcursor_disabled;
 
 #ifdef USE_GLAMOR
+    struct gbm_device *gbm;
+
     struct {
 	CreateGCProcPtr SavedCreateGC;
 	RegionPtr (*SavedCopyArea)(DrawablePtr, DrawablePtr, GCPtr, int, int,
@@ -744,8 +746,6 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo
 	}
 
 	if (bo) {
-	    uint32_t pitch;
-
 	    if (!priv) {
 		priv = calloc(1, sizeof (struct radeon_pixmap));
 		if (!priv)
@@ -754,11 +754,10 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo
 
 	    radeon_buffer_ref(bo);
 	    priv->bo = bo;
-
-	    radeon_bo_get_tiling(bo->bo.radeon, &priv->tiling_flags, &pitch);
 	}
 
 	radeon_set_pixmap_private(pPix, priv);
+	radeon_get_pixmap_tiling_flags(pPix);
 	return TRUE;
     } else
 #endif /* USE_GLAMOR */

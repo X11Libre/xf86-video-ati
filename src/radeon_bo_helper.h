@@ -23,13 +23,21 @@
 #ifndef RADEON_BO_HELPER_H
 #define RADEON_BO_HELPER_H 1
 
+#ifdef USE_GLAMOR
+#include <gbm.h>
+#endif
+
 #define RADEON_BO_FLAGS_GBM	0x1
 
 struct radeon_buffer {
 	union {
+#ifdef USE_GLAMOR
+		struct gbm_bo *gbm;
+#endif
 		struct radeon_bo *radeon;
 	} bo;
 	uint32_t ref_count;
+    uint32_t flags;
 };
 
 extern struct radeon_buffer *
@@ -88,8 +96,16 @@ radeon_buffer_unref(struct radeon_buffer **buffer)
 	return;
     }
 
-    radeon_bo_unmap(buf->bo.radeon);
-    radeon_bo_unref(buf->bo.radeon);
+#ifdef USE_GLAMOR
+    if (buf->flags & RADEON_BO_FLAGS_GBM) {
+	gbm_bo_destroy(buf->bo.gbm);
+    } else
+#endif
+    {
+	radeon_bo_unmap(buf->bo.radeon);
+	radeon_bo_unref(buf->bo.radeon);
+    }
+
     free(buf);
     *buffer = NULL;
 }

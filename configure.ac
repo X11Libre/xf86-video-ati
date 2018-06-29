@@ -138,12 +138,22 @@ if test "x$GLAMOR" != "xno"; then
 					 [Have glamor_egl_destroy_textured_pixmap API])], [],
 			      [#include "xorg-server.h"
 			       #include "glamor.h"])
+
+		AC_CHECK_DECL(glamor_finish,
+			      [AC_DEFINE(HAVE_GLAMOR_FINISH, 1,
+					 [Have glamor_finish API])],
+					 [PKG_CHECK_MODULES(LIBGL, [gl])],
+			      [#include "xorg-server.h"
+			       #include "glamor.h"])
 	fi
 
 	if test "x$GLAMOR_XSERVER" != xyes; then
 		PKG_CHECK_MODULES(LIBGLAMOR, [glamor >= 0.6.0])
 		PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
 	fi
+
+	PKG_CHECK_MODULES(GBM, [gbm >= 10.6])
+
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 else
 	AC_MSG_RESULT([$GLAMOR])

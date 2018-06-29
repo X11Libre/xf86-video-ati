@@ -212,6 +212,11 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 	    info->accel_state = NULL;
 	}
 
+#ifdef USE_GLAMOR
+	if (info->gbm)
+	    gbm_device_destroy(info->gbm);
+#endif
+
 	pEnt = info->pEnt;
 	free(pScrn->driverPrivate);
 	pScrn->driverPrivate = NULL;
@@ -2269,7 +2274,11 @@ Bool RADEONScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "radeon_setup_kernel_mem failed\n");
 	return FALSE;
     }
-    front_ptr = info->front_buffer->bo.radeon->ptr;
+
+    if (!(info->front_buffer->flags & RADEON_BO_FLAGS_GBM))
+	front_ptr = info->front_buffer->bo.radeon->ptr;
+    else
+	front_ptr = NULL;
 
     if (info->r600_shadow_fb) {
 	info->fb_shadow = calloc(1,
@@ -2739,21 +2748,24 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
                 ErrorF("Failed to map cursor buffer memory\n");
             }
         }
+
+	if (!info->use_glamor) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	switch (cpp) {
-	case 4:
-	    tiling_flags |= RADEON_TILING_SWAP_32BIT;
-	    break;
-	case 2:
-	    tiling_flags |= RADEON_TILING_SWAP_16BIT;
-	    break;
-	}
-	if (info->ChipFamily < CHIP_FAMILY_R600 &&
-	    info->r600_shadow_fb && tiling_flags)
-	    tiling_flags |= RADEON_TILING_SURFACE;
+	    switch (cpp) {
+	    case 4:
+		tiling_flags |= RADEON_TILING_SWAP_32BIT;
+		break;
+	    case 2:
+		tiling_flags |= RADEON_TILING_SWAP_16BIT;
+		break;
+	    }
+	    if (info->ChipFamily < CHIP_FAMILY_R600 &&
+		info->r600_shadow_fb && tiling_flags)
+		tiling_flags |= RADEON_TILING_SURFACE;
 #endif
-	if (tiling_flags)
-            radeon_bo_set_tiling(info->front_buffer->bo.radeon, tiling_flags, pitch);
+	    if (tiling_flags)
+		radeon_bo_set_tiling(info->front_buffer->bo.radeon, tiling_flags, pitch);
+	}
     }
 
     pScrn->displayWidth = pitch / cpp;

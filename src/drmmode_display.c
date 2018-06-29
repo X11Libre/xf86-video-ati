@@ -142,8 +142,7 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 	}
 
 	if (!info->use_glamor ||
-	    radeon_glamor_create_textured_pixmap(pixmap,
-						 radeon_get_pixmap_private(pixmap)))
+	    radeon_glamor_create_textured_pixmap(pixmap, bo))
 		return pixmap;
 
 fail:
@@ -435,8 +434,14 @@ destroy_pixmap_for_fbcon(ScrnInfoPtr pScrn)
 	/* XXX: The current GPUVM support in the kernel doesn't allow removing
 	 * the virtual address range for this BO, so we need to keep around
 	 * the pixmap to avoid breaking glamor with GPUVM
+	 *
+	 * Similarly, need to keep around the pixmap with current glamor, to
+	 * avoid issues due to a GEM handle lifetime conflict between us and
+	 * Mesa
 	 */
-	if (info->use_glamor && info->ChipFamily >= CHIP_FAMILY_CAYMAN)
+	if (info->use_glamor &&
+	    (info->ChipFamily >= CHIP_FAMILY_CAYMAN ||
+	     xorgGetVersion() >= XORG_VERSION_NUMERIC(1,19,99,1,0)))
 		return;
 
 	if (info->fbcon_pixmap)
@@ -2277,21 +2282,23 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 
 	scrn->displayWidth = pitch / cpp;
 
+	if (!info->use_glamor) {
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-	switch (cpp) {
-	case 4:
-	    tiling_flags |= RADEON_TILING_SWAP_32BIT;
-	    break;
-	case 2:
-	    tiling_flags |= RADEON_TILING_SWAP_16BIT;
-	    break;
-	}
-	if (info->ChipFamily < CHIP_FAMILY_R600 &&
-	    info->r600_shadow_fb && tiling_flags)
-	    tiling_flags |= RADEON_TILING_SURFACE;
+		switch (cpp) {
+		case 4:
+			tiling_flags |= RADEON_TILING_SWAP_32BIT;
+			break;
+		case 2:
+			tiling_flags |= RADEON_TILING_SWAP_16BIT;
+			break;
+		}
+		if (info->ChipFamily < CHIP_FAMILY_R600 &&
+		    info->r600_shadow_fb && tiling_flags)
+			tiling_flags |= RADEON_TILING_SURFACE;
 #endif
-	if (tiling_flags)
-	    radeon_bo_set_tiling(info->front_buffer->bo.radeon, tiling_flags, pitch);
+		if (tiling_flags)
+			radeon_bo_set_tiling(info->front_buffer->bo.radeon, tiling_flags, pitch);
+	}
 
 	if (!info->r600_shadow_fb) {
 		if (info->surf_man && !info->use_glamor)
