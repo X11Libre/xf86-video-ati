@@ -2833,6 +2833,8 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 			} else {
 				xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 					   "Failed to set mode on CRTC %d\n", c);
+				RRCrtcSet(crtc->randr_crtc, NULL, crtc->x, crtc->y,
+					  crtc->rotation, 0, NULL);
 			}
 		} else {
 			crtc->mode = crtc->desiredMode;
