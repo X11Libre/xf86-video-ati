@@ -669,13 +669,9 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 	Bool ret;
 
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
-	if (crtc->transformPresent || crtc->rotation != RR_Rotate_0)
-	    crtc->driverIsPerformingTransform = XF86DriverTransformOutput;
-	else
-	    crtc->driverIsPerformingTransform = XF86DriverTransformNone;
+	crtc->driverIsPerformingTransform = XF86DriverTransformOutput;
 #else
 	crtc->driverIsPerformingTransform = !crtc->transformPresent &&
-		crtc->rotation != RR_Rotate_0 &&
 		(crtc->rotation & 0xf) == RR_Rotate_0;
 #endif
 
