@@ -1167,6 +1167,9 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 	    xf86CrtcPtr crtc = xf86_config->crtc[c];
 	    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
+	    if (drmmode_crtc->rotate.pixmap)
+		continue;
+
 	    if (drmmode_crtc->tear_free)
 		radeon_scanout_flip(pScreen, info, crtc);
 	    else if (drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap)
