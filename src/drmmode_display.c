@@ -985,9 +985,11 @@ done:
 
 		if (drmmode_crtc->scanout[scanout_id].pixmap &&
 		    fb != radeon_pixmap_get_fb(drmmode_crtc->
-					       scanout[scanout_id].pixmap))
+					       scanout[scanout_id].pixmap)) {
+			drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
+							drmmode_crtc->scanout_update_pending);
 			drmmode_crtc_scanout_free(drmmode_crtc);
-		else if (!drmmode_crtc->tear_free) {
+		} else if (!drmmode_crtc->tear_free) {
 			drmmode_crtc_scanout_destroy(drmmode,
 						     &drmmode_crtc->scanout[1]);
 		}
