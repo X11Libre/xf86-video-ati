@@ -720,9 +720,8 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
 {
     struct dri2_buffer_priv *front_priv = front->driverPrivate;
     struct dri2_buffer_priv *back_priv = back->driverPrivate;
-    struct radeon_buffer *front_buffer, *back_buffer;
-    ScreenPtr screen;
-    RADEONInfoPtr info;
+    ScreenPtr screen = draw->pScreen;
+    RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
     RegionRec region;
     int tmp;
 
@@ -737,23 +736,28 @@ radeon_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front, DRI2BufferPt
     front->name = back->name;
     back->name = tmp;
 
-    /* Swap pixmap bos */
-    front_buffer = radeon_get_pixmap_bo(front_priv->pixmap);
-    back_buffer = radeon_get_pixmap_bo(back_priv->pixmap);
-    radeon_set_pixmap_bo(front_priv->pixmap, back_buffer);
-    radeon_set_pixmap_bo(back_priv->pixmap, front_buffer);
+    /* Swap pixmap privates */
+#ifdef USE_GLAMOR
+    if (info->use_glamor) {
+	struct radeon_pixmap *front_pix, *back_pix;
 
-    /* Do we need to update the Screen? */
-    screen = draw->pScreen;
-    info = RADEONPTR(xf86ScreenToScrn(screen));
-    if (front_buffer == info->front_buffer) {
-	radeon_buffer_ref(back_buffer);
-	radeon_buffer_unref(&info->front_buffer);
-	info->front_buffer = back_buffer;
-	radeon_set_pixmap_bo(screen->GetScreenPixmap(screen), back_buffer);
+	front_pix = radeon_get_pixmap_private(front_priv->pixmap);
+	back_pix = radeon_get_pixmap_private(back_priv->pixmap);
+	radeon_set_pixmap_private(front_priv->pixmap, back_pix);
+	radeon_set_pixmap_private(back_priv->pixmap, front_pix);
+
+	radeon_glamor_exchange_buffers(front_priv->pixmap, back_priv->pixmap);
+    } else
+#endif
+    {
+	struct radeon_exa_pixmap_priv driver_priv = *(struct radeon_exa_pixmap_priv*)
+	    exaGetPixmapDriverPrivate(front_priv->pixmap);
+
+	*(struct radeon_exa_pixmap_priv*)exaGetPixmapDriverPrivate(front_priv->pixmap) =
+	    *(struct radeon_exa_pixmap_priv*)exaGetPixmapDriverPrivate(back_priv->pixmap);
+	*(struct radeon_exa_pixmap_priv*)exaGetPixmapDriverPrivate(back_priv->pixmap) =
+	    driver_priv;
     }
-
-    radeon_glamor_exchange_buffers(front_priv->pixmap, back_priv->pixmap);
 
     DamageRegionProcessPending(&front_priv->pixmap->drawable);
 }
