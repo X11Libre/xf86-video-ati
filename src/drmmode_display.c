@@ -986,8 +986,8 @@ done:
 		if (drmmode_crtc->scanout[scanout_id].pixmap &&
 		    fb != radeon_pixmap_get_fb(drmmode_crtc->
 					       scanout[scanout_id].pixmap)) {
-			drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-							drmmode_crtc->scanout_update_pending);
+			radeon_drm_abort_entry(drmmode_crtc->scanout_update_pending);
+			drmmode_crtc->scanout_update_pending = 0;
 			drmmode_crtc_scanout_free(drmmode_crtc);
 		} else if (!drmmode_crtc->tear_free) {
 			drmmode_crtc_scanout_destroy(drmmode,
@@ -3190,8 +3190,12 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 						 extents);
 			radeon_cs_flush_indirect(crtc->scrn);
 
-			drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-							drmmode_crtc->scanout_update_pending);
+			if (drmmode_crtc->scanout_update_pending) {
+				drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
+								drmmode_crtc->flip_pending);
+				radeon_drm_abort_entry(drmmode_crtc->scanout_update_pending);
+				drmmode_crtc->scanout_update_pending = 0;
+			}
 		}
 
 		if (crtc == ref_crtc) {
