@@ -885,6 +885,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		drmmode_crtc_update_tear_free(crtc);
 		if (drmmode_crtc->tear_free)
 			scanout_id = drmmode_crtc->scanout_id;
+		else
+			drmmode_crtc->scanout_id = 0;
 
 		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red, crtc->gamma_green,
 					  crtc->gamma_blue, crtc->gamma_size);
