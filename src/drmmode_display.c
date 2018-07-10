@@ -1754,6 +1754,14 @@ drmmode_output_set_tear_free(RADEONEntPtr pRADEONEnt,
 	drmmode_output->tear_free = tear_free;
 
 	if (crtc) {
+		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+		/* Wait for pending flips before drmmode_set_mode_major calls
+		 * drmmode_crtc_update_tear_free, to prevent a nested
+		 * drmHandleEvent call, which would hang
+		 */
+		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
+						drmmode_crtc->flip_pending);
 		drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
 				       crtc->x, crtc->y);
 	}
