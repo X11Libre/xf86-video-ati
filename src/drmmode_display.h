@@ -88,7 +88,7 @@ typedef struct {
     Bool ignore_damage;
     RegionRec scanout_last_region;
     unsigned scanout_id;
-    Bool scanout_update_pending;
+    uintptr_t scanout_update_pending;
     Bool tear_free;
 
     PixmapPtr prime_scanout_pixmap;
