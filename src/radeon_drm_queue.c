@@ -150,6 +150,9 @@ radeon_drm_abort_entry(uintptr_t seq)
 {
     struct radeon_drm_queue_entry *e, *tmp;
 
+    if (seq == RADEON_DRM_QUEUE_ERROR)
+	return;
+
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
 	if (e->seq == seq) {
 	    radeon_drm_abort_one(e);
