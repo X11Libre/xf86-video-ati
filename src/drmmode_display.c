@@ -887,9 +887,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		else
 			drmmode_crtc->scanout_id = 0;
 
-		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red, crtc->gamma_green,
-					  crtc->gamma_blue, crtc->gamma_size);
-
 		if (drmmode_crtc->prime_scanout_pixmap) {
 			drmmode_crtc_prime_scanout_update(crtc, mode, scanout_id,
 							  &fb, &x, &y);
@@ -2854,6 +2851,7 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 {
     xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
 
     if (xf86_config->num_crtc) {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
@@ -2862,13 +2860,23 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 	    return FALSE;
 
 	/* All radeons support 10 bit CLUTs. They get bypassed at depth 30. */
-	if (pScrn->depth != 30 &&
-	    !xf86HandleColormaps(pScreen, 256, 10,
-				 NULL, NULL,
-				 CMAP_PALETTED_TRUECOLOR
-				 | CMAP_RELOAD_ON_MODE_SWITCH))
-	    return FALSE;
+	if (pScrn->depth != 30) {
+	    if (!xf86HandleColormaps(pScreen, 256, 10, NULL, NULL,
+				     CMAP_PALETTED_TRUECOLOR
+				     | CMAP_RELOAD_ON_MODE_SWITCH))
+		return FALSE;
+
+	    for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+
+		drmmode_crtc_gamma_do_set(crtc, crtc->gamma_red,
+					  crtc->gamma_green,
+					  crtc->gamma_blue,
+					  crtc->gamma_size);
+	    }
+	}
     }
+
     return TRUE;
 }
 
