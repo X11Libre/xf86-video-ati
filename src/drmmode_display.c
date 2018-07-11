@@ -361,8 +361,7 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 	/* Disable unused CRTCs */
 	if (!crtc->enabled || mode != DPMSModeOn) {
-		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-						drmmode_crtc->flip_pending);
+		drmmode_do_crtc_dpms(crtc, DPMSModeOff);
 		drmModeSetCrtc(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
 			       0, 0, 0, NULL, 0, NULL);
 		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, NULL);
