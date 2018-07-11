@@ -1835,15 +1835,6 @@ static const xf86OutputFuncsRec drmmode_output_funcs = {
     .create_resources = drmmode_output_create_resources,
     .set_property = drmmode_output_set_property,
     .get_property = drmmode_output_get_property,
-#if 0
-
-    .save = drmmode_crt_save,
-    .restore = drmmode_crt_restore,
-    .mode_fixup = drmmode_crt_mode_fixup,
-    .prepare = drmmode_output_prepare,
-    .mode_set = drmmode_crt_mode_set,
-    .commit = drmmode_output_commit,
-#endif
     .detect = drmmode_output_detect,
     .mode_valid = drmmode_output_mode_valid,
 
@@ -2875,9 +2866,6 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 	    !xf86HandleColormaps(pScreen, 256, 10,
 				 NULL, NULL,
 				 CMAP_PALETTED_TRUECOLOR
-#if 0 /* This option messes up text mode! (eich@suse.de) */
-				 | CMAP_LOAD_EVEN_IF_OFFSCREEN
-#endif
 				 | CMAP_RELOAD_ON_MODE_SWITCH))
 	    return FALSE;
     }
