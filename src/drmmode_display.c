@@ -2763,7 +2763,6 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 			       Bool set_hw)
 {
 	xf86CrtcConfigPtr   config = XF86_CRTC_CONFIG_PTR(pScrn);
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	unsigned num_desired = 0, num_on = 0;
 	int c;
 
@@ -2771,18 +2770,12 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 	if (set_hw) {
 		for (c = 0; c < config->num_crtc; c++) {
 			xf86CrtcPtr crtc = config->crtc[c];
-			drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 			/* Skip disabled CRTCs */
 			if (crtc->enabled)
 				continue;
 
-			drmmode_do_crtc_dpms(crtc, DPMSModeOff);
-			drmModeSetCrtc(pRADEONEnt->fd,
-				       drmmode_crtc->mode_crtc->crtc_id,
-				       0, 0, 0, NULL, 0, NULL);
-			drmmode_fb_reference(pRADEONEnt->fd,
-					     &drmmode_crtc->fb, NULL);
+			drmmode_crtc_dpms(crtc, DPMSModeOff);
 		}
 	}
 
