@@ -150,7 +150,7 @@ Bool RADEONGetPixmapOffsetPitch(PixmapPtr pPix, uint32_t *pitch_offset)
  */
 Bool radeon_transform_is_affine_or_scaled(PictTransformPtr t)
 {
-	if (t == NULL)
+	if (!t)
 		return TRUE;
 	/* the shaders don't handle scaling either */
 	return t->matrix[2][0] == 0 && t->matrix[2][1] == 0 && t->matrix[2][2] == IntToxFixed(1);

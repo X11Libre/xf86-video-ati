@@ -331,7 +331,7 @@ RADEONBlitChunk(ScrnInfoPtr pScrn, struct radeon_bo *src_bo,
 
     if (src_bo && dst_bo) {
         BEGIN_ACCEL_RELOC(6, 2);
-    } else if (src_bo && dst_bo == NULL) {
+    } else if (src_bo && !dst_bo) {
         BEGIN_ACCEL_RELOC(6, 1);
     } else {
         BEGIN_RING(2*6);
@@ -423,7 +423,7 @@ RADEONUploadToScreenCS(PixmapPtr pDst, int x, int y, int w, int h,
 
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
-    if (scratch == NULL) {
+    if (!scratch) {
 	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
@@ -531,7 +531,7 @@ RADEONDownloadFromScreenCS(PixmapPtr pSrc, int x, int y, int w,
     }
     size = scratch_pitch * h;
     scratch = radeon_bo_open(info->bufmgr, 0, size, 0, RADEON_GEM_DOMAIN_GTT, 0);
-    if (scratch == NULL) {
+    if (!scratch) {
 	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
@@ -584,7 +584,7 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
 {
     RINFO_FROM_SCREEN(pScreen);
 
-    if (info->accel_state->exa == NULL) {
+    if (!info->accel_state->exa) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map not set up\n");
 	return FALSE;
     }

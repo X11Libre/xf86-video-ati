@@ -386,7 +386,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	    return pixmap;
 
 	fbcon = drmModeGetFB(pRADEONEnt->fd, fbcon_id);
-	if (fbcon == NULL)
+	if (!fbcon)
 		return NULL;
 
 	if (fbcon->depth != pScrn->depth ||
@@ -410,7 +410,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 	bo->ref_count = 1;
 
 	bo->bo.radeon = radeon_bo_open(drmmode->bufmgr, flink.name, 0, 0, 0, 0);
-	if (bo == NULL) {
+	if (!bo) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "Couldn't open BO for fbcon handle\n");
 		goto out_free_fb;
@@ -1365,7 +1365,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 
 	crtc = xf86CrtcCreate(pScrn, &info->drmmode_crtc_funcs);
-	if (crtc == NULL)
+	if (!crtc)
 		return 0;
 
 	drmmode_crtc = xnfcalloc(sizeof(drmmode_crtc_private_rec), 1);
@@ -2317,7 +2317,7 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 		if (radeon_bo_map(info->front_buffer->bo.radeon, 1))
 			goto fail;
 		fb_shadow = calloc(1, pitch * scrn->virtualY);
-		if (fb_shadow == NULL)
+		if (!fb_shadow)
 			goto fail;
 		free(info->fb_shadow);
 		info->fb_shadow = fb_shadow;

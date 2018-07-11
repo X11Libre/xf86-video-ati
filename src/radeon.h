@@ -726,7 +726,7 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo
 	struct radeon_pixmap *priv;
 
 	priv = radeon_get_pixmap_private(pPix);
-	if (priv == NULL && bo == NULL)
+	if (!priv && !bo)
 	    return TRUE;
 
 	if (priv) {

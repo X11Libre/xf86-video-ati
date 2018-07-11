@@ -132,7 +132,7 @@ radeon_glamor_finish_access_cpu(PixmapPtr pixmap)
 static Bool
 radeon_glamor_prepare_access_gpu(struct radeon_pixmap *priv)
 {
-	return priv != NULL;
+	return !!priv;
 }
 
 static void
@@ -201,7 +201,7 @@ radeon_glamor_picture_prepare_access_cpu_ro(ScrnInfoPtr scrn,
 	PixmapPtr pixmap;
 	struct radeon_pixmap *priv;
 
-	if (picture->pDrawable == NULL)
+	if (!picture->pDrawable)
 		return TRUE;
 
 	pixmap = get_drawable_pixmap(picture->pDrawable);

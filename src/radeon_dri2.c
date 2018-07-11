@@ -238,14 +238,14 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	return NULL;
 
     buffers = calloc(1, sizeof *buffers);
-    if (buffers == NULL)
+    if (!buffers)
         goto error;
 
     if (!info->use_glamor) {
 	info->exa_force_create = TRUE;
 	exaMoveInPixmap(pixmap);
 	info->exa_force_create = FALSE;
-	if (exaGetPixmapDriverPrivate(pixmap) == NULL) {
+	if (!exaGetPixmapDriverPrivate(pixmap)) {
 	    /* this happen if pixmap is non accelerable */
 	    goto error;
 	}
@@ -258,7 +258,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 	goto error;
 
     privates = calloc(1, sizeof(struct dri2_buffer_priv));
-    if (privates == NULL)
+    if (!privates)
         goto error;
 
     buffers->attachment = attachment;
@@ -923,7 +923,7 @@ static int radeon_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
     xf86CrtcPtr crtc = radeon_dri2_drawable_crtc(draw, TRUE);
 
     /* Drawable not displayed, make up a value */
-    if (crtc == NULL) {
+    if (!crtc) {
         *ust = 0;
         *msc = 0;
         return TRUE;
@@ -1034,7 +1034,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
     remainder &= 0xffffffff;
 
     /* Drawable not visible, return immediately */
-    if (crtc == NULL)
+    if (!crtc)
         goto out_complete;
 
     msc_delta = radeon_get_msc_delta(draw, crtc);
@@ -1193,7 +1193,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
     radeon_dri2_ref_buffer(back);
 
     /* either off-screen or CRTC not usable... just complete the swap */
-    if (crtc == NULL)
+    if (!crtc)
         goto blit_fallback;
 
     msc_delta = radeon_get_msc_delta(draw, crtc);

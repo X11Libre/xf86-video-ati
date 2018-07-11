@@ -511,7 +511,7 @@ EVERGREENPrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 	accel_state->copy_area_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 						   RADEON_GEM_DOMAIN_VRAM,
 						   0);
-	if (accel_state->copy_area_bo == NULL)
+	if (!accel_state->copy_area_bo)
 	    RADEON_FALLBACK(("temp copy surface alloc failed\n"));
 
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
@@ -1693,7 +1693,7 @@ EVERGREENUploadToScreen(PixmapPtr pDst, int x, int y, int w, int h,
     base_align = drmmode_get_base_align(pScrn, (bpp / 8), 0);
     size = scratch_pitch * height * (bpp / 8);
     scratch = radeon_bo_open(info->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_GTT, 0);
-    if (scratch == NULL) {
+    if (!scratch) {
 	goto copy;
     }
 
@@ -1821,7 +1821,7 @@ EVERGREENDownloadFromScreen(PixmapPtr pSrc, int x, int y, int w,
     base_align = drmmode_get_base_align(pScrn, (bpp / 8), 0);
     size = scratch_pitch * height * (bpp / 8);
     scratch = radeon_bo_open(info->bufmgr, 0, size, base_align, RADEON_GEM_DOMAIN_GTT, 0);
-    if (scratch == NULL) {
+    if (!scratch) {
 	goto copy;
     }
     radeon_cs_space_reset_bos(info->cs);
@@ -1927,7 +1927,7 @@ EVERGREENAllocShaders(ScrnInfoPtr pScrn, ScreenPtr pScreen)
 
     accel_state->shaders_bo = radeon_bo_open(info->bufmgr, 0, size, 0,
 					     RADEON_GEM_DOMAIN_VRAM, 0);
-    if (accel_state->shaders_bo == NULL) {
+    if (!accel_state->shaders_bo) {
 	ErrorF("Allocating shader failed\n");
 	return FALSE;
     }
@@ -2046,7 +2046,7 @@ EVERGREENDrawInit(ScreenPtr pScreen)
     ScrnInfoPtr pScrn =  xf86ScreenToScrn(pScreen);
     RADEONInfoPtr info   = RADEONPTR(pScrn);
 
-    if (info->accel_state->exa == NULL) {
+    if (!info->accel_state->exa) {
 	xf86DrvMsg(pScreen->myNum, X_ERROR, "Memory map not set up\n");
 	return FALSE;
     }
