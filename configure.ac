@@ -70,7 +70,7 @@ XORG_DRIVER_CHECK_EXT(XV, videoproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for libraries.
-PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.78])
+PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.89])
 PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
 
 # Obtain compiler/linker options for the driver dependencies

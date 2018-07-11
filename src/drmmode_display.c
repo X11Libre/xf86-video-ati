@@ -2400,8 +2400,159 @@ drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height)
 	return FALSE;
 }
 
+static void
+drmmode_validate_leases(ScrnInfoPtr scrn)
+{
+#ifdef XF86_LEASE_VERSION
+	ScreenPtr screen = scrn->pScreen;
+	rrScrPrivPtr scr_priv = rrGetScrPriv(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	drmModeLesseeListPtr lessees;
+	RRLeasePtr lease, next;
+	int l;
+
+	/* We can't talk to the kernel about leases when VT switched */
+	if (!scrn->vtSema)
+		return;
+
+	lessees = drmModeListLessees(pRADEONEnt->fd);
+	if (!lessees)
+		return;
+
+	xorg_list_for_each_entry_safe(lease, next, &scr_priv->leases, list) {
+		drmmode_lease_private_ptr lease_private = lease->devPrivate;
+
+		for (l = 0; l < lessees->count; l++) {
+			if (lessees->lessees[l] == lease_private->lessee_id)
+				break;
+		}
+
+		/* check to see if the lease has gone away */
+		if (l == lessees->count) {
+			free(lease_private);
+			lease->devPrivate = NULL;
+			xf86CrtcLeaseTerminated(lease);
+		}
+	}
+
+	free(lessees);
+#endif
+}
+
+#ifdef XF86_LEASE_VERSION
+
+static int
+drmmode_create_lease(RRLeasePtr lease, int *fd)
+{
+	ScreenPtr screen = lease->screen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+	drmmode_lease_private_ptr lease_private;
+	int noutput = lease->numOutputs;
+	int ncrtc = lease->numCrtcs;
+	uint32_t *objects;
+	size_t nobjects;
+	int lease_fd;
+	int c, o;
+	int i;
+
+	nobjects = ncrtc + noutput;
+	if (nobjects == 0 || nobjects > (SIZE_MAX / 4) ||
+	    ncrtc > (SIZE_MAX - noutput))
+		return BadValue;
+
+	lease_private = calloc(1, sizeof (drmmode_lease_private_rec));
+	if (!lease_private)
+		return BadAlloc;
+
+	objects = malloc(nobjects * 4);
+	if (!objects) {
+		free(lease_private);
+		return BadAlloc;
+	}
+
+	i = 0;
+
+	/* Add CRTC ids */
+	for (c = 0; c < ncrtc; c++) {
+		xf86CrtcPtr crtc = lease->crtcs[c]->devPrivate;
+		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+		objects[i++] = drmmode_crtc->mode_crtc->crtc_id;
+	}
+
+	/* Add connector ids */
+	for (o = 0; o < noutput; o++) {
+		xf86OutputPtr   output = lease->outputs[o]->devPrivate;
+		drmmode_output_private_ptr drmmode_output = output->driver_private;
+
+		objects[i++] = drmmode_output->mode_output->connector_id;
+	}
+
+	/* call kernel to create lease */
+	assert (i == nobjects);
+
+	lease_fd = drmModeCreateLease(pRADEONEnt->fd, objects, nobjects, 0,
+				      &lease_private->lessee_id);
+
+	free(objects);
+
+	if (lease_fd < 0) {
+		free(lease_private);
+		return BadMatch;
+	}
+
+	lease->devPrivate = lease_private;
+
+	xf86CrtcLeaseStarted(lease);
+
+	*fd = lease_fd;
+	return Success;
+}
+
+static void
+drmmode_terminate_lease(RRLeasePtr lease)
+{
+	drmmode_lease_private_ptr lease_private = lease->devPrivate;
+	ScreenPtr screen = lease->screen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
+
+	if (drmModeRevokeLease(pRADEONEnt->fd, lease_private->lessee_id) == 0) {
+		free(lease_private);
+		lease->devPrivate = NULL;
+		xf86CrtcLeaseTerminated(lease);
+	}
+}
+
+#endif // XF86_LEASE_VERSION
+
+void
+drmmode_terminate_leases(ScrnInfoPtr pScrn)
+{
+#ifdef XF86_LEASE_VERSION
+	ScreenPtr screen = xf86ScrnToScreen(pScrn);
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	rrScrPrivPtr scr_priv = rrGetScrPriv(screen);
+	RRLeasePtr lease, next;
+
+	xorg_list_for_each_entry_safe(lease, next, &scr_priv->leases, list) {
+		drmmode_lease_private_ptr lease_private = lease->devPrivate;
+		drmModeRevokeLease(pRADEONEnt->fd, lease_private->lessee_id);
+		free(lease_private);
+		lease->devPrivate = NULL;
+		RRLeaseTerminated(lease);
+		RRLeaseFree(lease);
+	}
+#endif
+}
+
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
-	drmmode_xf86crtc_resize
+	.resize = drmmode_xf86crtc_resize,
+#ifdef XF86_LEASE_VERSION
+	.create_lease = drmmode_create_lease,
+	.terminate_lease = drmmode_terminate_lease
+#endif
 };
 
 static void
@@ -2888,6 +3039,9 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 		return FALSE;
 	}
 
+	/* Validate leases on VT re-entry */
+	drmmode_validate_leases(pScrn);
+
 	return TRUE;
 }
 
@@ -3054,6 +3208,9 @@ restart_destroy:
 					&num_hdmi, 1) != 0)
 			changed = TRUE;
 	}
+
+	/* Check to see if a lessee has disappeared */
+	drmmode_validate_leases(scrn);
 
 	if (changed && dixPrivateKeyRegistered(rrPrivKey)) {
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,14,99,2,0)
