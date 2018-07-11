@@ -1643,6 +1643,33 @@ drmmode_output_create_resources(xf86OutputPtr output)
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
     drmModePropertyPtr drmmode_prop, tearfree_prop;
     int i, j, err;
+    Atom name;
+
+    /* Create CONNECTOR_ID property */
+    name = MakeAtom("CONNECTOR_ID", 12, TRUE);
+    if (name != BAD_RESOURCE) {
+	INT32 value = mode_output->connector_id;
+
+	err = RRConfigureOutputProperty(output->randr_output, name,
+					FALSE, FALSE, TRUE, 1, &value);
+	if (err != Success) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+		       "RRConfigureOutputProperty error, %d\n", err);
+	}
+
+	err = RRChangeOutputProperty(output->randr_output, name,
+				     XA_INTEGER, 32, PropModeReplace, 1,
+				     &value, FALSE, FALSE);
+	if (err != Success) {
+	    xf86DrvMsg(output->scrn->scrnIndex, X_ERROR,
+		       "RRChangeOutputProperty error, %d\n", err);
+	}
+    }
+
+    drmmode_output->props =
+	calloc(mode_output->count_props + 1, sizeof(drmmode_prop_rec));
+    if (!drmmode_output->props)
+	return;
 
     drmmode_output->props = calloc(mode_output->count_props + 1, sizeof(drmmode_prop_rec));
     if (!drmmode_output->props)
