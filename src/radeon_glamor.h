@@ -85,7 +85,7 @@ radeon_glamor_finish(ScrnInfoPtr scrn)
 #if HAVE_GLAMOR_FINISH
 	glamor_finish(scrn->pScreen);
 #else
-	glamor_block_handler(scrn);
+	glamor_block_handler(scrn->pScreen);
 	glFinish();
 #endif
 
