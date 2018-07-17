@@ -735,6 +735,7 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo
 		    return TRUE;
 
 		radeon_buffer_unref(&priv->bo);
+		priv->handle_valid = FALSE;
 	    }
 
 	    drmmode_fb_reference(pRADEONEnt->fd, &priv->fb, NULL);
