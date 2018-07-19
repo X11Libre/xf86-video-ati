@@ -1666,11 +1666,6 @@ drmmode_output_create_resources(xf86OutputPtr output)
 	}
     }
 
-    drmmode_output->props =
-	calloc(mode_output->count_props + 1, sizeof(drmmode_prop_rec));
-    if (!drmmode_output->props)
-	return;
-
     drmmode_output->props = calloc(mode_output->count_props + 1, sizeof(drmmode_prop_rec));
     if (!drmmode_output->props)
 	return;
