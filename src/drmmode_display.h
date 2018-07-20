@@ -103,6 +103,10 @@ typedef struct {
      * modeset)
      */
     Bool need_modeset;
+    /* For keeping track of nested calls to drm_wait_pending_flip /
+     * drm_queue_handle_deferred
+     */
+    int wait_flip_nesting_level;
     /* A flip to this FB is pending for this CRTC */
     struct drmmode_fb *flip_pending;
     /* The FB currently being scanned out by this CRTC, if any */

@@ -118,6 +118,30 @@ radeon_drm_vblank_handler(int fd, unsigned int frame, unsigned int sec,
 }
 
 /*
+ * Handle deferred DRM vblank events
+ *
+ * This function must be called after radeon_drm_wait_pending_flip, once
+ * it's safe to attempt queueing a flip again
+ */
+void
+radeon_drm_queue_handle_deferred(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    struct radeon_drm_queue_entry *e, *tmp;
+
+    if (drmmode_crtc->wait_flip_nesting_level == 0 ||
+	--drmmode_crtc->wait_flip_nesting_level > 0)
+	return;
+
+    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_vblank_signalled, list) {
+	drmmode_crtc_private_ptr drmmode_crtc = e->crtc->driver_private;
+
+	if (drmmode_crtc->wait_flip_nesting_level == 0)
+	    radeon_drm_queue_handle_one(e);
+    }
+}
+
+/*
  * Enqueue a potential drm response; when the associated response
  * appears, we've got data to pass to the handler from here
  */
@@ -191,6 +215,13 @@ radeon_drm_abort_entry(uintptr_t seq)
     if (seq == RADEON_DRM_QUEUE_ERROR)
 	return;
 
+    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_vblank_signalled, list) {
+	if (e->seq == seq) {
+	    radeon_drm_abort_one(e);
+	    return;
+	}
+    }
+
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
 	if (e->seq == seq) {
 	    radeon_drm_abort_one(e);
@@ -229,8 +260,12 @@ radeon_drm_handle_event(int fd, drmEventContext *event_context)
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_flip_signalled, list)
 	radeon_drm_queue_handle_one(e);
 
-    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_vblank_signalled, list)
-	radeon_drm_queue_handle_one(e);
+    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_vblank_signalled, list) {
+	drmmode_crtc_private_ptr drmmode_crtc = e->crtc->driver_private;
+
+	if (drmmode_crtc->wait_flip_nesting_level == 0)
+	    radeon_drm_queue_handle_one(e);
+    }
 
     return r;
 }
@@ -243,6 +278,8 @@ void radeon_drm_wait_pending_flip(xf86CrtcPtr crtc)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     struct radeon_drm_queue_entry *e, *tmp;
+
+    drmmode_crtc->wait_flip_nesting_level++;
 
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_flip_signalled, list)
 	radeon_drm_queue_handle_one(e);

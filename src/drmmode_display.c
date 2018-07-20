@@ -324,6 +324,9 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 				nominal_frame_rate /= pix_in_frame;
 			drmmode_crtc->dpms_last_fps = nominal_frame_rate;
 		}
+
+		drmmode_crtc->dpms_mode = mode;
+		radeon_drm_queue_handle_deferred(crtc);
 	} else if (drmmode_crtc->dpms_mode != DPMSModeOn && mode == DPMSModeOn) {
 		/*
 		 * Off->On transition: calculate and accumulate the
@@ -341,8 +344,9 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 			drmmode_crtc->interpolated_vblanks += delta_seq;
 
 		}
+
+		drmmode_crtc->dpms_mode = DPMSModeOn;
 	}
-	drmmode_crtc->dpms_mode = mode;
 }
 
 static void
@@ -972,6 +976,7 @@ done:
 		}
 	}
 
+	radeon_drm_queue_handle_deferred(crtc);
 	return ret;
 }
 
@@ -1763,11 +1768,6 @@ drmmode_output_set_tear_free(RADEONEntPtr pRADEONEnt,
 	drmmode_output->tear_free = tear_free;
 
 	if (crtc) {
-		/* Wait for pending flips before drmmode_set_mode_major calls
-		 * drmmode_crtc_update_tear_free, to prevent a nested
-		 * drmHandleEvent call, which would hang
-		 */
-		radeon_drm_wait_pending_flip(crtc);
 		drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
 				       crtc->x, crtc->y);
 	}
@@ -3278,6 +3278,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
 	uint32_t flip_flags = flip_sync == FLIP_ASYNC ? DRM_MODE_PAGE_FLIP_ASYNC : 0;
 	drmmode_flipdata_ptr flipdata;
+	Bool handle_deferred = FALSE;
 	uintptr_t drm_queue_seq = 0;
 	struct drmmode_fb *fb;
 	int i = 0;
@@ -3360,6 +3361,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
 			if (drmmode_crtc->scanout_update_pending) {
 				radeon_drm_wait_pending_flip(crtc);
+				handle_deferred = TRUE;
 				radeon_drm_abort_entry(drmmode_crtc->scanout_update_pending);
 				drmmode_crtc->scanout_update_pending = 0;
 			}
@@ -3395,6 +3397,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		drm_queue_seq = 0;
 	}
 
+	if (handle_deferred)
+		radeon_drm_queue_handle_deferred(ref_crtc);
 	if (flipdata->flip_count > 0)
 		return TRUE;
 
@@ -3414,5 +3418,7 @@ error:
 
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "Page flip failed: %s\n",
 		   strerror(errno));
+	if (handle_deferred)
+		radeon_drm_queue_handle_deferred(ref_crtc);
 	return FALSE;
 }
