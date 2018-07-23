@@ -2012,7 +2012,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 
 #if XF86_CRTC_VERSION >= 8
 	i = koutput_get_prop_idx(pRADEONEnt->fd, koutput, DRM_MODE_PROP_RANGE,
-				 RR_PROPERTY_NON_DESKTOP);
+				 "non-desktop");
 	if (i >= 0)
 		nonDesktop = koutput->prop_values[i] != 0;
 #endif
