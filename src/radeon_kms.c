@@ -2154,7 +2154,6 @@ static Bool RADEONCloseScreen_KMS(ScreenPtr pScreen)
     /* Clear mask of assigned crtc's in this generation */
     pRADEONEnt->assigned_crtcs = 0;
 
-    drmmode_terminate_leases(pScrn);
     drmmode_uevent_fini(pScrn, &info->drmmode);
     radeon_drm_queue_close(pScrn);
     radeon_cs_flush_indirect(pScrn);

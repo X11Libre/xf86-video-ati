@@ -2522,26 +2522,6 @@ drmmode_terminate_lease(RRLeasePtr lease)
 
 #endif // XF86_LEASE_VERSION
 
-void
-drmmode_terminate_leases(ScrnInfoPtr pScrn)
-{
-#ifdef XF86_LEASE_VERSION
-	ScreenPtr screen = xf86ScrnToScreen(pScrn);
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-	rrScrPrivPtr scr_priv = rrGetScrPriv(screen);
-	RRLeasePtr lease, next;
-
-	xorg_list_for_each_entry_safe(lease, next, &scr_priv->leases, list) {
-		drmmode_lease_private_ptr lease_private = lease->devPrivate;
-		drmModeRevokeLease(pRADEONEnt->fd, lease_private->lessee_id);
-		free(lease_private);
-		lease->devPrivate = NULL;
-		RRLeaseTerminated(lease);
-		RRLeaseFree(lease);
-	}
-#endif
-}
-
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	.resize = drmmode_xf86crtc_resize,
 #ifdef XF86_LEASE_VERSION

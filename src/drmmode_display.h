@@ -227,8 +227,6 @@ PixmapPtr drmmode_crtc_scanout_create(xf86CrtcPtr crtc,
 extern void drmmode_uevent_init(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 extern void drmmode_uevent_fini(ScrnInfoPtr scrn, drmmode_ptr drmmode);
 
-extern void drmmode_terminate_leases(ScrnInfoPtr scrn);
-
 Bool drmmode_set_mode(xf86CrtcPtr crtc, struct drmmode_fb *fb,
 		      DisplayModePtr mode, int x, int y);
 
