@@ -1686,14 +1686,14 @@ drmmode_output_create_resources(xf86OutputPtr output)
     /* Userspace-only property for TearFree */
     tearfree_prop = calloc(1, sizeof(*tearfree_prop));
     tearfree_prop->flags = DRM_MODE_PROP_ENUM;
-    strncpy(tearfree_prop->name, "TearFree", 8);
+    strcpy(tearfree_prop->name, "TearFree");
     tearfree_prop->count_enums = 3;
     tearfree_prop->enums = calloc(tearfree_prop->count_enums,
 				  sizeof(*tearfree_prop->enums));
-    strncpy(tearfree_prop->enums[0].name, "off", 3);
-    strncpy(tearfree_prop->enums[1].name, "on", 2);
+    strcpy(tearfree_prop->enums[0].name, "off");
+    strcpy(tearfree_prop->enums[1].name, "on");
     tearfree_prop->enums[1].value = 1;
-    strncpy(tearfree_prop->enums[2].name, "auto", 4);
+    strcpy(tearfree_prop->enums[2].name, "auto");
     tearfree_prop->enums[2].value = 2;
     drmmode_output->props[j].mode_prop = tearfree_prop;
     drmmode_output->props[j].value = info->tear_free;
