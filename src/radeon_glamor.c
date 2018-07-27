@@ -50,9 +50,9 @@ radeon_glamor_exchange_buffers(PixmapPtr src,
 Bool
 radeon_glamor_create_screen_resources(ScreenPtr screen)
 {
+	PixmapPtr screen_pixmap = screen->GetScreenPixmap(screen);
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	RADEONInfoPtr info = RADEONPTR(scrn);
-	uint32_t handle;
 
 	if (!info->use_glamor)
 		return TRUE;
@@ -62,17 +62,8 @@ radeon_glamor_create_screen_resources(ScreenPtr screen)
 		return FALSE;
 #endif
 
-	if (info->front_buffer->flags & RADEON_BO_FLAGS_GBM)
-		handle = gbm_bo_get_handle(info->front_buffer->bo.gbm).u32;
-	else
-		handle = info->front_buffer->bo.radeon->handle;
-
-	if (!glamor_egl_create_textured_screen(screen, handle,
-					       scrn->displayWidth *
-					       info->pixel_bytes))
-		return FALSE;
-
-	return TRUE;
+	return radeon_glamor_create_textured_pixmap(screen_pixmap,
+						    info->front_buffer);
 }
 
 
@@ -180,17 +171,22 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_buffer *bo)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
 	RADEONInfoPtr info = RADEONPTR(scrn);
-	uint32_t handle;
 
 	if (!info->use_glamor)
 		return TRUE;
 
-	if (bo->flags & RADEON_BO_FLAGS_GBM)
-		handle = gbm_bo_get_handle(bo->bo.gbm).u32;
-	else
-		handle = bo->bo.radeon->handle;
-
-	return glamor_egl_create_textured_pixmap(pixmap, handle, pixmap->devKind);
+	if (bo->flags & RADEON_BO_FLAGS_GBM) {
+		return glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap,
+								     bo->bo.gbm
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,19,99,903,0)
+								     , FALSE
+#endif
+								     );
+	} else {
+		return glamor_egl_create_textured_pixmap(pixmap,
+							 bo->bo.radeon->handle,
+							 pixmap->devKind);
+	}
 }
 
 static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
