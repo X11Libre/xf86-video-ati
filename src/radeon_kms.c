@@ -541,15 +541,6 @@ radeon_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
     drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
 			 drmmode_crtc->flip_pending);
     radeon_scanout_flip_abort(crtc, event_data);
-
-#ifdef HAVE_PRESENT_H
-    if (drmmode_crtc->present_vblank_event_id) {
-	present_event_notify(drmmode_crtc->present_vblank_event_id,
-			     drmmode_crtc->present_vblank_usec,
-			     drmmode_crtc->present_vblank_msc);
-	drmmode_crtc->present_vblank_event_id = 0;
-    }
-#endif
 }
 
 
