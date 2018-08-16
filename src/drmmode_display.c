@@ -100,13 +100,6 @@ RADEONZaphodStringMatches(ScrnInfoPtr pScrn, const char *s, char *output_name)
 }
 
 
-/* Wait for the boolean condition to be FALSE */
-#define drmmode_crtc_wait_pending_event(drmmode_crtc, fd, condition) \
-	do {} while ((condition) && \
-		     drmHandleEvent(fd, &drmmode_crtc->drmmode->event_context) \
-		     > 0);
-
-
 static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 					  int width, int height,
 					  int depth, int bpp,
@@ -306,8 +299,7 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 	if (drmmode_crtc->dpms_mode == DPMSModeOn && mode != DPMSModeOn) {
 		uint32_t seq;
 
-		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-						drmmode_crtc->flip_pending);
+		radeon_drm_wait_pending_flip(crtc);
 
 		/*
 		 * On->Off transition: record the last vblank time,
@@ -918,8 +910,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 			goto done;
 		}
 
-		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-						drmmode_crtc->flip_pending);
+		radeon_drm_wait_pending_flip(crtc);
 
 		if (!drmmode_set_mode(crtc, fb, mode, x, y))
 			goto done;
@@ -1772,14 +1763,11 @@ drmmode_output_set_tear_free(RADEONEntPtr pRADEONEnt,
 	drmmode_output->tear_free = tear_free;
 
 	if (crtc) {
-		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
 		/* Wait for pending flips before drmmode_set_mode_major calls
 		 * drmmode_crtc_update_tear_free, to prevent a nested
 		 * drmHandleEvent call, which would hang
 		 */
-		drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-						drmmode_crtc->flip_pending);
+		radeon_drm_wait_pending_flip(crtc);
 		drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
 				       crtc->x, crtc->y);
 	}
@@ -3370,8 +3358,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			radeon_cs_flush_indirect(crtc->scrn);
 
 			if (drmmode_crtc->scanout_update_pending) {
-				drmmode_crtc_wait_pending_event(drmmode_crtc, pRADEONEnt->fd,
-								drmmode_crtc->flip_pending);
+				radeon_drm_wait_pending_flip(crtc);
 				radeon_drm_abort_entry(drmmode_crtc->scanout_update_pending);
 				drmmode_crtc->scanout_update_pending = 0;
 			}
