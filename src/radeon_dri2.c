@@ -968,13 +968,15 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
 
     scrn = crtc->scrn;
     pRADEONEnt = RADEONEntPriv(scrn);
+    drmmode_crtc = event_info->crtc->driver_private;
     ret = drmmode_get_current_ust(pRADEONEnt->fd, &drm_now);
     if (ret) {
 	xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 		   "%s cannot get current time\n", __func__);
 	if (event_info->drm_queue_seq)
-	    radeon_drm_queue_handler(pRADEONEnt->fd, 0, 0, 0,
-				     (void*)event_info->drm_queue_seq);
+	    drmmode_crtc->drmmode->event_context.
+		vblank_handler(pRADEONEnt->fd, 0, 0, 0,
+			       (void*)event_info->drm_queue_seq);
 	else
 	    radeon_dri2_frame_event_handler(crtc, 0, 0, data);
 	return 0;
@@ -983,15 +985,15 @@ CARD32 radeon_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
      * calculate the frame number from current time
      * that would come from CRTC if it were running
      */
-    drmmode_crtc = event_info->crtc->driver_private;
     delta_t = drm_now - (CARD64)drmmode_crtc->dpms_last_ust;
     delta_seq = delta_t * drmmode_crtc->dpms_last_fps;
     delta_seq /= 1000000;
     frame = (CARD64)drmmode_crtc->dpms_last_seq + delta_seq;
     if (event_info->drm_queue_seq)
-	radeon_drm_queue_handler(pRADEONEnt->fd, frame, drm_now / 1000000,
-				 drm_now % 1000000,
-				 (void*)event_info->drm_queue_seq);
+	drmmode_crtc->drmmode->event_context.
+	    vblank_handler(pRADEONEnt->fd, frame, drm_now / 1000000,
+			   drm_now % 1000000,
+			   (void*)event_info->drm_queue_seq);
     else
 	radeon_dri2_frame_event_handler(crtc, frame, drm_now, data);
     return 0;

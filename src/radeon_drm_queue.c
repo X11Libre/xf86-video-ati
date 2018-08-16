@@ -57,7 +57,7 @@ static uintptr_t radeon_drm_queue_seq;
 /*
  * Handle a DRM event
  */
-void
+static void
 radeon_drm_queue_handler(int fd, unsigned int frame, unsigned int sec,
 			 unsigned int usec, void *user_ptr)
 {
@@ -181,8 +181,15 @@ radeon_drm_abort_id(uint64_t id)
  * Initialize the DRM event queue
  */
 void
-radeon_drm_queue_init()
+radeon_drm_queue_init(ScrnInfoPtr scrn)
 {
+    RADEONInfoPtr info = RADEONPTR(scrn);
+    drmmode_ptr drmmode = &info->drmmode;
+
+    drmmode->event_context.version = 2;
+    drmmode->event_context.vblank_handler = radeon_drm_queue_handler;
+    drmmode->event_context.page_flip_handler = radeon_drm_queue_handler;
+
     if (radeon_drm_queue_refcnt++)
 	return;
 

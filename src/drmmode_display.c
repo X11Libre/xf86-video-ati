@@ -2742,10 +2742,6 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 
 	xf86InitialConfiguration(pScrn, TRUE);
 
-	drmmode->event_context.version = 2;
-	drmmode->event_context.vblank_handler = radeon_drm_queue_handler;
-	drmmode->event_context.page_flip_handler = radeon_drm_queue_handler;
-
 	pRADEONEnt->has_page_flip_target = drmmode_probe_page_flip_target(pRADEONEnt);
 
 	drmModeFreeResources(mode_res);

@@ -40,9 +40,6 @@ typedef void (*radeon_drm_handler_proc)(xf86CrtcPtr crtc, uint32_t seq,
 					uint64_t usec, void *data);
 typedef void (*radeon_drm_abort_proc)(xf86CrtcPtr crtc, void *data);
 
-void radeon_drm_queue_handler(int fd, unsigned int frame,
-			      unsigned int tv_sec, unsigned int tv_usec,
-			      void *user_ptr);
 uintptr_t radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
 				 uint64_t id, void *data,
 				 radeon_drm_handler_proc handler,
@@ -50,7 +47,7 @@ uintptr_t radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
 void radeon_drm_abort_client(ClientPtr client);
 void radeon_drm_abort_entry(uintptr_t seq);
 void radeon_drm_abort_id(uint64_t id);
-void radeon_drm_queue_init();
+void radeon_drm_queue_init(ScrnInfoPtr scrn);
 void radeon_drm_queue_close(ScrnInfoPtr scrn);
 
 #endif /* _RADEON_DRM_QUEUE_H_ */

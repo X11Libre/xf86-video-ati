@@ -1789,7 +1789,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 	return FALSE;
     }
 
-    radeon_drm_queue_init();
+    radeon_drm_queue_init(pScrn);
 
     info->allowColorTiling2D = FALSE;
 
