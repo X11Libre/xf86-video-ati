@@ -110,7 +110,7 @@ radeon_present_flush_drm_events(ScreenPtr screen)
     if (r <= 0)
 	return 0;
 
-    return drmHandleEvent(pRADEONEnt->fd, &drmmode->event_context) >= 0;
+    return radeon_drm_handle_event(pRADEONEnt->fd, &drmmode->event_context) >= 0;
 }
 
 /*

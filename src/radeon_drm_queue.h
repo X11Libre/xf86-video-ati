@@ -47,6 +47,7 @@ uintptr_t radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
 void radeon_drm_abort_client(ClientPtr client);
 void radeon_drm_abort_entry(uintptr_t seq);
 void radeon_drm_abort_id(uint64_t id);
+int radeon_drm_handle_event(int fd, drmEventContext *event_context);
 void radeon_drm_wait_pending_flip(xf86CrtcPtr crtc);
 void radeon_drm_queue_init(ScrnInfoPtr scrn);
 void radeon_drm_queue_close(ScrnInfoPtr scrn);

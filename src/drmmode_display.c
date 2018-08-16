@@ -2587,9 +2587,8 @@ static void
 drm_wakeup_handler(pointer data, int err, pointer p)
 #endif
 {
-	ScrnInfoPtr scrn = data;
-	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
-	RADEONInfoPtr info = RADEONPTR(scrn);
+	drmmode_ptr drmmode = data;
+	RADEONEntPtr pRADEONEnt = RADEONEntPriv(drmmode->scrn);
 	
 #if !HAVE_NOTIFY_FD
 	fd_set *read_mask = p;
@@ -2597,7 +2596,7 @@ drm_wakeup_handler(pointer data, int err, pointer p)
 	if (err >= 0 && FD_ISSET(pRADEONEnt->fd, read_mask))
 #endif
 	{
-		drmHandleEvent(pRADEONEnt->fd, &info->drmmode.event_context);
+		radeon_drm_handle_event(pRADEONEnt->fd, &drmmode->event_context);
 	}
 }
 
@@ -2747,11 +2746,13 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	info->drmmode_inited = TRUE;
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
 #if HAVE_NOTIFY_FD
-		SetNotifyFd(pRADEONEnt->fd, drm_notify_fd, X_NOTIFY_READ, pScrn);
+		SetNotifyFd(pRADEONEnt->fd, drm_notify_fd, X_NOTIFY_READ,
+			    &info->drmmode);
 #else
 		AddGeneralSocket(pRADEONEnt->fd);
 		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-				drm_wakeup_handler, pScrn);
+					       drm_wakeup_handler,
+					       &info->drmmode);
 #endif
 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
 		pRADEONEnt->fd_wakeup_ref = 1;
