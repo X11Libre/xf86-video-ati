@@ -29,7 +29,7 @@ AC_INIT([xf86-video-ati],
 
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_MACRO_DIRS([m4])
+AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_AUX_DIR(.)
 
