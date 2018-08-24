@@ -454,6 +454,9 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     uint32_t size = ppix->devKind * ppix->drawable.height;
     Bool ret = FALSE;
 
+    if (ihandle == -1)
+	return radeon_set_pixmap_bo(ppix, NULL);
+
     bo = (struct radeon_buffer *)calloc(1, sizeof(struct radeon_buffer));
     if (!bo)
 	goto error;
