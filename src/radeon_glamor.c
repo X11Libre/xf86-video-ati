@@ -402,11 +402,13 @@ radeon_glamor_set_shared_pixmap_backing(PixmapPtr pixmap, void *handle)
 {
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	int ihandle = (int)(long)handle;
 
 	if (!radeon_set_shared_pixmap_backing(pixmap, handle, NULL))
 		return FALSE;
 
-	if (!radeon_glamor_create_textured_pixmap(pixmap,
+	if (ihandle != -1 &&
+	    !radeon_glamor_create_textured_pixmap(pixmap,
 						  radeon_get_pixmap_bo(pixmap))) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to get PRIME drawable for glamor pixmap.\n");
