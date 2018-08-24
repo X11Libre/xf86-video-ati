@@ -772,11 +772,15 @@ static inline Bool radeon_set_pixmap_bo(PixmapPtr pPix, struct radeon_buffer *bo
 	    radeon_buffer_unref(&driver_priv->bo);
 	    drmmode_fb_reference(pRADEONEnt->fd, &driver_priv->fb, NULL);
 
-	    radeon_buffer_ref(bo);
 	    driver_priv->bo = bo;
 
-	    radeon_bo_get_tiling(bo->bo.radeon, &driver_priv->tiling_flags,
-				 &pitch);
+	    if (bo) {
+		radeon_buffer_ref(bo);
+		radeon_bo_get_tiling(bo->bo.radeon, &driver_priv->tiling_flags,
+				     &pitch);
+	    } else
+		driver_priv->tiling_flags = 0;
+
 	    return TRUE;
 	}
 
