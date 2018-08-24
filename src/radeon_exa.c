@@ -296,11 +296,12 @@ Bool RADEONEXASharePixmapBacking(PixmapPtr ppix, ScreenPtr slave, void **fd_hand
 Bool RADEONEXASetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
 {
     struct radeon_exa_pixmap_priv *driver_priv = exaGetPixmapDriverPrivate(ppix);
+    int ihandle = (int)(long)fd_handle;
 
     if (!radeon_set_shared_pixmap_backing(ppix, fd_handle, &driver_priv->surface))
 	return FALSE;
 
-    driver_priv->shared = TRUE;
+    driver_priv->shared = ihandle != -1;
     return TRUE;
 }
 
