@@ -257,8 +257,11 @@ radeon_drm_handle_event(int fd, drmEventContext *event_context)
 
     r = drmHandleEvent(fd, event_context);
 
-    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_flip_signalled, list)
+    while (!xorg_list_is_empty(&radeon_drm_flip_signalled)) {
+	e = xorg_list_first_entry(&radeon_drm_flip_signalled,
+				  struct radeon_drm_queue_entry, list);
 	radeon_drm_queue_handle_one(e);
+    }
 
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_vblank_signalled, list) {
 	drmmode_crtc_private_ptr drmmode_crtc = e->crtc->driver_private;
@@ -277,12 +280,15 @@ void radeon_drm_wait_pending_flip(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
-    struct radeon_drm_queue_entry *e, *tmp;
+    struct radeon_drm_queue_entry *e;
 
     drmmode_crtc->wait_flip_nesting_level++;
 
-    xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_flip_signalled, list)
+    while (!xorg_list_is_empty(&radeon_drm_flip_signalled)) {
+	e = xorg_list_first_entry(&radeon_drm_flip_signalled,
+				  struct radeon_drm_queue_entry, list);
 	radeon_drm_queue_handle_one(e);
+    }
 
     while (drmmode_crtc->flip_pending
 	   && radeon_drm_handle_event(pRADEONEnt->fd,
