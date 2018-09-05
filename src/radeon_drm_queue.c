@@ -82,7 +82,7 @@ radeon_drm_queue_handler(struct xorg_list *signalled, unsigned int frame,
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
 	if (e->seq == seq) {
 	    if (!e->handler) {
-		e->abort(e->crtc, e->data);
+		radeon_drm_queue_handle_one(e);
 		break;
 	    }
 
