@@ -284,7 +284,8 @@ void radeon_drm_wait_pending_flip(xf86CrtcPtr crtc)
 
     drmmode_crtc->wait_flip_nesting_level++;
 
-    while (!xorg_list_is_empty(&radeon_drm_flip_signalled)) {
+    while (drmmode_crtc->flip_pending &&
+	   !xorg_list_is_empty(&radeon_drm_flip_signalled)) {
 	e = xorg_list_first_entry(&radeon_drm_flip_signalled,
 				  struct radeon_drm_queue_entry, list);
 	radeon_drm_queue_handle_one(e);
