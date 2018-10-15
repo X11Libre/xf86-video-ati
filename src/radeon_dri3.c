@@ -212,7 +212,7 @@ static int radeon_dri3_fd_from_pixmap(ScreenPtr screen,
 				      CARD16 *stride,
 				      CARD32 *size)
 {
-	struct radeon_bo *bo;
+	struct radeon_buffer *bo;
 	int fd;
 #ifdef USE_GLAMOR
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -222,10 +222,10 @@ static int radeon_dri3_fd_from_pixmap(ScreenPtr screen,
 		return glamor_fd_from_pixmap(screen, pixmap, stride, size);
 #endif
 
-	bo = radeon_get_pixmap_bo(pixmap)->bo.radeon;
+	bo = radeon_get_pixmap_bo(pixmap);
 	if (!bo) {
 		exaMoveInPixmap(pixmap);
-		bo = radeon_get_pixmap_bo(pixmap)->bo.radeon;
+		bo = radeon_get_pixmap_bo(pixmap);
 		if (!bo)
 			return -1;
 	}
@@ -233,11 +233,11 @@ static int radeon_dri3_fd_from_pixmap(ScreenPtr screen,
 	if (pixmap->devKind > UINT16_MAX)
 		return -1;
 
-	if (radeon_gem_prime_share_bo(bo, &fd) < 0)
+	if (radeon_gem_prime_share_bo(bo->bo.radeon, &fd) < 0)
 		return -1;
 
 	*stride = pixmap->devKind;
-	*size = bo->size;
+	*size = bo->bo.radeon->size;
 	return fd;
 }
 
