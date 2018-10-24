@@ -2614,7 +2614,7 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 				pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap,
 						None, pRADEONEnt);
 			} else {
-			    drmmode_crtc_scanout_free(drmmode_crtc);
+			    drmmode_crtc_scanout_free(crtc);
 			}
 		    }
 		}
