@@ -857,6 +857,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	Bool handle_deferred = FALSE;
 	unsigned scanout_id = 0;
 	drmmode_ptr drmmode = drmmode_crtc->drmmode;
 	int saved_x, saved_y;
@@ -924,6 +925,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		}
 
 		radeon_drm_wait_pending_flip(crtc);
+		handle_deferred = TRUE;
 
 		if (!drmmode_set_mode(crtc, fb, mode, x, y))
 			goto done;
@@ -983,7 +985,9 @@ done:
 		}
 	}
 
-	radeon_drm_queue_handle_deferred(crtc);
+	if (handle_deferred)
+		radeon_drm_queue_handle_deferred(crtc);
+
 	return ret;
 }
 
