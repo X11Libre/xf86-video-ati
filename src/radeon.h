@@ -560,7 +560,7 @@ typedef struct {
     /* Number of SW cursors currently visible on this screen */
     int sprites_visible;
 
-    Bool              IsSecondary;
+    int instance_id;
 
     Bool              r600_shadow_fb;
     void *fb_shadow;

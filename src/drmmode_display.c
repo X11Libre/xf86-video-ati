@@ -2060,9 +2060,7 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
 			if (!RADEONZaphodStringMatches(pScrn, s, name))
 				goto out_free_encoders;
 		} else {
-			if (!info->IsSecondary && (num != 0))
-				goto out_free_encoders;
-			else if (info->IsSecondary && (num != 1))
+			if (info->instance_id != num)
 				goto out_free_encoders;
 		}
 	}
@@ -2680,6 +2678,7 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	int i, num_dvi = 0, num_hdmi = 0;
 	drmModeResPtr mode_res;
 	unsigned int crtcs_needed = 0;
+	unsigned int crtcs_got = 0;
 	char *bus_id_string, *provider_name;
 
 	xf86CrtcConfigInit(pScrn, &drmmode_xf86crtc_config_funcs);
@@ -2718,16 +2717,26 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode->count_crtcs = mode_res->count_crtcs;
 	xf86CrtcSetSizeRange(pScrn, 320, 200, mode_res->max_width, mode_res->max_height);
 
-	for (i = 0; i < mode_res->count_crtcs; i++)
+	for (i = 0; i < mode_res->count_crtcs; i++) {
 		if (!xf86IsEntityShared(pScrn->entityList[0]) ||
-		    (crtcs_needed && !(pRADEONEnt->assigned_crtcs & (1 << i))))
-			crtcs_needed -= drmmode_crtc_init(pScrn, drmmode, mode_res, i);
+		    (crtcs_got < crtcs_needed &&
+		     !(pRADEONEnt->assigned_crtcs & (1 << i))))
+			crtcs_got += drmmode_crtc_init(pScrn, drmmode, mode_res, i);
+	}
 
 	/* All ZaphodHeads outputs provided with matching crtcs? */
-	if (xf86IsEntityShared(pScrn->entityList[0]) && (crtcs_needed > 0))
+	if (crtcs_got < crtcs_needed) {
+		if (crtcs_got == 0) {
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+				   "No ZaphodHeads CRTC available, needed %u\n",
+				   crtcs_needed);
+			return FALSE;
+		}
+
 		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
 			   "%d ZaphodHeads crtcs unavailable. Some outputs will stay off.\n",
 			   crtcs_needed);
+	}
 
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode, mode_res);
@@ -3170,13 +3179,14 @@ restart_destroy:
 
 	/* find new output ids we don't have outputs for */
 	for (i = 0; i < mode_res->count_connectors; i++) {
-		if (drmmode_find_output(pRADEONEnt->primary_scrn,
-					mode_res->connectors[i],
-					&num_dvi, &num_hdmi) ||
-		    (pRADEONEnt->secondary_scrn &&
-		     drmmode_find_output(pRADEONEnt->secondary_scrn,
-					 mode_res->connectors[i],
-					 &num_dvi, &num_hdmi)))
+		for (j = 0; j < pRADEONEnt->num_scrns; j++) {
+			if (drmmode_find_output(pRADEONEnt->scrn[j],
+						mode_res->connectors[i],
+						&num_dvi, &num_hdmi))
+				break;
+		}
+
+		if (j < pRADEONEnt->num_scrns)
 			continue;
 
 		if (drmmode_output_init(scrn, drmmode, mode_res, i, &num_dvi,

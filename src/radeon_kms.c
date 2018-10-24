@@ -202,6 +202,10 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
     if (!pScrn)
 	return;
 
+    pEnt = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
+    pPriv = xf86GetEntityPrivate(pEnt->index, gRADEONEntityIndex);
+    pRADEONEnt = pPriv->ptr;
+
     info = RADEONPTR(pScrn);
     if (info) {
 	if (info->fbcon_pixmap)
@@ -217,15 +221,12 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
 	    gbm_device_destroy(info->gbm);
 #endif
 
-	pEnt = info->pEnt;
+	pRADEONEnt->scrn[info->instance_id] = NULL;
+	pRADEONEnt->num_scrns--;
 	free(pScrn->driverPrivate);
 	pScrn->driverPrivate = NULL;
-    } else {
-	pEnt = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     }
 
-    pPriv = xf86GetEntityPrivate(pEnt->index, gRADEONEntityIndex);
-    pRADEONEnt = pPriv->ptr;
     if (pRADEONEnt->fd > 0) {
         DevUnion *pPriv;
         RADEONEntPtr pRADEONEnt;
@@ -1689,7 +1690,6 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     RADEONInfoPtr     info;
     RADEONEntPtr pRADEONEnt;
     MessageType from;
-    DevUnion* pPriv;
     Gamma  zeros = { 0.0, 0.0, 0.0 };
     uint32_t tiling = 0;
     int cpp;
@@ -1700,10 +1700,23 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, RADEON_LOGLEVEL_DEBUG,
 		   "RADEONPreInit_KMS\n");
     if (pScrn->numEntities != 1) return FALSE;
+
+    pRADEONEnt = xf86GetEntityPrivate(pScrn->entityList[0],
+				      getRADEONEntityIndex())->ptr;
+    if (pRADEONEnt->num_scrns == ARRAY_SIZE(pRADEONEnt->scrn)) {
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+		   "Only up to %u Zaphod instances supported\n",
+		   (unsigned)ARRAY_SIZE(pRADEONEnt->scrn));
+	return FALSE;
+    }
+    
     if (!RADEONGetRec(pScrn)) return FALSE;
 
     info               = RADEONPTR(pScrn);
-    info->IsSecondary  = FALSE;
+
+    info->instance_id = pRADEONEnt->num_scrns++;
+    pRADEONEnt->scrn[info->instance_id] = pScrn;
+
     info->pEnt         = xf86GetEntityInfo(pScrn->entityList[pScrn->numEntities - 1]);
     if (info->pEnt->location.type != BUS_PCI
 #ifdef XSERVER_PLATFORM_BUS
@@ -1712,26 +1725,10 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
         )
         return FALSE;
 
-    pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
-				 getRADEONEntityIndex());
-    pRADEONEnt = pPriv->ptr;
-
-    if(xf86IsEntityShared(pScrn->entityList[0]))
-    {
-        if(xf86IsPrimInitDone(pScrn->entityList[0]))
-        {
-            info->IsSecondary = TRUE;
-        }
-        else
-        {
-            xf86SetPrimInitDone(pScrn->entityList[0]);
-        }
+    if (xf86IsEntityShared(pScrn->entityList[0]) &&
+	info->instance_id == 0) {
+	xf86SetPrimInitDone(pScrn->entityList[0]);
     }
-
-    if (info->IsSecondary)
-	pRADEONEnt->secondary_scrn = pScrn;
-    else
-	pRADEONEnt->primary_scrn = pScrn;
 
     info->PciInfo = xf86GetPciInfoForEntity(info->pEnt->index);
     pScrn->monitor     = pScrn->confScreen->monitor;
