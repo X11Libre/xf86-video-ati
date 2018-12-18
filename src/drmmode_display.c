@@ -3297,6 +3297,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
 	xf86CrtcPtr crtc = NULL;
 	drmmode_crtc_private_ptr drmmode_crtc = config->crtc[0]->driver_private;
+	int crtc_id;
 	uint32_t flip_flags = flip_sync == FLIP_ASYNC ? DRM_MODE_PAGE_FLIP_ASYNC : 0;
 	drmmode_flipdata_ptr flipdata;
 	Bool handle_deferred = FALSE;
@@ -3304,7 +3305,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	struct drmmode_fb *fb;
 	int i = 0;
 
-	flipdata = calloc(1, sizeof(*flipdata) + config->num_crtc *
+	flipdata = calloc(1, sizeof(*flipdata) + drmmode_crtc->drmmode->count_crtcs *
 			  sizeof(flipdata->fb[0]));
         if (!flipdata) {
              xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -3336,6 +3337,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 	for (i = 0; i < config->num_crtc; i++) {
 		crtc = config->crtc[i];
 		drmmode_crtc = crtc->driver_private;
+		crtc_id = drmmode_get_crtc_id(crtc);
 
 		if (!drmmode_crtc_can_flip(crtc) ||
 		    (drmmode_crtc->tear_free && crtc != ref_crtc))
@@ -3369,9 +3371,9 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				goto next;
 			}
 
-			drmmode_fb_reference(pRADEONEnt->fd, &flipdata->fb[i],
+			drmmode_fb_reference(pRADEONEnt->fd, &flipdata->fb[crtc_id],
 					     radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap));
-			if (!flipdata->fb[i]) {
+			if (!flipdata->fb[crtc_id]) {
 				ErrorF("Failed to get FB for TearFree flip\n");
 				goto error;
 			}
@@ -3387,13 +3389,13 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 				drmmode_crtc->scanout_update_pending = 0;
 			}
 		} else {
-			drmmode_fb_reference(pRADEONEnt->fd, &flipdata->fb[i], fb);
+			drmmode_fb_reference(pRADEONEnt->fd, &flipdata->fb[crtc_id], fb);
 		}
 
 		if (crtc == ref_crtc) {
 			if (drmmode_page_flip_target_absolute(pRADEONEnt,
 							      drmmode_crtc,
-							      flipdata->fb[i]->handle,
+							      flipdata->fb[crtc_id]->handle,
 							      flip_flags,
 							      drm_queue_seq,
 							      target_msc) != 0)
@@ -3401,7 +3403,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		} else {
 			if (drmmode_page_flip_target_relative(pRADEONEnt,
 							      drmmode_crtc,
-							      flipdata->fb[i]->handle,
+							      flipdata->fb[crtc_id]->handle,
 							      flip_flags,
 							      drm_queue_seq, 0) != 0)
 				goto flip_error;
@@ -3414,7 +3416,7 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 
 	next:
 		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-				     flipdata->fb[i]);
+				     flipdata->fb[crtc_id]);
 		drm_queue_seq = 0;
 	}
 
