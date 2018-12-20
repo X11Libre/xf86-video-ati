@@ -72,6 +72,19 @@ radeon_drm_queue_handle_one(struct radeon_drm_queue_entry *e)
     free(e);
 }
 
+/*
+ * Abort one queued DRM entry, removing it
+ * from the list, calling the abort function and
+ * freeing the memory
+ */
+static void
+radeon_drm_abort_one(struct radeon_drm_queue_entry *e)
+{
+    xorg_list_del(&e->list);
+    e->abort(e->crtc, e->data);
+    free(e);
+}
+
 static void
 radeon_drm_queue_handler(struct xorg_list *signalled, unsigned int frame,
 			 unsigned int sec, unsigned int usec, void *user_ptr)
@@ -82,7 +95,7 @@ radeon_drm_queue_handler(struct xorg_list *signalled, unsigned int frame,
     xorg_list_for_each_entry_safe(e, tmp, &radeon_drm_queue, list) {
 	if (e->seq == seq) {
 	    if (!e->handler) {
-		radeon_drm_queue_handle_one(e);
+		radeon_drm_abort_one(e);
 		break;
 	    }
 
@@ -171,19 +184,6 @@ radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
     xorg_list_append(&e->list, &radeon_drm_queue);
 
     return e->seq;
-}
-
-/*
- * Abort one queued DRM entry, removing it
- * from the list, calling the abort function and
- * freeing the memory
- */
-static void
-radeon_drm_abort_one(struct radeon_drm_queue_entry *e)
-{
-    xorg_list_del(&e->list);
-    e->abort(e->crtc, e->data);
-    free(e);
 }
 
 /*
