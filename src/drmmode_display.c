@@ -1050,8 +1050,8 @@ drmmode_cursor_src_offset(Rotation rotation, int width, int height,
 #endif
 
 static Bool
-drmmode_cursor_pixel(xf86CrtcPtr crtc, uint32_t *argb, Bool premultiplied,
-		     Bool apply_gamma)
+drmmode_cursor_pixel(xf86CrtcPtr crtc, uint32_t *argb, Bool *premultiplied,
+		     Bool *apply_gamma)
 {
 	uint32_t alpha = *argb >> 24;
 	uint32_t rgb[3];
@@ -1059,13 +1059,23 @@ drmmode_cursor_pixel(xf86CrtcPtr crtc, uint32_t *argb, Bool premultiplied,
 
 	if (premultiplied) {
 #if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1, 18, 4, 0, 0)
-		if (alpha == 0 && (*argb & 0xffffff) != 0)
+		if (alpha == 0 && (*argb & 0xffffff) != 0) {
 			/* Doesn't look like premultiplied alpha */
+			*premultiplied = FALSE;
 			return FALSE;
+		}
 #endif
 
-		if (!apply_gamma)
+		if (!(*apply_gamma))
 			return TRUE;
+
+		if (*argb > (alpha | alpha << 8 | alpha << 16 | alpha << 24)) {
+			/* Un-premultiplied R/G/B would overflow gamma LUT,
+			 * don't apply gamma correction
+			 */
+			*apply_gamma = FALSE;
+			return FALSE;
+		}
 	}
 
 	if (!alpha) {
@@ -1083,7 +1093,7 @@ drmmode_cursor_pixel(xf86CrtcPtr crtc, uint32_t *argb, Bool premultiplied,
 			rgb[i] = rgb[i] * 0xff / alpha;
 	}
 
-	if (apply_gamma) {
+	if (*apply_gamma) {
 		rgb[0] = crtc->gamma_blue[rgb[0]] >> 8;
 		rgb[1] = crtc->gamma_green[rgb[1]] >> 8;
 		rgb[2] = crtc->gamma_red[rgb[2]] >> 8;
@@ -1128,11 +1138,10 @@ retry_transform:
 								      cursor_h,
 								      dstx, dsty);
 				argb = image[srcoffset];
-				if (!drmmode_cursor_pixel(crtc, &argb, premultiplied,
-							  apply_gamma)) {
-					premultiplied = FALSE;
+				if (!drmmode_cursor_pixel(crtc, &argb, &premultiplied,
+							  &apply_gamma))
 					goto retry_transform;
-				}
+
 				ptr[dsty * info->cursor_w + dstx] = cpu_to_le32(argb);
 			}
 		}
@@ -1145,11 +1154,10 @@ retry_transform:
 retry:
 		for (i = 0; i < cursor_size; i++) {
 			argb = image[i];
-			if (!drmmode_cursor_pixel(crtc, &argb, premultiplied,
-						  apply_gamma)) {
-				premultiplied = FALSE;
+			if (!drmmode_cursor_pixel(crtc, &argb, &premultiplied,
+						  &apply_gamma))
 				goto retry;
-			}
+
 			ptr[i] = cpu_to_le32(argb);
 		}
 	}
