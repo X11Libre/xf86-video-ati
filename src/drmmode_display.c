@@ -3397,7 +3397,8 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		drm_queue_seq = radeon_drm_queue_alloc(crtc, client, id,
 						       flipdata,
 						       drmmode_flip_handler,
-						       drmmode_flip_abort);
+						       drmmode_flip_abort,
+						       TRUE);
 		if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 				   "Allocating DRM queue event entry failed.\n");

@@ -48,6 +48,7 @@ struct radeon_drm_queue_entry {
     xf86CrtcPtr crtc;
     radeon_drm_handler_proc handler;
     radeon_drm_abort_proc abort;
+    Bool is_flip;
     unsigned int frame;
 };
 
@@ -86,8 +87,8 @@ radeon_drm_abort_one(struct radeon_drm_queue_entry *e)
 }
 
 static void
-radeon_drm_queue_handler(struct xorg_list *signalled, unsigned int frame,
-			 unsigned int sec, unsigned int usec, void *user_ptr)
+radeon_drm_queue_handler(int fd, unsigned int frame, unsigned int sec,
+			 unsigned int usec, void *user_ptr)
 {
     uintptr_t seq = (uintptr_t)user_ptr;
     struct radeon_drm_queue_entry *e, *tmp;
@@ -102,32 +103,12 @@ radeon_drm_queue_handler(struct xorg_list *signalled, unsigned int frame,
 	    xorg_list_del(&e->list);
 	    e->usec = (uint64_t)sec * 1000000 + usec;
 	    e->frame = frame;
-	    xorg_list_append(&e->list, signalled);
+	    xorg_list_append(&e->list, e->is_flip ?
+			     &radeon_drm_flip_signalled :
+			     &radeon_drm_vblank_signalled);
 	    break;
 	}
     }
-}
-
-/*
- * Signal a DRM page flip event
- */
-static void
-radeon_drm_page_flip_handler(int fd, unsigned int frame, unsigned int sec,
-			     unsigned int usec, void *user_ptr)
-{
-    radeon_drm_queue_handler(&radeon_drm_flip_signalled, frame, sec, usec,
-			     user_ptr);
-}
-
-/*
- * Signal a DRM vblank event
- */
-static void
-radeon_drm_vblank_handler(int fd, unsigned int frame, unsigned int sec,
-			  unsigned int usec, void *user_ptr)
-{
-    radeon_drm_queue_handler(&radeon_drm_vblank_signalled, frame, sec, usec,
-			     user_ptr);
 }
 
 /*
@@ -162,7 +143,8 @@ uintptr_t
 radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
 		       uint64_t id, void *data,
 		       radeon_drm_handler_proc handler,
-		       radeon_drm_abort_proc abort)
+		       radeon_drm_abort_proc abort,
+		       Bool is_flip)
 {
     struct radeon_drm_queue_entry *e;
 
@@ -180,6 +162,7 @@ radeon_drm_queue_alloc(xf86CrtcPtr crtc, ClientPtr client,
     e->data = data;
     e->handler = handler;
     e->abort = abort;
+    e->is_flip = is_flip;
 
     xorg_list_append(&e->list, &radeon_drm_queue);
 
@@ -306,8 +289,8 @@ radeon_drm_queue_init(ScrnInfoPtr scrn)
     drmmode_ptr drmmode = &info->drmmode;
 
     drmmode->event_context.version = 2;
-    drmmode->event_context.vblank_handler = radeon_drm_vblank_handler;
-    drmmode->event_context.page_flip_handler = radeon_drm_page_flip_handler;
+    drmmode->event_context.vblank_handler = radeon_drm_queue_handler;
+    drmmode->event_context.page_flip_handler = radeon_drm_queue_handler;
 
     if (radeon_drm_queue_refcnt++)
 	return;

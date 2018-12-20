@@ -1076,7 +1076,7 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 
     drm_queue_seq = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
 					   wait_info, radeon_dri2_frame_event_handler,
-					   radeon_dri2_frame_event_abort);
+					   radeon_dri2_frame_event_abort, FALSE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM queue event entry failed.\n");
@@ -1215,7 +1215,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     drm_queue_seq = radeon_drm_queue_alloc(crtc, client, RADEON_DRM_QUEUE_ID_DEFAULT,
 					   swap_info, radeon_dri2_frame_event_handler,
-					   radeon_dri2_frame_event_abort);
+					   radeon_dri2_frame_event_abort, FALSE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
         xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM queue entry failed.\n");

@@ -769,7 +769,8 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					   RADEON_DRM_QUEUE_ID_DEFAULT, NULL,
 					   radeon_prime_scanout_update_handler,
-					   radeon_prime_scanout_update_abort);
+					   radeon_prime_scanout_update_abort,
+					   FALSE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "radeon_drm_queue_alloc failed for PRIME update\n");
@@ -817,7 +818,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
 					   NULL,
 					   radeon_scanout_flip_handler,
-					   radeon_scanout_flip_abort);
+					   radeon_scanout_flip_abort, TRUE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM event queue entry failed for PRIME flip.\n");
@@ -1053,7 +1054,8 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
 					   drmmode_crtc,
 					   radeon_scanout_update_handler,
-					   radeon_scanout_update_abort);
+					   radeon_scanout_update_abort,
+					   FALSE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "radeon_drm_queue_alloc failed for scanout update\n");
@@ -1102,7 +1104,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 					   RADEON_DRM_QUEUE_ID_DEFAULT,
 					   NULL,
 					   radeon_scanout_flip_handler,
-					   radeon_scanout_flip_abort);
+					   radeon_scanout_flip_abort, TRUE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
 	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		   "Allocating DRM event queue entry failed.\n");
