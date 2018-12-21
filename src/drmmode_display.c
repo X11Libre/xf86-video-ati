@@ -2967,15 +2967,6 @@ miPointerSpriteFuncRec drmmode_sprite_funcs = {
 };
 
 	
-void drmmode_set_cursor(ScrnInfoPtr scrn, drmmode_ptr drmmode, int id, struct radeon_bo *bo)
-{
-	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-	xf86CrtcPtr crtc = xf86_config->crtc[id];
-	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
-	drmmode_crtc->cursor_bo = bo;
-}
-
 void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y)
 {
 	xf86CrtcConfigPtr	config = XF86_CRTC_CONFIG_PTR(pScrn);

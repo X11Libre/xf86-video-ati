@@ -2760,21 +2760,20 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 	cursor_size = info->cursor_w * info->cursor_h * 4;
 	cursor_size = RADEON_ALIGN(cursor_size, RADEON_GPU_PAGE_SIZE);
 	for (c = 0; c < xf86_config->num_crtc; c++) {
-	    /* cursor objects */
-            if (!info->cursor_bo[c]) {
-                info->cursor_bo[c] = radeon_bo_open(info->bufmgr, 0,
-                                                    cursor_size, 0,
-                                                    RADEON_GEM_DOMAIN_VRAM, 0);
-                if (!info->cursor_bo[c]) {
+	    drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[c]->driver_private;
+
+	    if (!drmmode_crtc->cursor_bo) {
+		drmmode_crtc->cursor_bo = radeon_bo_open(info->bufmgr, 0,
+							 cursor_size, 0,
+							 RADEON_GEM_DOMAIN_VRAM, 0);
+		if (!(drmmode_crtc->cursor_bo)) {
                     ErrorF("Failed to allocate cursor buffer memory\n");
                     return FALSE;
                 }
 
-                if (radeon_bo_map(info->cursor_bo[c], 1)) {
+		if (radeon_bo_map(drmmode_crtc->cursor_bo, 1)) {
                     ErrorF("Failed to map cursor buffer memory\n");
                 }
-
-                drmmode_set_cursor(pScrn, &info->drmmode, c, info->cursor_bo[c]);
             }
         }
     }
@@ -2840,7 +2839,9 @@ void radeon_kms_update_vram_limit(ScrnInfoPtr pScrn, uint32_t new_fb_size)
     int c;
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
-	if (info->cursor_bo[c])
+	drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[c]->driver_private;
+
+	if (drmmode_crtc->cursor_bo)
 	    new_fb_size += (64 * 4 * 64);
     }
 
