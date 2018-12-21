@@ -1017,6 +1017,9 @@ drmmode_set_cursor_position (xf86CrtcPtr crtc, int x, int y)
 	}
 #endif
 
+	drmmode_crtc->cursor_x = x;
+	drmmode_crtc->cursor_y = y;
+
 	drmModeMoveCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
 
@@ -1202,6 +1205,10 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+	CursorPtr cursor = xf86_config->cursor;
+	int xhot = cursor->bits->xhot;
+	int yhot = cursor->bits->yhot;
 	static Bool use_set_cursor2 = TRUE;
 	struct drm_mode_cursor2 arg;
 
@@ -1213,40 +1220,44 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	arg.width = info->cursor_w;
 	arg.height = info->cursor_h;
 
-	if (use_set_cursor2) {
-	    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-	    CursorPtr cursor = xf86_config->cursor;
-	    int xhot = cursor->bits->xhot;
-	    int yhot = cursor->bits->yhot;
-	    int ret;
+	if (crtc->rotation != RR_Rotate_0 &&
+	    crtc->rotation != (RR_Rotate_180 | RR_Reflect_X |
+			       RR_Reflect_Y)) {
+	    int t;
 
-	    if (crtc->rotation != RR_Rotate_0 &&
-		crtc->rotation != (RR_Rotate_180 | RR_Reflect_X |
-				   RR_Reflect_Y)) {
-		int t;
+	    /* Reflect & rotate hotspot position */
+	    if (crtc->rotation & RR_Reflect_X)
+		xhot = info->cursor_w - xhot - 1;
+	    if (crtc->rotation & RR_Reflect_Y)
+		yhot = info->cursor_h - yhot - 1;
 
-		/* Reflect & rotate hotspot position */
-		if (crtc->rotation & RR_Reflect_X)
-		    xhot = info->cursor_w - xhot - 1;
-		if (crtc->rotation & RR_Reflect_Y)
-		    yhot = info->cursor_h - yhot - 1;
-
-		switch (crtc->rotation & 0xf) {
-		case RR_Rotate_90:
-		    t = xhot;
-		    xhot = yhot;
-		    yhot = info->cursor_w - t - 1;
-		    break;
-		case RR_Rotate_180:
-		    xhot = info->cursor_w - xhot - 1;
-		    yhot = info->cursor_h - yhot - 1;
-		    break;
-		case RR_Rotate_270:
-		    t = xhot;
-		    xhot = info->cursor_h - yhot - 1;
-		    yhot = t;
-		}
+	    switch (crtc->rotation & 0xf) {
+	    case RR_Rotate_90:
+		t = xhot;
+		xhot = yhot;
+		yhot = info->cursor_w - t - 1;
+		break;
+	    case RR_Rotate_180:
+		xhot = info->cursor_w - xhot - 1;
+		yhot = info->cursor_h - yhot - 1;
+		break;
+	    case RR_Rotate_270:
+		t = xhot;
+		xhot = info->cursor_h - yhot - 1;
+		yhot = t;
 	    }
+	}
+
+	if (xhot != drmmode_crtc->cursor_xhot || yhot != drmmode_crtc->cursor_yhot) {
+	    arg.flags |= DRM_MODE_CURSOR_MOVE;
+	    arg.x = drmmode_crtc->cursor_x += drmmode_crtc->cursor_xhot - xhot;
+	    arg.y = drmmode_crtc->cursor_y += drmmode_crtc->cursor_yhot - yhot;
+	    drmmode_crtc->cursor_xhot = xhot;
+	    drmmode_crtc->cursor_yhot = yhot;
+	}
+
+	if (use_set_cursor2) {
+	    int ret;
 
 	    arg.hot_x = xhot;
 	    arg.hot_y = yhot;
