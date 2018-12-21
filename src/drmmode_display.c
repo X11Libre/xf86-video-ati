@@ -1202,8 +1202,16 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 	RADEONInfoPtr info = RADEONPTR(pScrn);
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(pScrn);
-	uint32_t handle = drmmode_crtc->cursor_bo->handle;
 	static Bool use_set_cursor2 = TRUE;
+	struct drm_mode_cursor2 arg;
+
+	memset(&arg, 0, sizeof(arg));
+
+	arg.handle = drmmode_crtc->cursor_bo->handle;
+	arg.flags = DRM_MODE_CURSOR_BO;
+	arg.crtc_id = drmmode_crtc->mode_crtc->crtc_id;
+	arg.width = info->cursor_w;
+	arg.height = info->cursor_h;
 
 	if (use_set_cursor2) {
 	    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
@@ -1240,18 +1248,17 @@ drmmode_show_cursor (xf86CrtcPtr crtc)
 		}
 	    }
 
-	    ret =
-		drmModeSetCursor2(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id,
-				  handle, info->cursor_w, info->cursor_h,
-				  xhot, yhot);
+	    arg.hot_x = xhot;
+	    arg.hot_y = yhot;
+
+	    ret = drmIoctl(pRADEONEnt->fd, DRM_IOCTL_MODE_CURSOR2, &arg);
 	    if (ret == -EINVAL)
 		use_set_cursor2 = FALSE;
 	    else
 		return;
 	}
 
-	drmModeSetCursor(pRADEONEnt->fd, drmmode_crtc->mode_crtc->crtc_id, handle,
-			 info->cursor_w, info->cursor_h);
+	drmIoctl(pRADEONEnt->fd, DRM_IOCTL_MODE_CURSOR, &arg);
 }
 
 /* Xorg expects a non-NULL return value from drmmode_crtc_shadow_allocate, and
