@@ -783,15 +783,32 @@ radeon_prime_scanout_update(PixmapDirtyUpdatePtr dirty)
 
     if (!drmmode_wait_vblank(xf86_crtc, DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT,
 			     1, drm_queue_seq, NULL, NULL)) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "drmmode_wait_vblank failed for PRIME update: %s\n",
-		   strerror(errno));
+	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_VBLANK_FAILED)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "drmmode_wait_vblank failed for PRIME update: %s\n",
+		       strerror(errno));
+	    drmmode_crtc->scanout_status |= DRMMODE_SCANOUT_VBLANK_FAILED;
+	}
+
 	drmmode_crtc->drmmode->event_context.vblank_handler(pRADEONEnt->fd,
 							    0, 0, 0,
 							    (void*)drm_queue_seq);
 	drmmode_crtc->wait_flip_nesting_level++;
 	radeon_drm_queue_handle_deferred(xf86_crtc);
+	return;
     }
+
+    if (drmmode_crtc->scanout_status ==
+	(DRMMODE_SCANOUT_FLIP_FAILED | DRMMODE_SCANOUT_VBLANK_FAILED)) {
+	/* The page flip and vblank ioctls failed before, but the vblank
+	 * ioctl is working again, so we can try re-enabling TearFree
+	 */
+	xf86_crtc->funcs->set_mode_major(xf86_crtc, &xf86_crtc->mode,
+					 xf86_crtc->rotation,
+					 xf86_crtc->x, xf86_crtc->y);
+    }
+
+    drmmode_crtc->scanout_status &= ~DRMMODE_SCANOUT_VBLANK_FAILED;
 }
 
 static void
@@ -842,10 +859,20 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
     if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
 					  drmmode_crtc->flip_pending->handle,
 					  0, drm_queue_seq, 0) != 0) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s\n",
-		   __func__, strerror(errno));
+	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "flip queue failed in %s: %s, TearFree inactive\n",
+		       __func__, strerror(errno));
+	    drmmode_crtc->scanout_status |= DRMMODE_SCANOUT_FLIP_FAILED;
+	}
+
 	radeon_drm_abort_entry(drm_queue_seq);
 	return;
+    }
+
+    if (drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED) {
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "TearFree active again\n");
+	drmmode_crtc->scanout_status &= ~DRMMODE_SCANOUT_FLIP_FAILED;
     }
 
     drmmode_crtc->scanout_id = scanout_id;
@@ -1072,15 +1099,32 @@ radeon_scanout_update(xf86CrtcPtr xf86_crtc)
 
     if (!drmmode_wait_vblank(xf86_crtc, DRM_VBLANK_RELATIVE | DRM_VBLANK_EVENT,
 			     1, drm_queue_seq, NULL, NULL)) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "drmmode_wait_vblank failed for scanout update: %s\n",
-		   strerror(errno));
+	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_VBLANK_FAILED)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "drmmode_wait_vblank failed for scanout update: %s\n",
+		       strerror(errno));
+	    drmmode_crtc->scanout_status |= DRMMODE_SCANOUT_VBLANK_FAILED;
+	}
+
 	drmmode_crtc->drmmode->event_context.vblank_handler(pRADEONEnt->fd,
 							    0, 0, 0,
 							    (void*)drm_queue_seq);
 	drmmode_crtc->wait_flip_nesting_level++;
 	radeon_drm_queue_handle_deferred(xf86_crtc);
+	return;
     }
+
+    if (drmmode_crtc->scanout_status ==
+	(DRMMODE_SCANOUT_FLIP_FAILED | DRMMODE_SCANOUT_VBLANK_FAILED)) {
+	/* The page flip and vblank ioctls failed before, but the vblank
+	 * ioctl is working again, so we can try re-enabling TearFree
+	 */
+	xf86_crtc->funcs->set_mode_major(xf86_crtc, &xf86_crtc->mode,
+					 xf86_crtc->rotation,
+					 xf86_crtc->x, xf86_crtc->y);
+    }
+
+    drmmode_crtc->scanout_status &= ~DRMMODE_SCANOUT_VBLANK_FAILED;
 }
 
 static void
@@ -1132,9 +1176,13 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
 					  drmmode_crtc->flip_pending->handle,
 					  0, drm_queue_seq, 0) != 0) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING, "flip queue failed in %s: %s, "
-		   "TearFree inactive until next modeset\n",
-		   __func__, strerror(errno));
+	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED)) {
+	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		       "flip queue failed in %s: %s, TearFree inactive\n",
+		       __func__, strerror(errno));
+	    drmmode_crtc->scanout_status |= DRMMODE_SCANOUT_FLIP_FAILED;
+	}
+
 	radeon_drm_abort_entry(drm_queue_seq);
 	RegionCopy(DamageRegion(drmmode_crtc->scanout_damage),
 		   &drmmode_crtc->scanout_last_region);
@@ -1144,6 +1192,11 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 				     &drmmode_crtc->scanout[scanout_id]);
 	drmmode_crtc->tear_free = FALSE;
 	return;
+    }
+
+    if (drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED) {
+	xf86DrvMsg(scrn->scrnIndex, X_INFO, "TearFree active again\n");
+	drmmode_crtc->scanout_status &= ~DRMMODE_SCANOUT_FLIP_FAILED;
     }
 
     drmmode_crtc->scanout_id = scanout_id;
