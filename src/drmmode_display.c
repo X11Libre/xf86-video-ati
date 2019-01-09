@@ -3100,7 +3100,8 @@ Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
 	}
 
 	/* Validate leases on VT re-entry */
-	drmmode_validate_leases(pScrn);
+	if (dixPrivateKeyRegistered(rrPrivKey))
+	    drmmode_validate_leases(pScrn);
 
 	return TRUE;
 }
