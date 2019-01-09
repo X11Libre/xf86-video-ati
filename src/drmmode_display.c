@@ -3273,7 +3273,7 @@ restart_destroy:
 	/* Check to see if a lessee has disappeared */
 	drmmode_validate_leases(scrn);
 
-	if (changed && dixPrivateKeyRegistered(rrPrivKey)) {
+	if (changed) {
 #if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,14,99,2,0)
 		RRSetChanged(xf86ScrnToScreen(scrn));
 #else

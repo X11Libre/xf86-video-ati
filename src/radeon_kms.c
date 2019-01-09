@@ -349,12 +349,12 @@ static Bool RADEONCreateScreenResources_KMS(ScreenPtr pScreen)
 	    RROutputChanged(rrScrPriv->primaryOutput, FALSE);
 	    rrScrPriv->layoutChanged = TRUE;
 	}
+
+	drmmode_uevent_init(pScrn, &info->drmmode);
     }
 
     if (!drmmode_set_desired_modes(pScrn, &info->drmmode, pScreen->isGPU))
 	return FALSE;
-
-    drmmode_uevent_init(pScrn, &info->drmmode);
 
     if (info->r600_shadow_fb) {
 	pixmap = pScreen->GetScreenPixmap(pScreen);
