@@ -325,7 +325,7 @@ void radeon_drm_wait_pending_flip(xf86CrtcPtr crtc)
 
     while (drmmode_crtc->flip_pending
 	   && radeon_drm_handle_event(pRADEONEnt->fd,
-					  &drmmode_crtc->drmmode->event_context) > 0);
+				      &drmmode_crtc->drmmode->event_context) >= 0);
 }
 
 /*
