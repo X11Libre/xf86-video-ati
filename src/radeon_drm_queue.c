@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <errno.h>
+
 #include <xorg-server.h>
 #include <X11/Xdefs.h>
 #include <list.h>
@@ -277,7 +279,20 @@ radeon_drm_handle_event(int fd, drmEventContext *event_context)
     struct radeon_drm_queue_entry *e;
     int r;
 
-    r = drmHandleEvent(fd, event_context);
+    /* Retry drmHandleEvent if it was interrupted by a signal in read() */
+    do {
+	r = drmHandleEvent(fd, event_context);
+    } while (r < 0 && (errno == EINTR || errno == EAGAIN));
+
+    if (r < 0) {
+	static Bool printed;
+
+	if (!printed) {
+	    ErrorF("%s: drmHandleEvent returned %d, errno=%d (%s)\n",
+		   __func__, r, errno, strerror(errno));
+	    printed = TRUE;
+	}
+    }
 
     while (!xorg_list_is_empty(&radeon_drm_flip_signalled)) {
 	e = xorg_list_first_entry(&radeon_drm_flip_signalled,
