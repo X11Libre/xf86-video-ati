@@ -2651,12 +2651,14 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 		flipdata->fe_usec = usec;
 	}
 
-	if (drmmode_crtc->flip_pending == *fb) {
-		drmmode_fb_reference(pRADEONEnt->fd,
-				     &drmmode_crtc->flip_pending, NULL);
+	if (*fb) {
+		if (drmmode_crtc->flip_pending == *fb) {
+			drmmode_fb_reference(pRADEONEnt->fd,
+					     &drmmode_crtc->flip_pending, NULL);
+		}
+		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, *fb);
+		drmmode_fb_reference(pRADEONEnt->fd, fb, NULL);
 	}
-	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, *fb);
-	drmmode_fb_reference(pRADEONEnt->fd, fb, NULL);
 
 	if (--flipdata->flip_count == 0) {
 		/* Deliver MSC & UST from reference/current CRTC to flip event
@@ -3492,9 +3494,10 @@ Bool radeon_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 			drmmode_crtc->ignore_damage = TRUE;
 		}
 
-	next:
 		drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
 				     flipdata->fb[crtc_id]);
+
+	next:
 		drm_queue_seq = 0;
 	}
 

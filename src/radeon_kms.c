@@ -526,10 +526,14 @@ radeon_scanout_flip_abort(xf86CrtcPtr crtc, void *event_data)
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    struct drmmode_fb *fb = event_data;
 
     drmmode_crtc->scanout_update_pending = 0;
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-			 NULL);
+
+    if (drmmode_crtc->flip_pending == fb) {
+	drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
+			     NULL);
+    }
 }
 
 static void
@@ -538,9 +542,9 @@ radeon_scanout_flip_handler(xf86CrtcPtr crtc, uint32_t msc, uint64_t usec,
 {
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    struct drmmode_fb *fb = event_data;
 
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb,
-			 drmmode_crtc->flip_pending);
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->fb, fb);
     radeon_scanout_flip_abort(crtc, event_data);
 }
 
@@ -821,24 +825,31 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
     drmmode_crtc_private_ptr drmmode_crtc;
     uintptr_t drm_queue_seq;
     unsigned scanout_id;
+    struct drmmode_fb *fb;
 
     if (!crtc || !crtc->enabled)
 	return;
 
     drmmode_crtc = crtc->driver_private;
+    scanout_id = drmmode_crtc->scanout_id ^ 1;
     if (drmmode_crtc->scanout_update_pending ||
-	!drmmode_crtc->scanout[drmmode_crtc->scanout_id].pixmap ||
+	!drmmode_crtc->scanout[scanout_id].pixmap ||
 	drmmode_crtc->dpms_mode != DPMSModeOn)
 	return;
 
-    scanout_id = drmmode_crtc->scanout_id ^ 1;
     if (!radeon_prime_scanout_do_update(crtc, scanout_id))
 	return;
 
+    fb = radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap);
+    if (!fb) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+		   "Failed to get FB for PRIME flip.\n");
+	return;
+    }
+	
     drm_queue_seq = radeon_drm_queue_alloc(crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
-					   RADEON_DRM_QUEUE_ID_DEFAULT,
-					   NULL,
+					   RADEON_DRM_QUEUE_ID_DEFAULT, fb,
 					   radeon_scanout_flip_handler,
 					   radeon_scanout_flip_abort, TRUE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
@@ -847,18 +858,9 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 	return;
     }
 
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-			  radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap));
-    if (!drmmode_crtc->flip_pending) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "Failed to get FB for PRIME flip.\n");
-	radeon_drm_abort_entry(drm_queue_seq);
-	return;
-    }
-
     if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
-					  drmmode_crtc->flip_pending->handle,
-					  0, drm_queue_seq, 1) != 0) {
+					  fb->handle, 0, drm_queue_seq, 1)
+	!= 0) {
 	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED)) {
 	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		       "flip queue failed in %s: %s, TearFree inactive\n",
@@ -877,6 +879,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 
     drmmode_crtc->scanout_id = scanout_id;
     drmmode_crtc->scanout_update_pending = drm_queue_seq;
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending, fb);
 }
 
 static void
@@ -1137,6 +1140,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
     uintptr_t drm_queue_seq;
     unsigned scanout_id;
+    struct drmmode_fb *fb;
 
     if (drmmode_crtc->scanout_update_pending ||
 	drmmode_crtc->flip_pending ||
@@ -1152,10 +1156,16 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     radeon_cs_flush_indirect(scrn);
     RegionEmpty(region);
 
+    fb = radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap);
+    if (!fb) {
+	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+	       "Failed to get FB for scanout flip.\n");
+	return;
+    }
+
     drm_queue_seq = radeon_drm_queue_alloc(xf86_crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
-					   RADEON_DRM_QUEUE_ID_DEFAULT,
-					   NULL,
+					   RADEON_DRM_QUEUE_ID_DEFAULT, fb,
 					   radeon_scanout_flip_handler,
 					   radeon_scanout_flip_abort, TRUE);
     if (drm_queue_seq == RADEON_DRM_QUEUE_ERROR) {
@@ -1164,18 +1174,9 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 	return;
     }
 
-    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending,
-			  radeon_pixmap_get_fb(drmmode_crtc->scanout[scanout_id].pixmap));
-    if (!drmmode_crtc->flip_pending) {
-	xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-		   "Failed to get FB for scanout flip.\n");
-	radeon_drm_abort_entry(drm_queue_seq);
-	return;
-    }
-
     if (drmmode_page_flip_target_relative(pRADEONEnt, drmmode_crtc,
-					  drmmode_crtc->flip_pending->handle,
-					  0, drm_queue_seq, 1) != 0) {
+					  fb->handle, 0, drm_queue_seq, 1)
+	!= 0) {
 	if (!(drmmode_crtc->scanout_status & DRMMODE_SCANOUT_FLIP_FAILED)) {
 	    xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 		       "flip queue failed in %s: %s, TearFree inactive\n",
@@ -1201,6 +1202,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
 
     drmmode_crtc->scanout_id = scanout_id;
     drmmode_crtc->scanout_update_pending = drm_queue_seq;
+    drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending, fb);
 }
 
 static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
