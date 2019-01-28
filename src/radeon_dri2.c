@@ -252,6 +252,12 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
     } else if (is_glamor_pixmap) {
 	pixmap = radeon_glamor_set_pixmap_bo(drawable, pixmap);
 	pixmap->refcnt++;
+
+	/* The copy operation from radeon_glamor_set_pixmap_bo needs to
+	 * be flushed to the kernel driver before the client starts
+	 * using the pixmap storage for direct rendering.
+	 */
+	radeon_cs_flush_indirect(pScrn);
     }
 
     if (!radeon_get_flink_name(pRADEONEnt, pixmap, &buffers->name))
