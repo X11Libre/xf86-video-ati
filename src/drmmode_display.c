@@ -785,7 +785,7 @@ drmmode_crtc_scanout_update(xf86CrtcPtr crtc, DisplayModePtr mode,
 					     screen->GetWindowPixmap(screen->root),
 					     extents)) {
 			RegionEmpty(DamageRegion(drmmode_crtc->scanout_damage));
-			radeon_glamor_finish(scrn);
+			radeon_finish(scrn, drmmode_crtc->scanout[scanout_id].bo);
 
 			if (!drmmode_crtc->flip_pending) {
 				radeon_drm_abort_entry(drmmode_crtc->
