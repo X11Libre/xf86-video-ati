@@ -1156,6 +1156,9 @@ static int radeon_dri2_schedule_wait_msc(ClientPtr client, DrawablePtr draw,
 out_complete:
     if (wait_info)
 	radeon_dri2_deferred_event(NULL, 0, wait_info);
+    else
+	DRI2WaitMSCComplete(client, draw, 0, 0, 0);
+
     return TRUE;
 }
 
