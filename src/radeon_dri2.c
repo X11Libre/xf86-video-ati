@@ -517,10 +517,12 @@ xf86CrtcPtr radeon_dri2_drawable_crtc(DrawablePtr pDraw, Bool consider_disabled)
 					      pDraw->x, pDraw->x + pDraw->width,
 					      pDraw->y, pDraw->y + pDraw->height);
 
-    if (crtc && pDraw->type == DRAWABLE_WINDOW) {
+    if (pDraw->type == DRAWABLE_WINDOW) {
 	struct dri2_window_priv *priv = get_dri2_window_priv((WindowPtr)pDraw);
 
-	if (priv->crtc && priv->crtc != crtc) {
+	if (!crtc) {
+	    crtc = priv->crtc;
+	} else if (priv->crtc && priv->crtc != crtc) {
 	    CARD64 ust, mscold, mscnew;
 
 	    if (radeon_dri2_get_crtc_msc(priv->crtc, &ust, &mscold) &&
