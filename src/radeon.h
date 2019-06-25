@@ -309,6 +309,7 @@ struct radeon_pixmap {
 
 	struct radeon_buffer *bo;
 	struct drmmode_fb *fb;
+	Bool fb_failed;
 
 	uint32_t tiling_flags;
 
