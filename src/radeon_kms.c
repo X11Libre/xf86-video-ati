@@ -1917,19 +1917,15 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 
     if (!pScrn->is_gpu) {
 	if (info->dri2.pKernelDRMVersion->version_minor >= 8) {
-	    Bool sw_cursor = xf86ReturnOptValBool(info->Options,
-						  OPTION_SW_CURSOR, FALSE);
-
 	    info->allowPageFlip = xf86ReturnOptValBool(info->Options,
 						       OPTION_PAGE_FLIP, TRUE);
 
-	    if (sw_cursor || info->shadow_primary) {
+	    if (info->shadow_primary) {
 		xf86DrvMsg(pScrn->scrnIndex,
 			   info->allowPageFlip ? X_WARNING : X_DEFAULT,
 			   "KMS Pageflipping: disabled%s\n",
 			   info->allowPageFlip ?
-			   (sw_cursor ? " because of SWcursor" :
-			    " because of ShadowPrimary") : "");
+			   " because of ShadowPrimary" : "");
 		info->allowPageFlip = FALSE;
 	    } else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
