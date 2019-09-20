@@ -2629,6 +2629,12 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 	unsigned w = 0, h = 0;
 	int i;
 
+	/* If we're called from CloseScreen, trying to clear the black
+	 * scanout BO will likely crash and burn
+	 */
+	if (!pScreen->GCperDepth[0])
+	    goto hide_cursors;
+
 	/* Compute maximum scanout dimensions of active CRTCs */
 	for (i = 0; i < xf86_config->num_crtc; i++) {
 	    crtc = xf86_config->crtc[i];
@@ -2701,8 +2707,10 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 	       pScrn->displayWidth * info->pixel_bytes * pScrn->virtualY);
     }
 
-    TimerSet(NULL, 0, 1000, cleanup_black_fb, pScreen);
+    if (pScreen->GCperDepth[0])
+	TimerSet(NULL, 0, 1000, cleanup_black_fb, pScreen);
 
+ hide_cursors:
     xf86_hide_cursors (pScrn);
 
     radeon_drop_drm_master(pScrn);
