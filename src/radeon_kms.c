@@ -2602,14 +2602,23 @@ CARD32 cleanup_black_fb(OsTimerPtr timer, CARD32 now, pointer data)
 }
 
 static void
-pixmap_unref_fb(void *value, XID id, void *cdata)
+pixmap_unref_fb(PixmapPtr pixmap)
 {
-    PixmapPtr pixmap = value;
-    RADEONEntPtr pRADEONEnt = cdata;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
     struct drmmode_fb **fb_ptr = radeon_pixmap_get_fb_ptr(pixmap);
+    RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 
     if (fb_ptr)
 	drmmode_fb_reference(pRADEONEnt->fd, fb_ptr, NULL);
+}
+
+static void
+client_pixmap_unref_fb(void *value, XID id, void *pScreen)
+{
+    PixmapPtr pixmap = value;
+
+    if (pixmap->drawable.pScreen == pScreen)
+	pixmap_unref_fb(pixmap);
 }
 
 void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
@@ -2673,11 +2682,9 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 
 			if (pScrn->is_gpu) {
 			    if (drmmode_crtc->scanout[0].pixmap)
-				pixmap_unref_fb(drmmode_crtc->scanout[0].pixmap,
-						None, pRADEONEnt);
+				pixmap_unref_fb(drmmode_crtc->scanout[0].pixmap);
 			    if (drmmode_crtc->scanout[1].pixmap)
-				pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap,
-						None, pRADEONEnt);
+				pixmap_unref_fb(drmmode_crtc->scanout[1].pixmap);
 			} else {
 			    drmmode_crtc_scanout_free(crtc);
 			}
@@ -2697,11 +2704,11 @@ void RADEONLeaveVT_KMS(ScrnInfoPtr pScrn)
 		(!clients[i] || clients[i]->clientState != ClientStateRunning))
 		continue;
 
-	    FindClientResourcesByType(clients[i], RT_PIXMAP, pixmap_unref_fb,
-				      pRADEONEnt);
+	    FindClientResourcesByType(clients[i], RT_PIXMAP,
+				      client_pixmap_unref_fb, pScreen);
 	}
 
-	pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen), None, pRADEONEnt);
+	pixmap_unref_fb(pScreen->GetScreenPixmap(pScreen));
     } else {
 	memset(info->front_buffer->bo.radeon->ptr, 0,
 	       pScrn->displayWidth * info->pixel_bytes * pScrn->virtualY);
