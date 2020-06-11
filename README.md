@@ -6,9 +6,9 @@ amd-gfx mailing list:
 
   https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 
-Please submit bug reports to the Xorg bugzilla:
+Please submit bug reports to the Gitlab Issues page:
 
-  https://bugs.freedesktop.org/enter_bug.cgi?product=xorg&component=Driver/Radeon
+  https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues
 
 The primary development code repository can be found at:
 
