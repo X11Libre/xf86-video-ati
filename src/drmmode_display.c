@@ -45,7 +45,9 @@
 #include "radeon_glamor.h"
 #include "radeon_reg.h"
 
+#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,19,99,1,0)
 #include <dri.h>
+#endif
 
 #include "drmmode_display.h"
 
