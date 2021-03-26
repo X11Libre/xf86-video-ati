@@ -1,0 +1,80 @@
+# FDO_DISTRIBUTION_TAG is the tag of the docker image used for the build
+# jobs. If the image doesn't exist yet, the docker-image stage generates it
+# or copies it from upstream (this is all handled by the templates).
+#
+# In order to generate a new image, one should generally change the tag.
+# While removing the image from the registry would also work, that's not
+# recommended except for ephemeral images during development.
+#
+variables:
+  FDO_DISTRIBUTION_VERSION: buster-slim
+  FDO_DISTRIBUTION_EXEC: 'bash .gitlab-ci/debian-install.sh'
+  FDO_DISTRIBUTION_TAG: "2021-05-10"
+  FDO_UPSTREAM_REPO: xorg/driver/xf86-video-ati
+
+include:
+  - project: 'freedesktop/ci-templates'
+    ref: 290b79e0e78eab67a83766f4e9691be554fc4afd
+    file: '/templates/debian.yml'
+
+stages:
+  - docker-image
+  - build
+
+
+container-build:
+  extends:
+    - .fdo.container-build@debian
+  stage: docker-image
+  variables:
+
+
+# The default build instructions
+.default_build:
+  extends:
+    - .fdo.distribution-image@debian
+  stage: build
+  script:
+  - ./autogen.sh
+  - make -j${FDO_CI_CONCURRENT:-4} check V=1
+  variables:
+    CFLAGS: "-pipe -g -O2 -Werror"
+    ACLOCAL_PATH: /usr/local/xserver-$XSERVER_VERSION/share/aclocal
+    PKG_CONFIG_PATH: /usr/local/xserver-$XSERVER_VERSION/lib/pkgconfig
+
+build-distcheck:
+  extends:
+    - .default_build
+  script:
+  - ./autogen.sh
+  - make -j${FDO_CI_CONCURRENT:-4} check V=1
+  - make install V=1
+  - make -j${FDO_CI_CONCURRENT:-4} distcheck
+  variables:
+    XSERVER_VERSION: "1.20"
+
+build-gcc:
+  extends:
+    - .default_build
+  parallel:
+    matrix:
+      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19"]
+
+build-clang:
+  extends:
+    - .default_build
+  parallel:
+    matrix:
+      - XSERVER_VERSION: ["1.20", "1.18", "1.19"]
+  variables:
+    CC: clang
+
+build-noglamor:
+  extends:
+    - .default_build
+  script:
+  - ./autogen.sh --disable-glamor
+  - make -j${FDO_CI_CONCURRENT:-4} check V=1
+  parallel:
+    matrix:
+      - XSERVER_VERSION: ["1.13", "1.14", "1.15"]
