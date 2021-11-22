@@ -861,13 +861,13 @@ static void RADEONInit3DEngineInternal(ScrnInfoPtr pScrn)
 	    /* clip has offset 1440 */
 	    OUT_RING_REG(R300_SC_CLIP_0_A, ((1440 << R300_CLIP_X_SHIFT) |
 					     (1440 << R300_CLIP_Y_SHIFT)));
-	    OUT_RING_REG(R300_SC_CLIP_0_B, ((4080 << R300_CLIP_X_SHIFT) |
-					     (4080 << R300_CLIP_Y_SHIFT)));
+	    OUT_RING_REG(R300_SC_CLIP_0_B, (((4080 + 1440 - 1) << R300_CLIP_X_SHIFT) |
+					     ((4080 + 1440 - 1) << R300_CLIP_Y_SHIFT)));
 	} else {
 	    OUT_RING_REG(R300_SC_CLIP_0_A, ((0 << R300_CLIP_X_SHIFT) |
 					     (0 << R300_CLIP_Y_SHIFT)));
-	    OUT_RING_REG(R300_SC_CLIP_0_B, ((4080 << R300_CLIP_X_SHIFT) |
-					     (4080 << R300_CLIP_Y_SHIFT)));
+	    OUT_RING_REG(R300_SC_CLIP_0_B, (((4080 - 1) << R300_CLIP_X_SHIFT) |
+					     ((4080 - 1) << R300_CLIP_Y_SHIFT)));
 	}
 	OUT_RING_REG(R300_SC_CLIP_RULE, 0xAAAA);
 	OUT_RING_REG(R300_SC_SCREENDOOR, 0xffffff);
