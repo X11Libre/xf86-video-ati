@@ -228,6 +228,11 @@ radeon_platform_probe(DriverPtr pDriver,
 	xf86SetEntityShared(entity_num);
     xf86AddEntityToScreen(pScrn, entity_num);
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1, 16, 99, 901, 0)
+    if(xf86NameCmp(dev->attribs->driver, RADEON_DRIVER_NAME))
+	return FALSE;
+#endif
+
     if (!radeon_kernel_mode_enabled(pScrn, dev->pdev))
 	return FALSE;
 
