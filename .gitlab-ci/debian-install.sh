@@ -8,10 +8,12 @@ apt-get update
 
 
 # Ephemeral packages (installed for this script and removed again at the end)
-# meson is needed to build libxcvt for xserver 21.1 & later
+# meson is needed to build xserver master & its dependencies
+# python3-setuptools is needed to build libdrm
 EPHEMERAL="
 	ca-certificates
 	meson
+	python3-setuptools
 	git
 	"
 
@@ -47,6 +49,18 @@ meson install
 cd ../..
 rm -rf libxcvt
 
+# xserver master requires libdrm >= 2.4.109,
+# but bullseye only has libdrm 2.4.104
+# Can't build libdrm > 2.4.117 with bullseye's meson 0.56.2
+git clone https://gitlab.freedesktop.org/mesa/drm.git
+cd drm
+git checkout libdrm-2.4.116
+mkdir _build
+cd _build
+meson setup ..
+meson install
+cd ../..
+rm -rf drm
 
 # xserver 1.18 and older branches require libXfont 1.5 instead of 2.0
 git clone https://gitlab.freedesktop.org/xorg/lib/libXfont.git
@@ -60,6 +74,16 @@ rm -rf libXfont
 
 git clone https://gitlab.freedesktop.org/xorg/xserver.git
 cd xserver
+
+# master branch requires meson, not autoconf
+mkdir _build
+cd _build
+meson setup .. -Dprefix=/usr/local/xserver-master \
+     -Ddri2=true -Ddri3=true -Dglamor=true
+meson install
+cd ..
+rm -rf _build
+
 
 for VERSION in 1.13 1.14 1.15; do
     git checkout server-${VERSION}-branch

@@ -11,7 +11,7 @@
 variables:
   FDO_DISTRIBUTION_VERSION: bullseye-slim
   FDO_DISTRIBUTION_EXEC: 'bash .gitlab-ci/debian-install.sh'
-  FDO_DISTRIBUTION_TAG: "2024-02-23"
+  FDO_DISTRIBUTION_TAG: "2024-02-24"
   FDO_UPSTREAM_REPO: xorg/driver/xf86-video-ati
 
 #
@@ -94,7 +94,7 @@ container-build:
   variables:
     CFLAGS: "-pipe -g -O2 -Werror"
     ACLOCAL_PATH: /usr/local/xserver-$XSERVER_VERSION/share/aclocal
-    PKG_CONFIG_PATH: /usr/local/xserver-$XSERVER_VERSION/lib/pkgconfig
+    PKG_CONFIG_PATH: /usr/local/xserver-$XSERVER_VERSION/lib/pkgconfig:/usr/local/xserver-$XSERVER_VERSION/lib/x86_64-linux-gnu/pkgconfig
 
 build-distcheck:
   extends:
@@ -105,7 +105,7 @@ build-distcheck:
   - make install V=1
   - make -j${FDO_CI_CONCURRENT:-4} distcheck
   variables:
-    XSERVER_VERSION: "21.1"
+    XSERVER_VERSION: "master"
 
 # excludes version already checked in build-distcheck
 build-gcc:
@@ -113,14 +113,14 @@ build-gcc:
     - .default_build
   parallel:
     matrix:
-      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19", "1.20"]
+      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19", "1.20", "21.1"]
 
 build-clang:
   extends:
     - .default_build
   parallel:
     matrix:
-      - XSERVER_VERSION: ["1.18", "1.19", "1.20", "21.1"]
+      - XSERVER_VERSION: ["1.18", "1.19", "1.20", "21.1", "master"]
   variables:
     CC: clang
 
