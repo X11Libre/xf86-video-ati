@@ -1,19 +1,17 @@
-xf86-video-ati - ATI/AMD Radeon video driver for the Xorg X server
-------------------------------------------------------------------
+xf86-video-ati - Xorg driver for ATI/AMD Radeon GPUs using the radeon kernel driver
+===================================================================================
 
-Patches and questions regarding this software should be directed at the
-amd-gfx mailing list:
+Questions regarding this software should be directed at the
+[amd-gfx mailing list](https://lists.freedesktop.org/mailman/listinfo/amd-gfx).
 
-  https://lists.freedesktop.org/mailman/listinfo/amd-gfx
+The
+[main development code repository](https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati)
+can be found at FreeDesktop Gitlab.
 
-Please submit bug reports to the Gitlab Issues page:
+Please submit bug reports there and use merge requests for patch submission.
 
-  https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues
+See the X.org wiki for
+[further patch submission instructions](https://www.x.org/wiki/Development/Documentation/SubmittingPatches)
+and
+[more information on the git code manager](https://wiki.x.org/wiki/GitPage).
 
-The primary development code repository can be found at:
-
-  https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati
-
-For patch submission instructions, see:
-
-  https://www.x.org/wiki/Development/Documentation/SubmittingPatches
