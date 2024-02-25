@@ -9,9 +9,10 @@
 # recommended except for ephemeral images during development.
 #
 variables:
-  FDO_DISTRIBUTION_VERSION: buster-slim
+  FDO_DISTRIBUTION_VERSION: bookworm-slim
   FDO_DISTRIBUTION_EXEC: 'bash .gitlab-ci/debian-install.sh'
-  FDO_DISTRIBUTION_TAG: "2021-05-10"
+  FDO_DISTRIBUTION_PACKAGES: 'ca-certificates'
+  FDO_DISTRIBUTION_TAG: "2024-02-23.2"
   FDO_UPSTREAM_REPO: xorg/driver/xf86-video-ati
 
 #
@@ -19,7 +20,7 @@ variables:
 # Please see the ci-templates documentation for details:
 # https://freedesktop.pages.freedesktop.org/ci-templates/
 
-.templates_sha: &template_sha 34f4ade99434043f88e164933f570301fd18b125 # see https://docs.gitlab.com/ee/ci/yaml/#includefile
+.templates_sha: &template_sha 9568e38927f9e9c48d4f586f84a071c3a4bdcd39 # see https://docs.gitlab.com/ee/ci/yaml/#includefile
 
 include:
   - project: 'freedesktop/ci-templates'
@@ -105,21 +106,22 @@ build-distcheck:
   - make install V=1
   - make -j${FDO_CI_CONCURRENT:-4} distcheck
   variables:
-    XSERVER_VERSION: "1.20"
+    XSERVER_VERSION: "21.1"
 
+# excludes version already checked in build-distcheck
 build-gcc:
   extends:
     - .default_build
   parallel:
     matrix:
-      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19"]
+      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19", "1.20"]
 
 build-clang:
   extends:
     - .default_build
   parallel:
     matrix:
-      - XSERVER_VERSION: ["1.20", "1.18", "1.19"]
+      - XSERVER_VERSION: ["1.18", "1.19", "1.20", "21.1"]
   variables:
     CC: clang
 
