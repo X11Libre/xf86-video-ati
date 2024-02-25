@@ -206,22 +206,12 @@ Bool RADEONAccelInit(ScreenPtr pScreen)
 static void RADEONInit3DEngineInternal(ScrnInfoPtr pScrn)
 {
     RADEONInfoPtr  info       = RADEONPTR(pScrn);
-    uint32_t gb_tile_config, vap_cntl;
+    uint32_t vap_cntl;
 
     info->accel_state->texW[0] = info->accel_state->texH[0] =
 	info->accel_state->texW[1] = info->accel_state->texH[1] = 1;
 
     if (IS_R300_3D || IS_R500_3D) {
-
-	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
-
-	switch(info->accel_state->num_gb_pipes) {
-	case 2: gb_tile_config |= R300_PIPE_COUNT_R300; break;
-	case 3: gb_tile_config |= R300_PIPE_COUNT_R420_3P; break;
-	case 4: gb_tile_config |= R300_PIPE_COUNT_R420; break;
-	default:
-	case 1: gb_tile_config |= R300_PIPE_COUNT_RV350; break;
-	}
 
 	BEGIN_RING(2*3);
 	OUT_RING_REG(R300_RB3D_DSTCACHE_CTLSTAT, R300_DC_FLUSH_3D | R300_DC_FREE_3D);
