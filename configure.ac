@@ -254,11 +254,11 @@ b = bswap16(a);
 	if test "$USE_SYS_ENDIAN_H" = "yes" ; then
 	    AC_DEFINE([USE_SYS_ENDIAN_H], 1, 
 		[Define to use byteswap macros from <sys/endian.h>])
-	    AC_DEFINE_UNQUOTED([bswap_16], ${BSWAP}16, 
+	    AC_DEFINE_UNQUOTED([radeon_bswap_16], ${BSWAP}16, 
 			[Define to 16-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_32], ${BSWAP}32, 
+	    AC_DEFINE_UNQUOTED([radeon_bswap_32], ${BSWAP}32, 
 			[Define to 32-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_64], ${BSWAP}64, 
+	    AC_DEFINE_UNQUOTED([radeon_bswap_64], ${BSWAP}64, 
 			[Define to 64-bit byteswap macro])
 	fi
 fi
