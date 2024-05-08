@@ -187,7 +187,7 @@ static Bool RADEONGetRec(ScrnInfoPtr pScrn)
 {
     if (pScrn->driverPrivate) return TRUE;
 
-    pScrn->driverPrivate = xnfcalloc(sizeof(RADEONInfoRec), 1);
+    pScrn->driverPrivate = XNFcallocarray(sizeof(RADEONInfoRec), 1);
     return TRUE;
 }
 
