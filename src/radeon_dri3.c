@@ -27,9 +27,6 @@
 #endif
 
 #include "radeon.h"
-
-#ifdef HAVE_DRI3_H
-
 #include "radeon_bo_gem.h"
 #include "radeon_glamor.h"
 #include "dri3.h"
@@ -243,17 +240,3 @@ radeon_dri3_screen_init(ScreenPtr screen)
 
 	return TRUE;
 }
-
-#else /* !HAVE_DRI3_H */
-
-Bool
-radeon_dri3_screen_init(ScreenPtr screen)
-{
-	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
-		   "Can't initialize DRI3 because dri3.h not available at "
-		   "build time\n");
-
-	return FALSE;
-}
-
-#endif
