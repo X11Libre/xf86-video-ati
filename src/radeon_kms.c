@@ -43,12 +43,8 @@
 #include "radeon_version.h"
 #include "shadow.h"
 #include <xf86Priv.h>
-
 #include "atipciids.h"
-
-#if HAVE_PRESENT_H
 #include <present.h>
-#endif
 
 /* DPMS */
 #ifdef HAVE_XEXTPROTO_71
