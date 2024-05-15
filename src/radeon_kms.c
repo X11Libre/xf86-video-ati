@@ -551,14 +551,12 @@ dirty_region(PixmapDirtyUpdatePtr dirty)
 	RegionPtr damageregion = DamageRegion(dirty->damage);
 	RegionPtr dstregion;
 
-#ifdef HAS_DIRTYTRACKING_ROTATION
 	if (dirty->rotation != RR_Rotate_0) {
 		dstregion = transform_region(damageregion,
 					     &dirty->f_inverse,
 					     dirty->secondary_dst->drawable.width,
 					     dirty->secondary_dst->drawable.height);
 	} else
-#endif
 	{
 	    RegionRec pixregion;
 
@@ -584,11 +582,7 @@ redisplay_dirty(PixmapDirtyUpdatePtr dirty, RegionPtr region)
 	if (dirty->secondary_dst->primary_pixmap)
 	    DamageRegionAppend(&dirty->secondary_dst->drawable, region);
 
-#ifdef HAS_DIRTYTRACKING_ROTATION
 	PixmapSyncDirtyHelper(dirty);
-#else
-	PixmapSyncDirtyHelper(dirty, region);
-#endif
 
 	radeon_cs_flush_indirect(src_scrn);
 	if (dirty->secondary_dst->primary_pixmap)
