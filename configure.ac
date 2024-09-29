@@ -24,7 +24,7 @@
 AC_PREREQ([2.60])
 AC_INIT([xf86-video-ati],
         [22.0.0],
-        [https://bugs.freedesktop.org/enter_bug.cgi?product=xorg&component=Driver/Radeon],
+        [https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues],
         [xf86-video-ati])
 
 AC_CONFIG_SRCDIR([Makefile.am])
@@ -270,13 +270,13 @@ AC_SUBST([DRIVER_NAME])
 
 AC_MSG_NOTICE(
 [The atimisc sub-driver has been split out to xf86-video-mach64:]
-[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-mach64]
+[    https://gitlab.freedesktop.org/xorg/driver/xf86-video-mach64]
 [Please install that driver as well for mach64-based cards.]
 )
 
 AC_MSG_NOTICE(
 [The r128 sub-driver has been split out to xf86-video-r128:]
-[    git://anongit.freedesktop.org/git/xorg/driver/xf86-video-r128]
+[    https://gitlab.freedesktop.org/xorg/driver/xf86-video-r128]
 [Please install that driver as well for rage128-based cards.]
 )
 
