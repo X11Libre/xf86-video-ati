@@ -396,7 +396,7 @@ https://www.x.org/wiki/radeon
 .IP " 2." 4
 Overview about radeon development code:
 .RS 4
-https://cgit.freedesktop.org/xorg/driver/xf86-video-ati/
+https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati
 .RE
 .IP " 3." 4
 Mailing list:
@@ -406,17 +406,17 @@ https://lists.freedesktop.org/mailman/listinfo/amd-gfx
 .IP " 4." 4
 IRC channel:
 .RS 4
-#radeon on irc.freenode.net
+#radeon on irc.oftc.net
 .RE
 .IP " 5." 4
 Query the bugtracker for radeon bugs:
 .RS 4
-https://bugs.freedesktop.org/query.cgi?product=xorg&component=Driver/Radeon
+https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues
 .RE
 .IP " 6." 4
 Submit bugs & patches:
 .RS 4
-https://bugs.freedesktop.org/enter_bug.cgi?product=xorg&component=Driver/Radeon
+https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/
 .RE
 
 .SH AUTHORS
