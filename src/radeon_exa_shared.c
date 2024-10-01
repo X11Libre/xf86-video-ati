@@ -132,7 +132,7 @@ PixmapPtr RADEONSolidPixmap(ScreenPtr pScreen, uint32_t solid)
     bo = radeon_get_pixmap_bo(pPix)->bo.radeon;
 
     if (radeon_bo_map(bo, 1)) {
-	pScreen->DestroyPixmap(pPix);
+        dixDestroyPixmap(pPix, 0);
 	return NULL;
     }
 

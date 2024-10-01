@@ -209,7 +209,7 @@ static void RADEONFreeRec(ScrnInfoPtr pScrn)
     info = RADEONPTR(pScrn);
     if (info) {
 	if (info->fbcon_pixmap)
-	    pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
+            dixDestroyPixmap(info->fbcon_pixmap, 0);
 
 	if (info->accel_state) {
 	    free(info->accel_state);

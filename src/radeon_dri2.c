@@ -273,7 +273,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 
 error:
     free(buffers);
-    (*pScreen->DestroyPixmap)(pixmap);
+    dixDestroyPixmap(pixmap, 0);
     return NULL;
 }
 
@@ -299,7 +299,7 @@ radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
         if (private->refcnt == 0)
         {
 	    if (private->pixmap)
-                (*pScreen->DestroyPixmap)(private->pixmap);
+                dixDestroyPixmap(private->pixmap, 0);
 
             free(buffers->driverPrivate);
             free(buffers);
@@ -649,10 +649,10 @@ update_front(DrawablePtr draw, DRI2BufferPtr front)
     if (!info->use_glamor)
 	exaMoveInPixmap(pixmap);
     if (!radeon_get_flink_name(pRADEONEnt, pixmap, &front->name)) {
-	(*draw->pScreen->DestroyPixmap)(pixmap);
+        dixDestroyPixmap(pixmap, 0);
 	return FALSE;
     }
-    (*draw->pScreen->DestroyPixmap)(priv->pixmap);
+    dixDestroyPixmap(priv->pixmap, 0);
     front->pitch = pixmap->devKind;
     front->cpp = pixmap->drawable.bitsPerPixel / 8;
     priv->pixmap = pixmap;

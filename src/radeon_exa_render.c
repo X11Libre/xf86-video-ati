@@ -615,7 +615,7 @@ static Bool R100PrepareComposite(int op,
 	pMask = RADEONSolidPixmap(pScreen, cpu_to_le32(pMaskPicture->pSourcePict->solidFill.color));
 	if (!pMask) {
 	    if (!pSrcPicture->pDrawable)
-		pScreen->DestroyPixmap(pSrc);
+                dixDestroyPixmap(pSrc, 0);
 	    RADEON_FALLBACK(("Failed to create solid scratch pixmap\n"));
 	}
     }
@@ -977,7 +977,7 @@ static Bool R200PrepareComposite(int op, PicturePtr pSrcPicture,
 	pMask = RADEONSolidPixmap(pScreen, cpu_to_le32(pMaskPicture->pSourcePict->solidFill.color));
 	if (!pMask) {
 	    if (!pSrcPicture->pDrawable)
-		pScreen->DestroyPixmap(pSrc);
+                dixDestroyPixmap(pSrc, 0);
 	    RADEON_FALLBACK(("Failed to create solid scratch pixmap\n"));
 	}
     }
@@ -1469,7 +1469,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	pMask = RADEONSolidPixmap(pScreen, cpu_to_le32(pMaskPicture->pSourcePict->solidFill.color));
 	if (!pMask) {
 	    if (!pSrcPicture->pDrawable)
-		pScreen->DestroyPixmap(pSrc);
+                dixDestroyPixmap(pSrc, 0);
 	    RADEON_FALLBACK(("Failed to create solid scratch pixmap\n"));
 	}
     }
@@ -2148,10 +2148,10 @@ static void RadeonDoneComposite(PixmapPtr pDst)
     RadeonFinishComposite(pDst);
 
     if (!accel_state->src_pic->pDrawable)
-	pScreen->DestroyPixmap(accel_state->src_pix);
+        dixDestroyPixmap(accel_state->src_pix, 0);
 
     if (accel_state->msk_pic && !accel_state->msk_pic->pDrawable)
-	pScreen->DestroyPixmap(accel_state->msk_pix);
+        dixDestroyPixmap(accel_state->msk_pix, 0);
 }
 
 #define VTX_OUT_MASK(_dstX, _dstY, _srcX, _srcY, _maskX, _maskY)	\
