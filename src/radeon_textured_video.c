@@ -755,10 +755,22 @@ RADEONQueryBestSize(
   *p_h = drw_h;
 }
 
+
+#ifndef FOURCC_RGB24
 #define FOURCC_RGB24    0x00000000
+#endif
+
+#ifndef FOURCC_RGBT16
 #define FOURCC_RGBT16   0x54424752
+#endif
+
+#ifndef FOURCC_RGB16
 #define FOURCC_RGB16    0x32424752
+#endif
+
+#ifndef FOURCC_RGBA32
 #define FOURCC_RGBA32   0x41424752
+#endif
 
 static int
 RADEONQueryImageAttributes(
