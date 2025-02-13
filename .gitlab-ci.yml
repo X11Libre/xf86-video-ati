@@ -114,7 +114,7 @@ build-gcc:
     - .default_build
   parallel:
     matrix:
-      - XSERVER_VERSION: ["1.16", "1.17", "1.18", "1.19", "1.20"]
+      - XSERVER_VERSION: ["1.18", "1.19", "1.20"]
 
 build-clang:
   extends:
@@ -124,13 +124,3 @@ build-clang:
       - XSERVER_VERSION: ["1.18", "1.19", "1.20", "21.1"]
   variables:
     CC: clang
-
-build-noglamor:
-  extends:
-    - .default_build
-  script:
-  - ./autogen.sh --disable-glamor
-  - make -j${FDO_CI_CONCURRENT:-4} check V=1
-  parallel:
-    matrix:
-      - XSERVER_VERSION: ["1.13", "1.14", "1.15"]

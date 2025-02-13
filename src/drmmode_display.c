@@ -672,12 +672,7 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 {
 	Bool ret;
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
 	crtc->driverIsPerformingTransform = XF86DriverTransformOutput;
-#else
-	crtc->driverIsPerformingTransform = !crtc->transformPresent &&
-		(crtc->rotation & 0xf) == RR_Rotate_0;
-#endif
 
 	ret = xf86CrtcRotate(crtc);
 
@@ -1182,8 +1177,6 @@ retry:
 	}
 }
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
-
 static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 {
 	if (!drmmode_can_use_hw_cursor(crtc))
@@ -1192,8 +1185,6 @@ static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 	drmmode_load_cursor_argb(crtc, image);
 	return TRUE;
 }
-
-#endif
 
 static void
 drmmode_hide_cursor (xf86CrtcPtr crtc)
@@ -1386,14 +1377,9 @@ drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 	PixmapStartDirtyTracking(&ppix->drawable,
 				 drmmode_crtc->scanout[scanout_id].pixmap,
 				 0, 0, 0, 0, RR_Rotate_0);
-#elif defined(HAS_DIRTYTRACKING_ROTATION)
+#else
 	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[scanout_id].pixmap,
 				 0, 0, 0, 0, RR_Rotate_0);
-#elif defined(HAS_DIRTYTRACKING2)
-	PixmapStartDirtyTracking2(ppix, drmmode_crtc->scanout[scanout_id].pixmap,
-				  0, 0, 0, 0);
-#else
-	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[scanout_id].pixmap, 0, 0);
 #endif
 	return TRUE;
 }
@@ -1406,10 +1392,7 @@ static xf86CrtcFuncsRec drmmode_crtc_funcs = {
     .show_cursor = drmmode_show_cursor,
     .hide_cursor = drmmode_hide_cursor,
     .load_cursor_argb = drmmode_load_cursor_argb,
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
     .load_cursor_argb_check = drmmode_load_cursor_argb_check,
-#endif
-
     .gamma_set = drmmode_crtc_gamma_set,
     .shadow_create = drmmode_crtc_shadow_create,
     .shadow_allocate = drmmode_crtc_shadow_allocate,
@@ -1579,7 +1562,6 @@ drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 static void
 drmmode_output_attach_tile(xf86OutputPtr output)
 {
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1, 17, 99, 901, 0)
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
@@ -1618,7 +1600,6 @@ drmmode_output_attach_tile(xf86OutputPtr output)
 			set = &tile_info;
 	}
 	xf86OutputSetTile(output, set);
-#endif
 }
 
 static int
@@ -1713,9 +1694,7 @@ drmmode_output_destroy(xf86OutputPtr output)
 	int i;
 
 	drmModeFreePropertyBlob(drmmode_output->edid_blob);
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1, 17, 99, 901, 0)
 	drmModeFreePropertyBlob(drmmode_output->tile_blob);
-#endif
 
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmModeFreeProperty(drmmode_output->props[i].mode_prop);
@@ -3327,12 +3306,7 @@ restart_destroy:
 	drmmode_validate_leases(scrn);
 
 	if (changed) {
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,14,99,2,0)
 		RRSetChanged(xf86ScrnToScreen(scrn));
-#else
-		rrScrPrivPtr rrScrPriv = rrGetScrPriv(scrn->pScreen);
-		rrScrPriv->changed = TRUE;
-#endif
 		RRTellChanged(xf86ScrnToScreen(scrn));
 	}
 

@@ -97,25 +97,6 @@
 
 struct _SyncFence;
 
-#ifndef HAVE_REGIONDUPLICATE
-
-static inline RegionPtr
-RegionDuplicate(RegionPtr pOld)
-{
-    RegionPtr pNew;
-
-    pNew = RegionCreate(&pOld->extents, 0);
-    if (!pNew)
-	return NULL;
-    if (!RegionCopy(pNew, pOld)) {
-	RegionDestroy(pNew);
-	return NULL;
-    }
-    return pNew;
-}
-
-#endif
-
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
@@ -681,11 +662,7 @@ Bool radeon_dri3_screen_init(ScreenPtr screen);
 /* radeon_kms.c */
 Bool radeon_scanout_do_update(xf86CrtcPtr xf86_crtc, int scanout_id,
 			      PixmapPtr src_pix, BoxRec extents);
-void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-				   , RegionPtr pBSRegion
-#endif
-				   );
+void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion);
 
 /* radeon_present.c */
 Bool radeon_present_screen_init(ScreenPtr screen);

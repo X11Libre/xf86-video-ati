@@ -43,12 +43,8 @@
 #include "radeon_version.h"
 #include "shadow.h"
 #include <xf86Priv.h>
-
 #include "atipciids.h"
-
-#if HAVE_PRESENT_H
 #include <present.h>
-#endif
 
 /* DPMS */
 #ifdef HAVE_XEXTPROTO_71
@@ -555,14 +551,12 @@ dirty_region(PixmapDirtyUpdatePtr dirty)
 	RegionPtr damageregion = DamageRegion(dirty->damage);
 	RegionPtr dstregion;
 
-#ifdef HAS_DIRTYTRACKING_ROTATION
 	if (dirty->rotation != RR_Rotate_0) {
 		dstregion = transform_region(damageregion,
 					     &dirty->f_inverse,
 					     dirty->secondary_dst->drawable.width,
 					     dirty->secondary_dst->drawable.height);
 	} else
-#endif
 	{
 	    RegionRec pixregion;
 
@@ -588,11 +582,7 @@ redisplay_dirty(PixmapDirtyUpdatePtr dirty, RegionPtr region)
 	if (dirty->secondary_dst->primary_pixmap)
 	    DamageRegionAppend(&dirty->secondary_dst->drawable, region);
 
-#ifdef HAS_DIRTYTRACKING_ROTATION
 	PixmapSyncDirtyHelper(dirty);
-#else
-	PixmapSyncDirtyHelper(dirty, region);
-#endif
 
 	radeon_cs_flush_indirect(src_scrn);
 	if (dirty->secondary_dst->primary_pixmap)
@@ -1734,11 +1724,7 @@ static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 }
 
 /* When the root window is mapped, set the initial modes */
-void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-				   , RegionPtr pBSRegion
-#endif
-				   )
+void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion)
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
@@ -1748,11 +1734,7 @@ void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
 	ErrorF("%s called for non-root window %p\n", __func__, pWin);
 
     pScreen->WindowExposures = info->WindowExposures;
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-    pScreen->WindowExposures(pWin, pRegion, pBSRegion);
-#else
     pScreen->WindowExposures(pWin, pRegion);
-#endif
 
     radeon_finish(pScrn, info->front_buffer);
     drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);

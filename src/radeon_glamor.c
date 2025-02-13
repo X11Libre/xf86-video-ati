@@ -128,15 +128,6 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 		return FALSE;
 	}
 
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,15,0,0,0)
-	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
-		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
-			   "glamor requires Load \"glamoregl\" in "
-			   "Section \"Module\", disabling.\n");
-		return FALSE;
-	}
-#endif
-
 	info->gbm = gbm_create_device(pRADEONEnt->fd);
 	if (!info->gbm) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -436,18 +427,14 @@ radeon_glamor_init(ScreenPtr screen)
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	RADEONInfoPtr info = RADEONPTR(scrn);
 #ifdef RENDER
-#ifdef HAVE_FBGLYPHS
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph = NULL;
-#endif
 	PictureScreenPtr ps = NULL;
 
 	if (info->shadow_primary) {
 		ps = GetPictureScreenIfSet(screen);
 
 		if (ps) {
-#ifdef HAVE_FBGLYPHS
 			SavedUnrealizeGlyph = ps->UnrealizeGlyph;
-#endif
 			info->glamor.SavedGlyphs = ps->Glyphs;
 			info->glamor.SavedTriangles = ps->Triangles;
 			info->glamor.SavedTrapezoids = ps->Trapezoids;
@@ -475,7 +462,7 @@ radeon_glamor_init(ScreenPtr screen)
 	if (info->shadow_primary)
 		radeon_glamor_screen_init(screen);
 
-#if defined(RENDER) && defined(HAVE_FBGLYPHS)
+#if defined(RENDER)
 	/* For ShadowPrimary, we need fbUnrealizeGlyph instead of
 	 * glamor_unrealize_glyph
 	 */
