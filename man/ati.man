@@ -1,8 +1,8 @@
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
-.TH ATI __drivermansuffix__ __vendorversion__
+.TH ATI __drivermansuffix__ 2010-12-02 __vendorversion__
 .SH NAME
-ati \- ATI video driver
+ati \- ATI video wrapper driver for Xorg
 .SH SYNOPSIS
 .nf
 .B "Section \*qDevice\*q"
@@ -13,20 +13,31 @@ ati \- ATI video driver
 .fi
 .SH DESCRIPTION
 .B ati
-is an __xservername__ wrapper driver for ATI video cards.  It autodetects
-whether your hardware has a Radeon, Rage 128, or Mach64 or earlier class of
-chipset, and loads the radeon(__drivermansuffix__),
-r128(__drivermansuffix__), or mach64 driver as
-appropriate.
+is an Xorg wrapper driver for ATI video cards.
+It autodetects whether your hardware has a
+Radeon, Rage 128, or Mach64 or earlier class of chipset, and loads the
+.BR radeon (__drivermansuffix__),
+.BR r128 (__drivermansuffix__),
+or
+.B mach64
+driver as appropriate.
 .SH SUPPORTED HARDWARE
 The
 .B ati
 driver supports Radeon, Rage 128, and Mach64 and earlier chipsets by loading
-those drivers.  See those manpages for specific cards supported.
+those drivers.
+See those manpages for specific cards supported.
 .SH CONFIGURATION DETAILS
-Please refer to __xconfigfile__(__filemansuffix__) for general configuration
-details, and the specific card driver for driver configuration details.
+Please refer to
+.BR xorg.conf(__filemansuffix__)
+for general configuration details,
+and the specific card driver for driver configuration details.
 .SH "SEE ALSO"
-__xservername__(__appmansuffix__), __xconfigfile__(__filemansuffix__), Xserver(__appmansuffix__), X(__miscmansuffix__), r128(__drivermansuffix__), radeon(__drivermansuffix__)
+.BR Xorg (__appmansuffix__),
+.BR xorg.conf (__filemansuffix__),
+.BR Xserver (__appmansuffix__),
+.BR X (__miscmansuffix__),
+.BR r128 (__drivermansuffix__),
+.BR radeon (__drivermansuffix__)
 .SH AUTHORS
 See the individual driver pages for authors.
