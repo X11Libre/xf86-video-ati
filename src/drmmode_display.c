@@ -141,13 +141,15 @@ static PixmapPtr drmmode_create_bo_pixmap(ScrnInfoPtr pScrn,
 		return pixmap;
 
 fail:
-	dixDestroyPixmap(pixmap, 0);
+	pScreen->DestroyPixmap(pixmap);
 	return NULL;
 }
 
 static void drmmode_destroy_bo_pixmap(PixmapPtr pixmap)
 {
-	dixDestroyPixmap(pixmap, 0);
+	ScreenPtr pScreen = pixmap->drawable.pScreen;
+
+	(*pScreen->DestroyPixmap)(pixmap);
 }
 
 static void
@@ -440,7 +442,7 @@ destroy_pixmap_for_fbcon(ScrnInfoPtr pScrn)
 		return;
 
 	if (info->fbcon_pixmap)
-		dixDestroyPixmap(info->fbcon_pixmap, 0);
+		pScrn->pScreen->DestroyPixmap(info->fbcon_pixmap);
 	info->fbcon_pixmap = NULL;
 }
 
