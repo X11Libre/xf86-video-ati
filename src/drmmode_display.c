@@ -3327,12 +3327,7 @@ restart_destroy:
 	drmmode_validate_leases(scrn);
 
 	if (changed) {
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,14,99,2,0)
 		RRSetChanged(xf86ScrnToScreen(scrn));
-#else
-		rrScrPrivPtr rrScrPriv = rrGetScrPriv(scrn->pScreen);
-		rrScrPriv->changed = TRUE;
-#endif
 		RRTellChanged(xf86ScrnToScreen(scrn));
 	}
 
