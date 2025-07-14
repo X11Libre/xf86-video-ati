@@ -1567,7 +1567,6 @@ drmmode_output_mode_valid(xf86OutputPtr output, DisplayModePtr pModes)
 static void
 drmmode_output_attach_tile(xf86OutputPtr output)
 {
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1, 17, 99, 901, 0)
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
 	drmModeConnectorPtr koutput = drmmode_output->mode_output;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(output->scrn);
@@ -1606,7 +1605,6 @@ drmmode_output_attach_tile(xf86OutputPtr output)
 			set = &tile_info;
 	}
 	xf86OutputSetTile(output, set);
-#endif
 }
 
 static int
@@ -1701,9 +1699,7 @@ drmmode_output_destroy(xf86OutputPtr output)
 	int i;
 
 	drmModeFreePropertyBlob(drmmode_output->edid_blob);
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1, 17, 99, 901, 0)
 	drmModeFreePropertyBlob(drmmode_output->tile_blob);
-#endif
 
 	for (i = 0; i < drmmode_output->num_props; i++) {
 		drmModeFreeProperty(drmmode_output->props[i].mode_prop);
