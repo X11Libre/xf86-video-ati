@@ -1736,11 +1736,7 @@ static Bool RADEONCreateWindow_oneshot(WindowPtr pWin)
 }
 
 /* When the root window is mapped, set the initial modes */
-void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-				   , RegionPtr pBSRegion
-#endif
-				   )
+void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion)
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
@@ -1750,11 +1746,7 @@ void RADEONWindowExposures_oneshot(WindowPtr pWin, RegionPtr pRegion
 	ErrorF("%s called for non-root window %p\n", __func__, pWin);
 
     pScreen->WindowExposures = info->WindowExposures;
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,16,99,901,0)
-    pScreen->WindowExposures(pWin, pRegion, pBSRegion);
-#else
     pScreen->WindowExposures(pWin, pRegion);
-#endif
 
     radeon_finish(pScrn, info->front_buffer);
     drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE);
