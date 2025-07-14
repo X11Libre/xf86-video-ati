@@ -213,10 +213,10 @@ static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 	fbDestroyPixmap(pixmap);
 	return TRUE;
 #else
-	screen->DestroyPixmap = info->glamor.SavedDestroyPixmap;
-	if (screen->DestroyPixmap(pixmap))
+	if (info->glamor.SavedDestroyPixmap) {
+		screen->DestroyPixmap = info->glamor.SavedDestroyPixmap;
 		ret = screen->DestroyPixmap(pixmap);
-	info->glamor.SavedDestroyPixmap = screen->DestroyPixmap;
+	}
 	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;
 
 	return ret;
