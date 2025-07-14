@@ -115,14 +115,6 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 		return FALSE;
 	}
 
-	if (scrn->depth == 30 &&
-	    xorgGetVersion() < XORG_VERSION_NUMERIC(1,19,99,1,0)) {
-		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-			   "Depth 30 is not supported by GLAMOR with Xorg < "
-			   "1.19.99.1\n");
-		return FALSE;
-	}
-
 	info->gbm = gbm_create_device(pRADEONEnt->fd);
 	if (!info->gbm) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -168,11 +160,8 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_buffer *bo)
 
 	if (bo->flags & RADEON_BO_FLAGS_GBM) {
 		return glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap,
-								     bo->bo.gbm
-#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,19,99,903,0)
-								     , FALSE
-#endif
-								     );
+								     bo->bo.gbm,
+								     FALSE);
 	} else {
 		return glamor_egl_create_textured_pixmap(pixmap,
 							 bo->bo.radeon->handle,

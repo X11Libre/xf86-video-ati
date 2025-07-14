@@ -44,11 +44,6 @@
 #include "radeon_bo_helper.h"
 #include "radeon_glamor.h"
 #include "radeon_reg.h"
-
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,19,99,1,0)
-#include <dri.h>
-#endif
-
 #include "drmmode_display.h"
 
 /* DPMS */
@@ -434,9 +429,7 @@ destroy_pixmap_for_fbcon(ScrnInfoPtr pScrn)
 	 * avoid issues due to a GEM handle lifetime conflict between us and
 	 * Mesa
 	 */
-	if (info->use_glamor &&
-	    (info->ChipFamily >= CHIP_FAMILY_CAYMAN ||
-	     xorgGetVersion() >= XORG_VERSION_NUMERIC(1,19,99,1,0)))
+	if (info->use_glamor)
 		return;
 
 	if (info->fbcon_pixmap)
