@@ -196,31 +196,20 @@ radeon_glamor_create_textured_pixmap(PixmapPtr pixmap, struct radeon_buffer *bo)
 
 static Bool radeon_glamor_destroy_pixmap(PixmapPtr pixmap)
 {
-#ifndef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
 	ScreenPtr screen = pixmap->drawable.pScreen;
 	RADEONInfoPtr info = RADEONPTR(xf86ScreenToScrn(screen));
-	Bool ret = TRUE;
-#endif
 
 	if (pixmap->refcnt == 1) {
-#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
-		glamor_egl_destroy_textured_pixmap(pixmap);
-#endif
 		radeon_set_pixmap_bo(pixmap, NULL);
 	}
 
-#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
-	fbDestroyPixmap(pixmap);
-	return TRUE;
-#else
 	screen->DestroyPixmap = info->glamor.SavedDestroyPixmap;
 	if (screen->DestroyPixmap(pixmap))
 		ret = screen->DestroyPixmap(pixmap);
 	info->glamor.SavedDestroyPixmap = screen->DestroyPixmap;
 	screen->DestroyPixmap = radeon_glamor_destroy_pixmap;
 
-	return ret;
-#endif
+	return TRUE;
 }
 
 static PixmapPtr
