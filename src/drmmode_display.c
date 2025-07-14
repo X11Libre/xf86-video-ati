@@ -672,12 +672,7 @@ drmmode_handle_transform(xf86CrtcPtr crtc)
 {
 	Bool ret;
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
 	crtc->driverIsPerformingTransform = XF86DriverTransformOutput;
-#else
-	crtc->driverIsPerformingTransform = !crtc->transformPresent &&
-		(crtc->rotation & 0xf) == RR_Rotate_0;
-#endif
 
 	ret = xf86CrtcRotate(crtc);
 
@@ -1182,8 +1177,6 @@ retry:
 	}
 }
 
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
-
 static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 {
 	if (!drmmode_can_use_hw_cursor(crtc))
@@ -1192,8 +1185,6 @@ static Bool drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 * image)
 	drmmode_load_cursor_argb(crtc, image);
 	return TRUE;
 }
-
-#endif
 
 static void
 drmmode_hide_cursor (xf86CrtcPtr crtc)
@@ -1406,10 +1397,7 @@ static xf86CrtcFuncsRec drmmode_crtc_funcs = {
     .show_cursor = drmmode_show_cursor,
     .hide_cursor = drmmode_hide_cursor,
     .load_cursor_argb = drmmode_load_cursor_argb,
-#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,15,99,903,0)
     .load_cursor_argb_check = drmmode_load_cursor_argb_check,
-#endif
-
     .gamma_set = drmmode_crtc_gamma_set,
     .shadow_create = drmmode_crtc_shadow_create,
     .shadow_allocate = drmmode_crtc_shadow_allocate,

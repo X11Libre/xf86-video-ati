@@ -128,15 +128,6 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 		return FALSE;
 	}
 
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1,15,0,0,0)
-	if (!xf86LoaderCheckSymbol("glamor_egl_init")) {
-		xf86DrvMsg(scrn->scrnIndex, s ? X_ERROR : X_WARNING,
-			   "glamor requires Load \"glamoregl\" in "
-			   "Section \"Module\", disabling.\n");
-		return FALSE;
-	}
-#endif
-
 	info->gbm = gbm_create_device(pRADEONEnt->fd);
 	if (!info->gbm) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
