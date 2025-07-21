@@ -463,12 +463,6 @@ radeon_glamor_init(ScreenPtr screen)
 		return FALSE;
 	}
 
-	if (!glamor_egl_init_textured_pixmap(screen)) {
-		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-			   "Failed to initialize textured pixmap of screen for glamor.\n");
-		return FALSE;
-	}
-
 	if (!dixRegisterPrivateKey(&glamor_pixmap_index, PRIVATE_PIXMAP, 0))
 		return FALSE;
 
