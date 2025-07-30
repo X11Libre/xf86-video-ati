@@ -60,7 +60,8 @@
 
 #include <X11/extensions/damageproto.h>
 
-#include "fb.h"
+#include <fb.h>
+
 #include "radeon_chipinfo_gen.h"
 
 #include "radeon_bo_gem.h"
