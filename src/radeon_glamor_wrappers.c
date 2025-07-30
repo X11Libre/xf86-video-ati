@@ -34,7 +34,8 @@
 
 #ifdef USE_GLAMOR
 
-#include "fb.h"
+#include <fb.h>
+#include <fbpict.h>
 
 #include "radeon.h"
 #include "radeon_bo_helper.h"
