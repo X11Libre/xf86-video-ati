@@ -275,11 +275,6 @@ radeon_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
     if (info->drmmode.dri2_flipping)
 	return FALSE;
 
-#if XORG_VERSION_CURRENT <= XORG_VERSION_NUMERIC(1, 20, 99, 1, 0)
-    if (pixmap->devKind != screen_pixmap->devKind)
-	return FALSE;
-#endif
-
 #ifdef USE_GLAMOR
     if (priv && priv->fb_failed)
 	return FALSE;
