@@ -78,7 +78,7 @@ static struct formatinfo R100TexFormats[] = {
     {PIXMAN_x8r8g8b8,	RADEON_TXFORMAT_ARGB8888},
     {PIXMAN_r5g6b5,	RADEON_TXFORMAT_RGB565},
     {PIXMAN_a1r5g5b5,	RADEON_TXFORMAT_ARGB1555 | RADEON_TXFORMAT_ALPHA_IN_MAP},
-	{PICT_x1r5g5b5,	RADEON_TXFORMAT_ARGB1555},
+    {PIXMAN_x1r5g5b5,	RADEON_TXFORMAT_ARGB1555},
 	{PICT_a8,	RADEON_TXFORMAT_I8 | RADEON_TXFORMAT_ALPHA_IN_MAP},
 };
 
@@ -89,7 +89,7 @@ static struct formatinfo R200TexFormats[] = {
     {PIXMAN_x8b8g8r8,	R200_TXFORMAT_ABGR8888},
     {PIXMAN_r5g6b5,	R200_TXFORMAT_RGB565},
     {PIXMAN_a1r5g5b5,	R200_TXFORMAT_ARGB1555 | R200_TXFORMAT_ALPHA_IN_MAP},
-    {PICT_x1r5g5b5,	R200_TXFORMAT_ARGB1555},
+    {PIXMAN_x1r5g5b5,	R200_TXFORMAT_ARGB1555},
     {PICT_a8,		R200_TXFORMAT_I8 | R200_TXFORMAT_ALPHA_IN_MAP},
 };
 
@@ -102,7 +102,7 @@ static struct formatinfo R300TexFormats[] = {
     {PIXMAN_b8g8r8x8,	R300_EASY_TX_FORMAT(W, Z, Y, ONE, W8Z8Y8X8)},
     {PIXMAN_r5g6b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, Z5Y6X5)},
     {PIXMAN_a1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, W, W1Z5Y5X5)},
-    {PICT_x1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5)},
+    {PIXMAN_x1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5)},
     {PICT_a8,		R300_EASY_TX_FORMAT(ZERO, ZERO, ZERO, X, X8)},
 };
 
@@ -119,7 +119,7 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 	*dst_format = RADEON_COLOR_FORMAT_RGB565;
 	break;
     case PIXMAN_a1r5g5b5:
-    case PICT_x1r5g5b5:
+    case PIXMAN_x1r5g5b5:
 	*dst_format = RADEON_COLOR_FORMAT_ARGB1555;
 	break;
     case PICT_a8:
@@ -148,7 +148,7 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 	*dst_format = R300_COLORFORMAT_RGB565;
 	break;
     case PIXMAN_a1r5g5b5:
-    case PICT_x1r5g5b5:
+    case PIXMAN_x1r5g5b5:
 	*dst_format = R300_COLORFORMAT_ARGB1555;
 	break;
     case PICT_a8:
