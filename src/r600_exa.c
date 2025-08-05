@@ -971,7 +971,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 
     if (unit == 0) {
 	if (!accel_state->msk_pic) {
-	    if (PICT_FORMAT_RGB(pPict->format) == 0) {
+	    if (PIXMAN_FORMAT_RGB(pPict->format) == 0) {
 		pix_r = SQ_SEL_0;
 		pix_g = SQ_SEL_0;
 		pix_b = SQ_SEL_0;
@@ -997,7 +997,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 			pix_a = SQ_SEL_1;
 		}
 	    } else {
-		if (PICT_FORMAT_RGB(pPict->format) == 0) {
+		if (PIXMAN_FORMAT_RGB(pPict->format) == 0) {
 		    pix_r = SQ_SEL_0;
 		    pix_g = SQ_SEL_0;
 		    pix_b = SQ_SEL_0;
@@ -1260,7 +1260,7 @@ static void R600SetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, uint32
 
     if (unit == 0) {
 	if (!accel_state->msk_pic) {
-	    if (PICT_FORMAT_RGB(format) == 0) {
+	    if (PIXMAN_FORMAT_RGB(format) == 0) {
 		pix_r = 0.0;
 		pix_g = 0.0;
 		pix_b = 0.0;
@@ -1291,7 +1291,7 @@ static void R600SetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, uint32
 			pix_a = 1.0;
 		}
 	    } else {
-		if (PICT_FORMAT_RGB(format) == 0) {
+		if (PIXMAN_FORMAT_RGB(format) == 0) {
 		    pix_r = 0;
 		    pix_g = 0;
 		    pix_b = 0;

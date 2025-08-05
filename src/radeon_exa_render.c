@@ -1627,7 +1627,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 
     /* setup pixel shader */
     if (IS_R300_3D) {
-	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
+	if (PIXMAN_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = R300_ALU_RGB_0_0;
 	else
 	    src_color = R300_ALU_RGB_SRC0_RGB;
@@ -1805,7 +1805,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 		       R300_ALU_ALPHA_CLAMP));
 	ADVANCE_RING();
     } else {
-	if (PICT_FORMAT_RGB(pSrcPicture->format) == 0)
+	if (PIXMAN_FORMAT_RGB(pSrcPicture->format) == 0)
 	    src_color = (R500_ALU_RGB_R_SWIZ_A_0 |
 			 R500_ALU_RGB_G_SWIZ_A_0 |
 			 R500_ALU_RGB_B_SWIZ_A_0);
