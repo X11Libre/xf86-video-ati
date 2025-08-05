@@ -86,7 +86,7 @@ static struct formatinfo R200TexFormats[] = {
     {PIXMAN_a8r8g8b8,	R200_TXFORMAT_ARGB8888 | R200_TXFORMAT_ALPHA_IN_MAP},
     {PIXMAN_x8r8g8b8,	R200_TXFORMAT_ARGB8888},
     {PIXMAN_a8b8g8r8,	R200_TXFORMAT_ABGR8888 | R200_TXFORMAT_ALPHA_IN_MAP},
-    {PICT_x8b8g8r8,	R200_TXFORMAT_ABGR8888},
+    {PIXMAN_x8b8g8r8,	R200_TXFORMAT_ABGR8888},
     {PICT_r5g6b5,	R200_TXFORMAT_RGB565},
     {PICT_a1r5g5b5,	R200_TXFORMAT_ARGB1555 | R200_TXFORMAT_ALPHA_IN_MAP},
     {PICT_x1r5g5b5,	R200_TXFORMAT_ARGB1555},
@@ -97,7 +97,7 @@ static struct formatinfo R300TexFormats[] = {
     {PIXMAN_a8r8g8b8,	R300_EASY_TX_FORMAT(X, Y, Z, W, W8Z8Y8X8)},
     {PIXMAN_x8r8g8b8,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W8Z8Y8X8)},
     {PIXMAN_a8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, W, W8Z8Y8X8)},
-    {PICT_x8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, ONE, W8Z8Y8X8)},
+    {PIXMAN_x8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, ONE, W8Z8Y8X8)},
     {PICT_b8g8r8a8,	R300_EASY_TX_FORMAT(W, Z, Y, X, W8Z8Y8X8)},
     {PICT_b8g8r8x8,	R300_EASY_TX_FORMAT(W, Z, Y, ONE, W8Z8Y8X8)},
     {PICT_r5g6b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, Z5Y6X5)},
@@ -139,7 +139,7 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_a8r8g8b8:
     case PIXMAN_x8r8g8b8:
     case PIXMAN_a8b8g8r8:
-    case PICT_x8b8g8r8:
+    case PIXMAN_x8b8g8r8:
     case PICT_b8g8r8a8:
     case PICT_b8g8r8x8:
 	*dst_format = R300_COLORFORMAT_ARGB8888;
@@ -1604,7 +1604,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 		      R300_OUT_FMT_C3_SEL_ALPHA);
 	break;
     case PIXMAN_a8b8g8r8:
-    case PICT_x8b8g8r8:
+    case PIXMAN_x8b8g8r8:
 	output_fmt = (R300_OUT_FMT_C4_8 |
 		      R300_OUT_FMT_C0_SEL_RED |
 		      R300_OUT_FMT_C1_SEL_GREEN |
