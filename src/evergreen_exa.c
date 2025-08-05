@@ -694,7 +694,7 @@ static uint32_t EVERGREENGetBlendCntl(int op, PicturePtr pMask, uint32_t dst_for
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
-    if (PICT_FORMAT_A(dst_format) == 0 && EVERGREENBlendOp[op].dst_alpha) {
+    if (PIXMAN_FORMAT_A(dst_format) == 0 && EVERGREENBlendOp[op].dst_alpha) {
 	if (sblend == (BLEND_DST_ALPHA << COLOR_SRCBLEND_shift))
 	    sblend = (BLEND_ONE << COLOR_SRCBLEND_shift);
 	else if (sblend == (BLEND_ONE_MINUS_DST_ALPHA << COLOR_SRCBLEND_shift))
@@ -787,8 +787,8 @@ static Bool EVERGREENCheckCompositeTexture(PicturePtr pPict,
      * clipping.
      */
     /* FIXME evergreen */
-    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
-	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
+    if (pPict->transform != 0 && repeatType == RepeatNone && PIXMAN_FORMAT_A(pPict->format) == 0) {
+	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PIXMAN_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
@@ -962,12 +962,12 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 		pix_b = SQ_SEL_0;
 	    }
 
-	    if (PICT_FORMAT_A(pPict->format) == 0)
+	    if (PIXMAN_FORMAT_A(pPict->format) == 0)
 		pix_a = SQ_SEL_1;
 	} else {
 	    if (accel_state->component_alpha) {
 		if (accel_state->src_alpha) {
-		    if (PICT_FORMAT_A(pPict->format) == 0) {
+		    if (PIXMAN_FORMAT_A(pPict->format) == 0) {
 			pix_r = SQ_SEL_1;
 			pix_g = SQ_SEL_1;
 			pix_b = SQ_SEL_1;
@@ -978,7 +978,7 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 			pix_b = pix_a;
 		    }
 		} else {
-		    if (PICT_FORMAT_A(pPict->format) == 0)
+		    if (PIXMAN_FORMAT_A(pPict->format) == 0)
 			pix_a = SQ_SEL_1;
 		}
 	    } else {
@@ -988,16 +988,16 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 		    pix_b = SQ_SEL_0;
 		}
 
-		if (PICT_FORMAT_A(pPict->format) == 0)
+		if (PIXMAN_FORMAT_A(pPict->format) == 0)
 		    pix_a = SQ_SEL_1;
 	    }
 	}
     } else {
 	if (accel_state->component_alpha) {
-	    if (PICT_FORMAT_A(pPict->format) == 0)
+	    if (PIXMAN_FORMAT_A(pPict->format) == 0)
 		pix_a = SQ_SEL_1;
 	} else {
-	    if (PICT_FORMAT_A(pPict->format) == 0) {
+	    if (PIXMAN_FORMAT_A(pPict->format) == 0) {
 		pix_r = SQ_SEL_1;
 		pix_g = SQ_SEL_1;
 		pix_b = SQ_SEL_1;
@@ -1222,7 +1222,7 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 		pix_b = 0.0;
 	    }
 
-	    if (PICT_FORMAT_A(format) == 0)
+	    if (PIXMAN_FORMAT_A(format) == 0)
 		pix_a = 1.0;
 	} else {
 	    if (accel_state->component_alpha) {
@@ -1232,7 +1232,7 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 					pix_b / pix_a, pix_a / pix_a };
 		    evergreen_set_blend_color(pScrn, cblend);
 
-		    if (PICT_FORMAT_A(format) == 0) {
+		    if (PIXMAN_FORMAT_A(format) == 0) {
 			pix_r = 1.0;
 			pix_g = 1.0;
 			pix_b = 1.0;
@@ -1243,7 +1243,7 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 			pix_b = pix_a;
 		    }
 		} else {
-		    if (PICT_FORMAT_A(format) == 0)
+		    if (PIXMAN_FORMAT_A(format) == 0)
 			pix_a = 1.0;
 		}
 	    } else {
@@ -1253,16 +1253,16 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 		    pix_b = 0;
 		}
 
-		if (PICT_FORMAT_A(format) == 0)
+		if (PIXMAN_FORMAT_A(format) == 0)
 		    pix_a = 1.0;
 	    }
 	}
     } else {
 	if (accel_state->component_alpha) {
-	    if (PICT_FORMAT_A(format) == 0)
+	    if (PIXMAN_FORMAT_A(format) == 0)
 		pix_a = 1.0;
 	} else {
-	    if (PICT_FORMAT_A(format) == 0) {
+	    if (PIXMAN_FORMAT_A(format) == 0) {
 		pix_r = 1.0;
 		pix_g = 1.0;
 		pix_b = 1.0;
