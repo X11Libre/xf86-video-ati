@@ -171,7 +171,7 @@ static uint32_t RADEONGetBlendCntl(int op, PicturePtr pMask, uint32_t dst_format
     /* If there's no dst alpha channel, adjust the blend op so that we'll treat
      * it as always 1.
      */
-    if (PICT_FORMAT_A(dst_format) == 0 && RadeonBlendOp[op].dst_alpha) {
+    if (PIXMAN_FORMAT_A(dst_format) == 0 && RadeonBlendOp[op].dst_alpha) {
 	if (sblend == RADEON_SRC_BLEND_GL_DST_ALPHA)
 	    sblend = RADEON_SRC_BLEND_GL_ONE;
 	else if (sblend == RADEON_SRC_BLEND_GL_ONE_MINUS_DST_ALPHA)
@@ -334,8 +334,8 @@ static Bool R100CheckCompositeTexture(PicturePtr pPict,
      * matter. I have not, however, verified that the X server always does such
      * clipping.
      */
-    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
-	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
+    if (pPict->transform != 0 && repeatType == RepeatNone && PIXMAN_FORMAT_A(pPict->format) == 0) {
+	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PIXMAN_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
@@ -731,8 +731,8 @@ static Bool R200CheckCompositeTexture(PicturePtr pPict,
      * matter. I have not, however, verified that the X server always does such
      * clipping.
      */
-    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
-	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
+    if (pPict->transform != 0 && repeatType == RepeatNone && PIXMAN_FORMAT_A(pPict->format) == 0) {
+	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PIXMAN_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
@@ -1113,8 +1113,8 @@ static Bool R300CheckCompositeTexture(PicturePtr pPict,
      * matter. I have not, however, verified that the X server always does such
      * clipping.
      */
-    if (pPict->transform != 0 && repeatType == RepeatNone && PICT_FORMAT_A(pPict->format) == 0) {
-	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PICT_FORMAT_A(pDstPict->format) == 0)))
+    if (pPict->transform != 0 && repeatType == RepeatNone && PIXMAN_FORMAT_A(pPict->format) == 0) {
+	if (!(((op == PictOpSrc) || (op == PictOpClear)) && (PIXMAN_FORMAT_A(pDstPict->format) == 0)))
 	    RADEON_FALLBACK(("REPEAT_NONE unsupported for transformed xRGB source\n"));
     }
 
@@ -1632,7 +1632,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	else
 	    src_color = R300_ALU_RGB_SRC0_RGB;
 
-	if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+	if (PIXMAN_FORMAT_A(pSrcPicture->format) == 0)
 	    src_alpha = R300_ALU_ALPHA_1_0;
 	else
 	    src_alpha = R300_ALU_ALPHA_SRC0_A;
@@ -1640,7 +1640,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	if (pMask) {
 	    if (pMaskPicture->componentAlpha) {
 		if (RadeonBlendOp[op].src_alpha) {
-		    if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+		    if (PIXMAN_FORMAT_A(pSrcPicture->format) == 0)
 			src_color = R300_ALU_RGB_1_0;
 		    else
 			src_color = R300_ALU_RGB_SRC0_AAA;
@@ -1648,12 +1648,12 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 		    src_color = R300_ALU_RGB_SRC0_RGB;
 		mask_color = R300_ALU_RGB_SRC1_RGB;
 	    } else {
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		if (PIXMAN_FORMAT_A(pMaskPicture->format) == 0)
 		    mask_color = R300_ALU_RGB_1_0;
 		else
 		    mask_color = R300_ALU_RGB_SRC1_AAA;
 	    }
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+	    if (PIXMAN_FORMAT_A(pMaskPicture->format) == 0)
 		mask_alpha = R300_ALU_ALPHA_1_0;
 	    else
 		mask_alpha = R300_ALU_ALPHA_SRC1_A;
@@ -1814,7 +1814,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 			 R500_ALU_RGB_G_SWIZ_A_G |
 			 R500_ALU_RGB_B_SWIZ_A_B);
 
-	if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+	if (PIXMAN_FORMAT_A(pSrcPicture->format) == 0)
 	    src_alpha = R500_ALPHA_SWIZ_A_1;
 	else
 	    src_alpha = R500_ALPHA_SWIZ_A_A;
@@ -1822,7 +1822,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 	if (pMask) {
 	    if (pMaskPicture->componentAlpha) {
 		if (RadeonBlendOp[op].src_alpha) {
-		    if (PICT_FORMAT_A(pSrcPicture->format) == 0)
+		    if (PIXMAN_FORMAT_A(pSrcPicture->format) == 0)
 			src_color = (R500_ALU_RGB_R_SWIZ_A_1 |
 				     R500_ALU_RGB_G_SWIZ_A_1 |
 				     R500_ALU_RGB_B_SWIZ_A_1);
@@ -1839,7 +1839,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 			      R500_ALU_RGB_G_SWIZ_B_G |
 			      R500_ALU_RGB_B_SWIZ_B_B);
 	    } else {
-		if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+		if (PIXMAN_FORMAT_A(pMaskPicture->format) == 0)
 		    mask_color = (R500_ALU_RGB_R_SWIZ_B_1 |
 				  R500_ALU_RGB_G_SWIZ_B_1 |
 				  R500_ALU_RGB_B_SWIZ_B_1);
@@ -1848,7 +1848,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 				  R500_ALU_RGB_G_SWIZ_B_A |
 				  R500_ALU_RGB_B_SWIZ_B_A);
 	    }
-	    if (PICT_FORMAT_A(pMaskPicture->format) == 0)
+	    if (PIXMAN_FORMAT_A(pMaskPicture->format) == 0)
 		mask_alpha = R500_ALPHA_SWIZ_B_1;
 	    else
 		mask_alpha = R500_ALPHA_SWIZ_B_A;
