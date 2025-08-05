@@ -732,7 +732,7 @@ static struct formatinfo R600TexFormats[] = {
     {PIXMAN_a2b10g10r10,	FMT_2_10_10_10},
     {PIXMAN_x2b10g10r10,	FMT_2_10_10_10},
     {PIXMAN_a8r8g8b8,	FMT_8_8_8_8},
-    {PICT_x8r8g8b8,	FMT_8_8_8_8},
+    {PIXMAN_x8r8g8b8,	FMT_8_8_8_8},
     {PICT_a8b8g8r8,	FMT_8_8_8_8},
     {PICT_x8b8g8r8,	FMT_8_8_8_8},
     {PICT_b8g8r8a8,	FMT_8_8_8_8},
@@ -793,7 +793,7 @@ static Bool R600GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 	*dst_format = COLOR_2_10_10_10;
 	break;
     case PIXMAN_a8r8g8b8:
-    case PICT_x8r8g8b8:
+    case PIXMAN_x8r8g8b8:
     case PICT_a8b8g8r8:
     case PICT_x8b8g8r8:
     case PICT_b8g8r8a8:
@@ -952,7 +952,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	break;
     case PIXMAN_x2r10g10b10:
     case PICT_x1r5g5b5:
-    case PICT_x8r8g8b8:
+    case PIXMAN_x8r8g8b8:
     case PICT_r5g6b5:
 	pix_r = SQ_SEL_Z; /* R */
 	pix_g = SQ_SEL_Y; /* G */
@@ -1241,7 +1241,7 @@ static void R600SetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, uint32
 	    pix_a = 1.0; /* A */
 	    break;
 	case PICT_x1r5g5b5:
-	case PICT_x8r8g8b8:
+	case PIXMAN_x8r8g8b8:
 	case PICT_r5g6b5:
 	    pix_r = zf; /* R */
 	    pix_g = yf; /* G */
@@ -1481,7 +1481,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     case PIXMAN_a2r10g10b10:
     case PIXMAN_x2r10g10b10:
     case PIXMAN_a8r8g8b8:
-    case PICT_x8r8g8b8:
+    case PIXMAN_x8r8g8b8:
     case PICT_a1r5g5b5:
     case PICT_x1r5g5b5:
     default:
