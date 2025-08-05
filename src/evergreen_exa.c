@@ -679,7 +679,7 @@ static struct formatinfo EVERGREENTexFormats[] = {
     {PIXMAN_b8g8r8a8,	FMT_8_8_8_8},
     {PIXMAN_b8g8r8x8,	FMT_8_8_8_8},
     {PIXMAN_r5g6b5,	FMT_5_6_5},
-    {PICT_a1r5g5b5,	FMT_1_5_5_5},
+    {PIXMAN_a1r5g5b5,	FMT_1_5_5_5},
     {PICT_x1r5g5b5,     FMT_1_5_5_5},
     {PICT_a8,		FMT_8},
 };
@@ -744,7 +744,7 @@ static Bool EVERGREENGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_r5g6b5:
 	*dst_format = COLOR_5_6_5;
 	break;
-    case PICT_a1r5g5b5:
+    case PIXMAN_a1r5g5b5:
     case PICT_x1r5g5b5:
 	*dst_format = COLOR_1_5_5_5;
 	break;
@@ -902,7 +902,7 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
     /* component swizzles */
     switch (pPict->format) {
     case PIXMAN_a2r10g10b10:
-    case PICT_a1r5g5b5:
+    case PIXMAN_a1r5g5b5:
     case PIXMAN_a8r8g8b8:
 	pix_r = SQ_SEL_Z; /* R */
 	pix_g = SQ_SEL_Y; /* G */
@@ -1165,7 +1165,7 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 
     /* component swizzles */
     switch (format) {
-	case PICT_a1r5g5b5:
+	case PIXMAN_a1r5g5b5:
 	case PIXMAN_a8r8g8b8:
 	    pix_r = zf; /* R */
 	    pix_g = yf; /* G */
@@ -1443,7 +1443,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     case PIXMAN_x2r10g10b10:
     case PIXMAN_a8r8g8b8:
     case PIXMAN_x8r8g8b8:
-    case PICT_a1r5g5b5:
+    case PIXMAN_a1r5g5b5:
     case PICT_x1r5g5b5:
     default:
 	cb_conf.comp_swap = 1; /* ARGB */
