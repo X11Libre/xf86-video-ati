@@ -99,7 +99,7 @@ static struct formatinfo R300TexFormats[] = {
     {PIXMAN_a8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, W, W8Z8Y8X8)},
     {PIXMAN_x8b8g8r8,	R300_EASY_TX_FORMAT(Z, Y, X, ONE, W8Z8Y8X8)},
     {PIXMAN_b8g8r8a8,	R300_EASY_TX_FORMAT(W, Z, Y, X, W8Z8Y8X8)},
-    {PICT_b8g8r8x8,	R300_EASY_TX_FORMAT(W, Z, Y, ONE, W8Z8Y8X8)},
+    {PIXMAN_b8g8r8x8,	R300_EASY_TX_FORMAT(W, Z, Y, ONE, W8Z8Y8X8)},
     {PICT_r5g6b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, Z5Y6X5)},
     {PICT_a1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, W, W1Z5Y5X5)},
     {PICT_x1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5)},
@@ -141,7 +141,7 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_a8b8g8r8:
     case PIXMAN_x8b8g8r8:
     case PIXMAN_b8g8r8a8:
-    case PICT_b8g8r8x8:
+    case PIXMAN_b8g8r8x8:
 	*dst_format = R300_COLORFORMAT_ARGB8888;
 	break;
     case PICT_r5g6b5:
@@ -1612,7 +1612,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 		      R300_OUT_FMT_C3_SEL_ALPHA);
 	break;
     case PIXMAN_b8g8r8a8:
-    case PICT_b8g8r8x8:
+    case PIXMAN_b8g8r8x8:
 	output_fmt = (R300_OUT_FMT_C4_8 |
 		      R300_OUT_FMT_C0_SEL_ALPHA |
 		      R300_OUT_FMT_C1_SEL_RED |
