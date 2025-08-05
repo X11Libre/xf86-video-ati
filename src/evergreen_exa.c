@@ -681,7 +681,7 @@ static struct formatinfo EVERGREENTexFormats[] = {
     {PIXMAN_r5g6b5,	FMT_5_6_5},
     {PIXMAN_a1r5g5b5,	FMT_1_5_5_5},
     {PIXMAN_x1r5g5b5,     FMT_1_5_5_5},
-    {PICT_a8,		FMT_8},
+    {PIXMAN_a8,		FMT_8},
 };
 
 static uint32_t EVERGREENGetBlendCntl(int op, PicturePtr pMask, uint32_t dst_format)
@@ -748,7 +748,7 @@ static Bool EVERGREENGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_x1r5g5b5:
 	*dst_format = COLOR_1_5_5_5;
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	*dst_format = COLOR_8;
 	break;
     default:
@@ -944,7 +944,7 @@ static Bool EVERGREENTextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	pix_b = SQ_SEL_X; /* B */
 	pix_a = SQ_SEL_1; /* A */
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	pix_r = SQ_SEL_0; /* R */
 	pix_g = SQ_SEL_0; /* G */
 	pix_b = SQ_SEL_0; /* B */
@@ -1204,7 +1204,7 @@ static void EVERGREENSetSolidConsts(ScrnInfoPtr pScrn, float *buf, int format, u
 	    pix_b = xf; /* B */
 	    pix_a = 1.0; /* A */
 	    break;
-	case PICT_a8:
+	case PIXMAN_a8:
 	    pix_r = 0.0; /* R */
 	    pix_g = 0.0; /* G */
 	    pix_b = 0.0; /* B */
@@ -1461,7 +1461,7 @@ static Bool EVERGREENPrepareComposite(int op, PicturePtr pSrcPicture,
     case PIXMAN_r5g6b5:
 	cb_conf.comp_swap = 2; /* RGB */
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	cb_conf.comp_swap = 3; /* A */
 	break;
     }
