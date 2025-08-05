@@ -728,7 +728,7 @@ struct formatinfo {
 
 static struct formatinfo R600TexFormats[] = {
     {PIXMAN_a2r10g10b10,	FMT_2_10_10_10},
-    {PICT_x2r10g10b10,	FMT_2_10_10_10},
+    {PIXMAN_x2r10g10b10,	FMT_2_10_10_10},
     {PICT_a2b10g10r10,	FMT_2_10_10_10},
     {PICT_x2b10g10r10,	FMT_2_10_10_10},
     {PICT_a8r8g8b8,	FMT_8_8_8_8},
@@ -787,7 +787,7 @@ static Bool R600GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
     case PIXMAN_a2r10g10b10:
-    case PICT_x2r10g10b10:
+    case PIXMAN_x2r10g10b10:
     case PICT_a2b10g10r10:
     case PICT_x2b10g10r10:
 	*dst_format = COLOR_2_10_10_10;
@@ -950,7 +950,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	pix_b = SQ_SEL_W; /* B */
 	pix_a = SQ_SEL_1; /* A */
 	break;
-    case PICT_x2r10g10b10:
+    case PIXMAN_x2r10g10b10:
     case PICT_x1r5g5b5:
     case PICT_x8r8g8b8:
     case PICT_r5g6b5:
@@ -1479,7 +1479,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
 
     switch (pDstPicture->format) {
     case PIXMAN_a2r10g10b10:
-    case PICT_x2r10g10b10:
+    case PIXMAN_x2r10g10b10:
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
     case PICT_a1r5g5b5:
