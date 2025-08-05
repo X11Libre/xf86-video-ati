@@ -79,7 +79,7 @@ static struct formatinfo R100TexFormats[] = {
     {PIXMAN_r5g6b5,	RADEON_TXFORMAT_RGB565},
     {PIXMAN_a1r5g5b5,	RADEON_TXFORMAT_ARGB1555 | RADEON_TXFORMAT_ALPHA_IN_MAP},
     {PIXMAN_x1r5g5b5,	RADEON_TXFORMAT_ARGB1555},
-	{PICT_a8,	RADEON_TXFORMAT_I8 | RADEON_TXFORMAT_ALPHA_IN_MAP},
+    {PIXMAN_a8,	RADEON_TXFORMAT_I8 | RADEON_TXFORMAT_ALPHA_IN_MAP},
 };
 
 static struct formatinfo R200TexFormats[] = {
@@ -90,7 +90,7 @@ static struct formatinfo R200TexFormats[] = {
     {PIXMAN_r5g6b5,	R200_TXFORMAT_RGB565},
     {PIXMAN_a1r5g5b5,	R200_TXFORMAT_ARGB1555 | R200_TXFORMAT_ALPHA_IN_MAP},
     {PIXMAN_x1r5g5b5,	R200_TXFORMAT_ARGB1555},
-    {PICT_a8,		R200_TXFORMAT_I8 | R200_TXFORMAT_ALPHA_IN_MAP},
+    {PIXMAN_a8,		R200_TXFORMAT_I8 | R200_TXFORMAT_ALPHA_IN_MAP},
 };
 
 static struct formatinfo R300TexFormats[] = {
@@ -103,7 +103,7 @@ static struct formatinfo R300TexFormats[] = {
     {PIXMAN_r5g6b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, Z5Y6X5)},
     {PIXMAN_a1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, W, W1Z5Y5X5)},
     {PIXMAN_x1r5g5b5,	R300_EASY_TX_FORMAT(X, Y, Z, ONE, W1Z5Y5X5)},
-    {PICT_a8,		R300_EASY_TX_FORMAT(ZERO, ZERO, ZERO, X, X8)},
+    {PIXMAN_a8,		R300_EASY_TX_FORMAT(ZERO, ZERO, ZERO, X, X8)},
 };
 
 /* Common Radeon setup code */
@@ -122,7 +122,7 @@ static Bool RADEONGetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_x1r5g5b5:
 	*dst_format = RADEON_COLOR_FORMAT_ARGB1555;
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	*dst_format = RADEON_COLOR_FORMAT_RGB8;
 	break;
     default:
@@ -151,7 +151,7 @@ static Bool R300GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
     case PIXMAN_x1r5g5b5:
 	*dst_format = R300_COLORFORMAT_ARGB1555;
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	*dst_format = R300_COLORFORMAT_I8;
 	break;
     default:
@@ -589,7 +589,7 @@ static Bool R100PrepareComposite(int op,
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
-    if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
+    if (pDstPicture->format == PIXMAN_a8 && RadeonBlendOp[op].dst_alpha)
 	RADEON_FALLBACK(("Can't dst alpha blend A8\n"));
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
@@ -655,11 +655,11 @@ static Bool R100PrepareComposite(int op,
     cblend = RADEON_BLEND_CTL_ADD | RADEON_CLAMP_TX | RADEON_COLOR_ARG_C_ZERO;
     ablend = RADEON_BLEND_CTL_ADD | RADEON_CLAMP_TX | RADEON_ALPHA_ARG_C_ZERO;
 
-    if (pDstPicture->format == PICT_a8 ||
+    if (pDstPicture->format == PIXMAN_a8 ||
 	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
     {
 	cblend |= RADEON_COLOR_ARG_A_T0_ALPHA;
-    } else if (pSrcPicture->format == PICT_a8)
+    } else if (pSrcPicture->format == PIXMAN_a8)
 	cblend |= RADEON_COLOR_ARG_A_ZERO;
     else
 	cblend |= RADEON_COLOR_ARG_A_T0_COLOR;
@@ -667,7 +667,7 @@ static Bool R100PrepareComposite(int op,
 
     if (pMask) {
 	if (pMaskPicture->componentAlpha &&
-	    pDstPicture->format != PICT_a8)
+	    pDstPicture->format != PIXMAN_a8)
 	    cblend |= RADEON_COLOR_ARG_B_T1_COLOR;
 	else
 	    cblend |= RADEON_COLOR_ARG_B_T1_ALPHA;
@@ -951,7 +951,7 @@ static Bool R200PrepareComposite(int op, PicturePtr pSrcPicture,
     if (!RADEONGetDestFormat(pDstPicture, &dst_format))
 	return FALSE;
 
-    if (pDstPicture->format == PICT_a8 && RadeonBlendOp[op].dst_alpha)
+    if (pDstPicture->format == PIXMAN_a8 && RadeonBlendOp[op].dst_alpha)
 	RADEON_FALLBACK(("Can't dst alpha blend A8\n"));
 
     pixel_shift = pDst->drawable.bitsPerPixel >> 4;
@@ -1030,11 +1030,11 @@ static Bool R200PrepareComposite(int op, PicturePtr pSrcPicture,
     cblend = R200_TXC_OP_MADD | R200_TXC_ARG_C_ZERO;
     ablend = R200_TXA_OP_MADD | R200_TXA_ARG_C_ZERO;
 
-    if (pDstPicture->format == PICT_a8 ||
+    if (pDstPicture->format == PIXMAN_a8 ||
 	(pMask && pMaskPicture->componentAlpha && RadeonBlendOp[op].src_alpha))
     {
 	cblend |= R200_TXC_ARG_A_R0_ALPHA;
-    } else if (pSrcPicture->format == PICT_a8)
+    } else if (pSrcPicture->format == PIXMAN_a8)
 	cblend |= R200_TXC_ARG_A_ZERO;
     else
 	cblend |= R200_TXC_ARG_A_R0_COLOR;
@@ -1042,7 +1042,7 @@ static Bool R200PrepareComposite(int op, PicturePtr pSrcPicture,
 
     if (pMask) {
 	if (pMaskPicture->componentAlpha &&
-	    pDstPicture->format != PICT_a8)
+	    pDstPicture->format != PIXMAN_a8)
 	    cblend |= R200_TXC_ARG_B_R1_COLOR;
 	else
 	    cblend |= R200_TXC_ARG_B_R1_ALPHA;
@@ -1619,7 +1619,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
 		      R300_OUT_FMT_C2_SEL_GREEN |
 		      R300_OUT_FMT_C3_SEL_BLUE);
 	break;
-    case PICT_a8:
+    case PIXMAN_a8:
 	output_fmt = (R300_OUT_FMT_C4_8 |
 		      R300_OUT_FMT_C0_SEL_ALPHA);
 	break;
