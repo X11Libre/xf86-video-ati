@@ -727,7 +727,7 @@ struct formatinfo {
 };
 
 static struct formatinfo R600TexFormats[] = {
-    {PICT_a2r10g10b10,	FMT_2_10_10_10},
+    {PIXMAN_a2r10g10b10,	FMT_2_10_10_10},
     {PICT_x2r10g10b10,	FMT_2_10_10_10},
     {PICT_a2b10g10r10,	FMT_2_10_10_10},
     {PICT_x2b10g10r10,	FMT_2_10_10_10},
@@ -786,7 +786,7 @@ static uint32_t R600GetBlendCntl(int op, PicturePtr pMask, uint32_t dst_format)
 static Bool R600GetDestFormat(PicturePtr pDstPicture, uint32_t *dst_format)
 {
     switch (pDstPicture->format) {
-    case PICT_a2r10g10b10:
+    case PIXMAN_a2r10g10b10:
     case PICT_x2r10g10b10:
     case PICT_a2b10g10r10:
     case PICT_x2b10g10r10:
@@ -916,7 +916,7 @@ static Bool R600TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 
     /* component swizzles */
     switch (pPict->format) {
-    case PICT_a2r10g10b10:
+    case PIXMAN_a2r10g10b10:
     case PICT_a1r5g5b5:
     case PICT_a8r8g8b8:
 	pix_r = SQ_SEL_Z; /* R */
@@ -1478,7 +1478,7 @@ static Bool R600PrepareComposite(int op, PicturePtr pSrcPicture,
     cb_conf.surface = accel_state->dst_obj.surface;
 
     switch (pDstPicture->format) {
-    case PICT_a2r10g10b10:
+    case PIXMAN_a2r10g10b10:
     case PICT_x2r10g10b10:
     case PICT_a8r8g8b8:
     case PICT_x8r8g8b8:
