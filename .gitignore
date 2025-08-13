@@ -66,8 +66,8 @@ core
 *.tar.bz2
 *.tar.gz
 #
-#		Add & Override patterns for xf86-video-ati 
+#		Add & Override patterns for xf86-video-ati
 #
 #		Edit the following section as needed
 # For example, !report.pc overrides *.pc. See 'man gitignore'
-# 
+#

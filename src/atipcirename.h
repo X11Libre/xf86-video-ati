@@ -31,7 +31,7 @@
 
 enum region_type {
     REGION_MEM,
-    REGION_IO 
+    REGION_IO
 };
 
 typedef struct pci_device *pciVideoPtr;

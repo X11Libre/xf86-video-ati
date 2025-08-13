@@ -348,13 +348,13 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
     nlines = ((y2 + 0xffff) >> 16) - top;
 
     pPriv->currentBuffer ^= 1;
-	
+
     src_bo = pPriv->src_bo[pPriv->currentBuffer];
 
     ret = radeon_bo_map(src_bo, 1);
     if (ret)
 	return BadAlloc;
-  
+
     pPriv->src_addr = src_bo->ptr;
     pPriv->src_pitch = dstPitch;
 

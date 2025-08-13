@@ -2304,7 +2304,7 @@
 #       define RADEON_ROUND_PREC_8TH_PIX     (1 << 30)
 #       define RADEON_ROUND_PREC_4TH_PIX     (2 << 30)
 #       define RADEON_ROUND_PREC_HALF_PIX    (3 << 30)
-#define R200_RE_CNTL				0x1c50 
+#define R200_RE_CNTL				0x1c50
 #       define R200_STIPPLE_ENABLE		0x1
 #       define R200_SCISSOR_ENABLE		0x2
 #       define R200_PATTERN_ENABLE		0x4
@@ -2596,7 +2596,7 @@
 #       define RADEON_VF_NUM_VERTICES_SHIFT           16
 
 #define RADEON_SE_PORT_DATA0			0x2000
- 
+
 #define R200_SE_VAP_CNTL			0x2080
 #       define R200_VAP_TCL_ENABLE		0x00000001
 #       define R200_VAP_SINGLE_BUF_STATE_ENABLE	0x00000010
@@ -2630,7 +2630,7 @@
 #       define R200_SCISSOR_ENABLE_0		0x10000000
 #       define R200_SCISSOR_ENABLE_1		0x20000000
 #       define R200_SCISSOR_ENABLE_2		0x40000000
-#define R200_PP_TXFILTER_0			0x2c00 
+#define R200_PP_TXFILTER_0			0x2c00
 #define R200_PP_TXFILTER_1			0x2c20
 #define R200_PP_TXFILTER_2			0x2c40
 #define R200_PP_TXFILTER_3			0x2c60
@@ -3856,7 +3856,7 @@
 # define AVIVO_DACB_POWERDOWN_POWERDOWN                         (1 << 0)
 # define AVIVO_DACB_POWERDOWN_BLUE                              (1 << 8)
 # define AVIVO_DACB_POWERDOWN_GREEN                             (1 << 16)
-# define AVIVO_DACB_POWERDOWN_RED 
+# define AVIVO_DACB_POWERDOWN_RED
 
 #define AVIVO_TMDSA_CNTL                    0x7880
 #   define AVIVO_TMDSA_CNTL_ENABLE               (1 << 0)
