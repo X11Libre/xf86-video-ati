@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Kristian Høgsberg 
+ * Copyright 2008 Kristian Høgsberg
  * Copyright 2008 Jérôme Glisse
  *
  * All Rights Reserved.
@@ -195,7 +195,7 @@ radeon_dri2_create_buffer2(ScreenPtr pScreen,
 		flags = RADEON_CREATE_PIXMAP_TILING_MACRO | RADEON_CREATE_PIXMAP_TILING_MICRO;
 	    if (IS_R200_3D || info->ChipFamily == CHIP_FAMILY_RV200 || info->ChipFamily == CHIP_FAMILY_RADEON)
 		flags |= RADEON_CREATE_PIXMAP_DEPTH;
-		
+
 	    break;
 	case DRI2BufferBackLeft:
 	case DRI2BufferBackRight:
@@ -289,7 +289,7 @@ radeon_dri2_destroy_buffer2(ScreenPtr pScreen,
         if (private->refcnt == 0) {
             ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
 
-            xf86DrvMsg(scrn->scrnIndex, X_WARNING, 
+            xf86DrvMsg(scrn->scrnIndex, X_WARNING,
                        "Attempted to destroy previously destroyed buffer.\
  This is a programming error\n");
             return;
@@ -376,7 +376,7 @@ radeon_dri2_copy_region2(ScreenPtr pScreen,
     ValidateGC(dst_drawable, gc);
 
     vsync = info->accel_state->vsync;
-    /* Driver option "SwapbuffersWait" defines if we vsync DRI2 copy-swaps. */ 
+    /* Driver option "SwapbuffersWait" defines if we vsync DRI2 copy-swaps. */
     info->accel_state->vsync = info->swapBuffersWait;
     info->accel_state->force = TRUE;
 
@@ -1204,7 +1204,7 @@ static int radeon_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 
     /* radeon_dri2_frame_event_handler will get called some unknown time in the
      * future with these buffers.  Take a reference to ensure that they won't
-     * get destroyed before then. 
+     * get destroyed before then.
      */
     radeon_dri2_ref_buffer(front);
     radeon_dri2_ref_buffer(back);

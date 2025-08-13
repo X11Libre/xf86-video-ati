@@ -984,7 +984,7 @@ void RADEONWaitForVLine(ScrnInfoPtr pScrn, PixmapPtr pPix,
     }
     OUT_RING_REG(RADEON_WAIT_UNTIL, (RADEON_WAIT_CRTC_VLINE |
 				      RADEON_ENG_DISPLAY_SELECT_CRTC0));
-    
+
     OUT_RING(CP_PACKET3(RADEON_CP_PACKET3_NOP, 0));
     OUT_RING(drmmode_crtc->mode_crtc->crtc_id);
     ADVANCE_RING();

@@ -577,7 +577,7 @@ R600PrepareCopy(PixmapPtr pSrc,   PixmapPtr pDst,
 						   0);
 	if (!accel_state->copy_area_bo)
 	    RADEON_FALLBACK(("temp copy surface alloc failed\n"));
-	
+
 	radeon_cs_space_add_persistent_bo(info->cs, accel_state->copy_area_bo,
 					  0, RADEON_GEM_DOMAIN_VRAM);
 	if (radeon_cs_space_check(info->cs)) {
@@ -2051,7 +2051,7 @@ R600DrawInit(ScreenPtr pScreen)
     info->accel_state->exa->UploadToScreen = R600UploadToScreenCS;
     info->accel_state->exa->DownloadFromScreen = R600DownloadFromScreenCS;
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
-    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
+    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking;
     info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
     info->accel_state->exa->flags = EXA_OFFSCREEN_PIXMAPS | EXA_SUPPORTS_PREPARE_AUX |
 	EXA_HANDLES_PIXMAPS | EXA_MIXED_PIXMAPS;

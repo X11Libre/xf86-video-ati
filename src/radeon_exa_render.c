@@ -264,13 +264,13 @@ static Bool RADEONSetupSourceTile(PicturePtr pPict,
 
     info->accel_state->need_src_tile_x = info->accel_state->need_src_tile_y = FALSE;
     info->accel_state->src_tile_width = info->accel_state->src_tile_height = 65536; /* "infinite" */
-	    
+
     if (repeatType == RepeatNormal || repeatType == RepeatReflect) {
 	Bool badPitch = needMatchingPitch && !RADEONPitchMatches(pPix);
-	
+
 	int w = pPict->pDrawable ? pPict->pDrawable->width : 1;
 	int h = pPict->pDrawable ? pPict->pDrawable->height : 1;
-	
+
 	if (pPict->transform) {
 	    if (badPitch)
 		RADEON_FALLBACK(("Width %d and pitch %u not compatible for repeat\n",
@@ -1217,7 +1217,7 @@ static Bool R300TextureSetup(PicturePtr pPict, PixmapPtr pPix,
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_WRAP);
 	else
 	    txfilter |= R300_TX_CLAMP_S(R300_TX_CLAMP_CLAMP_GL);
-	
+
 	if (unit != 0 || !info->accel_state->need_src_tile_y)
 	    txfilter |= R300_TX_CLAMP_T(R300_TX_CLAMP_WRAP);
 	else
@@ -2073,7 +2073,7 @@ static Bool R300PrepareComposite(int op, PicturePtr pSrcPicture,
     }
     ADVANCE_RING();
 
-    
+
     BEGIN_ACCEL_RELOC(3, 2);
     EMIT_WRITE_OFFSET(R300_RB3D_COLOROFFSET0, 0, pDst);
     EMIT_COLORPITCH(R300_RB3D_COLORPITCH0, colorpitch, pDst);
@@ -2390,7 +2390,7 @@ static void RadeonComposite(PixmapPtr pDst,
 	int remainingWidth = width;
 	int tileSrcX, tileMaskX, tileDstX;
 	int h = info->accel_state->src_tile_height - tileSrcY;
-	
+
 	if (h > remainingHeight)
 	    h = remainingHeight;
 	remainingHeight -= h;
@@ -2398,13 +2398,13 @@ static void RadeonComposite(PixmapPtr pDst,
 	modulus(srcX, info->accel_state->src_tile_width, tileSrcX);
 	tileMaskX = maskX;
 	tileDstX = dstX;
-	
+
 	while (remainingWidth > 0) {
 	    int w = info->accel_state->src_tile_width - tileSrcX;
 	    if (w > remainingWidth)
 		w = remainingWidth;
 	    remainingWidth -= w;
-	    
+
 	    RadeonCompositeTile(pScrn,
 					   info,
 					   pDst,
@@ -2412,7 +2412,7 @@ static void RadeonComposite(PixmapPtr pDst,
 					   tileMaskX, tileMaskY,
 					   tileDstX, tileDstY,
 					   w, h);
-	    
+
 	    tileSrcX = 0;
 	    tileMaskX += w;
 	    tileDstX += w;

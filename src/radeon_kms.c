@@ -300,7 +300,7 @@ radeon_event_callback(CallbackListPtr *list,
      */
     client_priv->needs_flush = info->gpu_flushed;
     server_priv->needs_flush = info->gpu_flushed;
-    
+
     for (i = 0; i < eventinfo->count; i++) {
 	if (eventinfo->events[i].u.u.type == info->callback_event_type) {
 	    client_priv->needs_flush++;
@@ -846,7 +846,7 @@ radeon_prime_scanout_flip(PixmapDirtyUpdatePtr ent)
 		   "Failed to get FB for PRIME flip.\n");
 	return;
     }
-	
+
     drm_queue_seq = radeon_drm_queue_alloc(crtc,
 					   RADEON_DRM_QUEUE_CLIENT_DEFAULT,
 					   RADEON_DRM_QUEUE_ID_DEFAULT, fb,
@@ -1782,7 +1782,7 @@ Bool RADEONPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		   (unsigned)ARRAY_SIZE(pRADEONEnt->scrn));
 	return FALSE;
     }
-    
+
     if (!RADEONGetRec(pScrn)) return FALSE;
 
     info               = RADEONPTR(pScrn);
@@ -2328,7 +2328,7 @@ Bool RADEONScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
     }
 
     radeon_cs_set_limit(info->cs, RADEON_GEM_DOMAIN_GTT, info->gart_size);
-    radeon_cs_space_set_flush(info->cs, (void(*)(void *))radeon_cs_flush_indirect, pScrn); 
+    radeon_cs_space_set_flush(info->cs, (void(*)(void *))radeon_cs_flush_indirect, pScrn);
 
     if (!radeon_setup_kernel_mem(pScreen)) {
 	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "radeon_setup_kernel_mem failed\n");

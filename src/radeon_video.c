@@ -269,12 +269,12 @@ RADEONCopyMungedData(
 	    dst++; s2++; s3++;
 	    s1 += 2;
 	}
-	
+
 	dst1 += dstPitch;
 	src1 += srcPitch;
 	if( j & 1 ) {
 	    src2 += srcPitch2;
 	    src3 += srcPitch2;
-	}	
+	}
     }
 }

@@ -48,7 +48,7 @@ while (<CSV>) {
 
       if (($columns[2] ne "R128") && ($columns[2] ne "MACH64") && ($columns[2] ne "MACH32")) {
 	print PCICHIPSET " { PCI_CHIP_$columns[1], PCI_CHIP_$columns[1], RES_SHARED_VGA },\n";
-	
+
 	print PCIDEVICEMATCH " ATI_DEVICE_MATCH( PCI_CHIP_$columns[1], 0 ),\n";
 
 	print RADEONCHIPSET "  { PCI_CHIP_$columns[1], \"$columns[8]\" },\n";

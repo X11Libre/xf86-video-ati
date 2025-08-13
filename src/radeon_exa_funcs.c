@@ -646,7 +646,7 @@ Bool RADEONDrawInit(ScreenPtr pScreen)
     info->accel_state->exa->PrepareAccess = RADEONPrepareAccess_CS;
     info->accel_state->exa->FinishAccess = RADEONFinishAccess_CS;
     info->accel_state->exa->CreatePixmap2 = RADEONEXACreatePixmap2;
-    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking; 
+    info->accel_state->exa->SharePixmapBacking = RADEONEXASharePixmapBacking;
     info->accel_state->exa->SetSharedPixmapBacking = RADEONEXASetSharedPixmapBacking;
 
 

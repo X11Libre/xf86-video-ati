@@ -455,13 +455,13 @@ int R600_copy_ps(RADEONChipFamily ChipSet, uint32_t* shader)
 
 /*
  * ; xv vertex shader
- * 00 VTX: ADDR(4) CNT(2) 
- *       0  VFETCH R1.xy01, R0.x, fc0  MEGA(16) FORMAT(32_32_FLOAT) 
- *          FORMAT_COMP(SIGNED) 
- *       1  VFETCH R0.xy01, R0.x, fc0  MINI(8) OFFSET(8) FORMAT(32_32_FLOAT) 
- *          FORMAT_COMP(SIGNED) 
+ * 00 VTX: ADDR(4) CNT(2)
+ *       0  VFETCH R1.xy01, R0.x, fc0  MEGA(16) FORMAT(32_32_FLOAT)
+ *          FORMAT_COMP(SIGNED)
+ *       1  VFETCH R0.xy01, R0.x, fc0  MINI(8) OFFSET(8) FORMAT(32_32_FLOAT)
+ *          FORMAT_COMP(SIGNED)
  * 01 EXP_DONE: POS0, R1
- * 02 EXP_DONE: PARAM0, R0  NO_BARRIER 
+ * 02 EXP_DONE: PARAM0, R0  NO_BARRIER
  * END_OF_PROGRAM
  */
 int R600_xv_vs(RADEONChipFamily ChipSet, uint32_t* shader)
