@@ -51,7 +51,7 @@
 
 #include <xf86Pci.h>
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #include <xf86_OSproc.h>
 #endif
 
@@ -97,7 +97,7 @@ static Bool radeon_kernel_mode_enabled(ScrnInfoPtr pScrn, struct pci_device *pci
 
     busIdString = DRICreatePCIBusID(pci_dev);
     ret = drmCheckModesettingSupported(busIdString);
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
     if (ret) {
       if (xf86LoadKernelModule("radeonkms"))
         ret = drmCheckModesettingSupported(busIdString);
