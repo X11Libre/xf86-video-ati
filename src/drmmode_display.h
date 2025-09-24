@@ -27,6 +27,8 @@
 #ifndef DRMMODE_DISPLAY_H
 #define DRMMODE_DISPLAY_H
 
+#include <X11/extensions/dpmsconst.h>
+
 #include "xf86drmMode.h"
 #ifdef HAVE_LIBUDEV
 #include "libudev.h"
