@@ -2843,7 +2843,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	drmmode_clones_init(pScrn, drmmode, mode_res);
 
 	bus_id_string = DRICreatePCIBusID(info->PciInfo);
-	XNFasprintf(&provider_name, "%s @ %s", pScrn->chipset, bus_id_string);
+	if (asprintf(&provider_name, "%s @ %s", pScrn->chipset, bus_id_string) == -1) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "malloc() failed\n");
+		return FALSE;
+	}
+
 	free(bus_id_string);
 	xf86ProviderSetup(pScrn, NULL, provider_name);
 	free(provider_name);

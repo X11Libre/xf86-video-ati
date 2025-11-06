@@ -1530,8 +1530,11 @@ static int radeon_get_drm_master_fd(ScrnInfoPtr pScrn)
     }
 #endif
 
-    XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
-                dev->domain, dev->bus, dev->dev, dev->func);
+    if (asprintf(&busid, "pci:%04x:%02x:%02x.%d",
+                dev->domain, dev->bus, dev->dev, dev->func) == -1) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "malloc() failed\n");
+        return -1;
+    }
 
 #ifdef __DragonFly__
     /* On DragonFlyBSD Appropriate kernel drivers need to be loaded before

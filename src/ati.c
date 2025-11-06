@@ -203,11 +203,14 @@ ati_gdev_subdriver(pointer options)
         }
 
         if (chip_family == ATI_CHIP_FAMILY_Radeon) {
-            char *busid;
+            char *busid = NULL;
 
-            XNFasprintf(&busid, "pci:%04x:%02x:%02x.%d",
+            if (asprintf(&busid, "pci:%04x:%02x:%02x.%d",
                         device->domain, device->bus, device->dev,
-                        device->func);
+                        device->func) == -1) {
+                ErrorF("ati: malloc() failed\n");
+                continue;
+            }
 
             if (busid) {
                 int fd = drmOpen(NULL, busid);
