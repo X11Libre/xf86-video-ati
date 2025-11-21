@@ -432,7 +432,7 @@ radeon_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents)
 }
 
 static RegionPtr
-transform_region(RegionPtr region, struct pict_f_transform *transform,
+transform_region(RegionPtr region, struct pixman_f_transform *transform,
 		 int w, int h)
 {
 	BoxPtr boxes = RegionRects(region);
