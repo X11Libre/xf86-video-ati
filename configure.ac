@@ -22,10 +22,10 @@
 
 # Initialize Autoconf
 AC_PREREQ([2.60])
-AC_INIT([xf86-video-ati],
+AC_INIT([xlibre-xf86-video-ati],
         [22.0.0],
-        [https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues],
-        [xf86-video-ati])
+        [https://github.com/X11Libre/xf86-video-ati/issues]
+        [xlibre-xf86-video-ati])
 
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS([config.h])
