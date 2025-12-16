@@ -1,7 +1,7 @@
 .ds q \N'34'
 .TH RADEON __drivermansuffix__ 2024-09-29 __vendorversion__
 .SH NAME
-radeon \- ATI/AMD RADEON video driver for Xorg
+radeon \- ATI/AMD RADEON video driver for XLibre
 .SH SYNOPSIS
 .nf
 .B "Section \*qDevice\*q"
@@ -12,7 +12,7 @@ radeon \- ATI/AMD RADEON video driver for Xorg
 .fi
 .SH DESCRIPTION
 .B radeon
-is an Xorg driver for ATI/AMD RADEON-based video cards with the
+is an XLibre driver for ATI/AMD RADEON-based video cards with the
 following features:
 .PP
 .PD 0
@@ -400,7 +400,7 @@ contrast, and brightness, and must be disabled to use those attributes.
 The default is
 .B 'off'(0).
 .SH SEE ALSO
-.BR Xorg (__appmansuffix__),
+.BR XLibre (__appmansuffix__),
 .BR xorg.conf (__filemansuffix__),
 .BR Xserver (__appmansuffix__),
 .BR X (__miscmansuffix__)
@@ -412,7 +412,7 @@ https://www.x.org/wiki/radeon
 .IP " 2." 4
 Overview about radeon development code:
 .RS 4
-https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati
+https://github.com/X11Libre/xf86-video-ati
 .RE
 .IP " 3." 4
 Mailing list:
@@ -427,12 +427,7 @@ IRC channel:
 .IP " 5." 4
 Query the bugtracker for radeon bugs:
 .RS 4
-https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/-/issues
-.RE
-.IP " 6." 4
-Submit bugs & patches:
-.RS 4
-https://gitlab.freedesktop.org/xorg/driver/xf86-video-ati/
+https://github.com/X11Libre/xf86-video-ati/issues
 .RE
 .SH AUTHORS
 .nf
