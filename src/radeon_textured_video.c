@@ -24,10 +24,7 @@
  * Based on radeon_exa_render.c and kdrive ati_video.c by Eric Anholt, et al.
  *
  */
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <stdlib.h>
 #include <string.h>

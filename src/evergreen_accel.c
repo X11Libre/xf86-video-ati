@@ -23,9 +23,7 @@
  * Authors: Alex Deucher <alexander.deucher@amd.com>
  *
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "xf86.h"
 

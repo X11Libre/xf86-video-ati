@@ -52,10 +52,7 @@
  * The driver is intended to support all ATI adapters since their VGA Wonder
  * V3, including OEM counterparts.
  */
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <pciaccess.h>
 #include <xf86drm.h>

@@ -24,10 +24,7 @@
  * Based on vl_hwmc.c from xf86-video-nouveau
  *
  */
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <xf86.h>
 #include "radeon_video.h"

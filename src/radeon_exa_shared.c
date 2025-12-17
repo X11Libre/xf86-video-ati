@@ -30,9 +30,7 @@
  *    Alex Deucher <alexander.deucher@amd.com>
  *    Matthias Hopf <mhopf@suse.de>
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include "radeon.h"
 #include "radeon_probe.h"
