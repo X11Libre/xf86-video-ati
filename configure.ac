@@ -76,10 +76,7 @@ PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 1.18 xproto fontsproto xf86driproto $REQUIRED_MODULES])
-PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1],
-                  HAVE_XEXTPROTO_71="yes"; AC_DEFINE(HAVE_XEXTPROTO_71, 1, [xextproto 7.1 available]),
-                  HAVE_XEXTPROTO_71="no")
-AM_CONDITIONAL(HAVE_XEXTPROTO_71, [ test "$HAVE_XEXTPROTO_71" = "yes" ])
+PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1])
 
 # Define a configure option for an alternate X Server configuration directory
 AC_ARG_WITH(xorg-conf-dir,
