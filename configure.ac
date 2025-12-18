@@ -219,24 +219,7 @@ fi
 
 AC_SUBST([moduledir])
 
-AC_MSG_NOTICE(
-[The atimisc sub-driver has been split out to xf86-video-mach64:]
-[    https://gitlab.freedesktop.org/xorg/driver/xf86-video-mach64]
-[Please install that driver as well for mach64-based cards.]
-)
-
-AC_MSG_NOTICE(
-[The r128 sub-driver has been split out to xf86-video-r128:]
-[    https://gitlab.freedesktop.org/xorg/driver/xf86-video-r128]
-[Please install that driver as well for rage128-based cards.]
-)
-
-AC_CONFIG_FILES([
-                Makefile
-                src/Makefile
-                man/Makefile
-                conf/Makefile
-])
+AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 
 dnl
