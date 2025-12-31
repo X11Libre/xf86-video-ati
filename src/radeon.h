@@ -108,7 +108,6 @@ struct _SyncFence;
 #include <byteswap.h>
 #define radeon_bswap_16 bswap_16
 #define radeon_bswap_32 bswap_32
-#define radeon_bswap_64 bswap_64
 #elif defined(USE_SYS_ENDIAN_H)
 #include <sys/endian.h>
 #else
@@ -119,22 +118,12 @@ struct _SyncFence;
         (((uint32_t)radeon_bswap_16((uint16_t)((value) & 0xffff)) << 16) | \
         (uint32_t)radeon_bswap_16((uint16_t)((value) >> 16)))
 
-#define radeon_bswap_64(value) \
-        (((uint64_t)radeon_bswap_32((uint32_t)((value) & 0xffffffff)) \
-            << 32) | \
-        (uint64_t)radeon_bswap_32((uint32_t)((value) >> 32)))
 #endif
 
 #if X_BYTE_ORDER == X_BIG_ENDIAN
-#define le32_to_cpu(x) radeon_bswap_32(x)
-#define le16_to_cpu(x) radeon_bswap_16(x)
 #define cpu_to_le32(x) radeon_bswap_32(x)
-#define cpu_to_le16(x) radeon_bswap_16(x)
 #else
-#define le32_to_cpu(x) (x)
-#define le16_to_cpu(x) (x)
 #define cpu_to_le32(x) (x)
-#define cpu_to_le16(x) (x)
 #endif
 
 /* Provide substitutes for gcc's __FUNCTION__ on other compilers */

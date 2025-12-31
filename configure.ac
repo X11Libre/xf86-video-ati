@@ -158,9 +158,9 @@ XORG_CFLAGS="$XORG_CFLAGS $PCIACCESS_CFLAGS"
 
 # Checks for headers/macros for byte swapping
 # Known variants:
-#	<byteswap.h> bswap_16, bswap_32, bswap_64  (glibc)
+#	<byteswap.h> bswap_16, bswap_32 (glibc)
 #	<sys/endian.h> __swap16, __swap32, __swap64 (OpenBSD)
-#	<sys/endian.h> bswap16, bswap32, bswap64 (other BSD's)
+#	<sys/endian.h> bswap16, bswap32 (other BSD's)
 #	and a fallback to local macros if none of the above are found
 
 # if <byteswap.h> is found, assume it's the correct version
@@ -211,8 +211,6 @@ b = bswap16(a);
 			[Define to 16-bit byteswap macro])
 	    AC_DEFINE_UNQUOTED([radeon_bswap_32], ${BSWAP}32,
 			[Define to 32-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([radeon_bswap_64], ${BSWAP}64,
-			[Define to 64-bit byteswap macro])
 	fi
 fi
 
