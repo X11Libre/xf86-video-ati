@@ -90,8 +90,6 @@
 #include "picturestr.h"
 #endif
 
-#include "compat-api.h"
-
 #include "simple_list.h"
 #include "atipcirename.h"
 

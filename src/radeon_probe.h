@@ -48,7 +48,6 @@
 #include "xf86platformBus.h"
 #endif
 
-#include "compat-api.h"
 #include "exa.h"
 
 extern DriverRec RADEON;

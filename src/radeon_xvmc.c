@@ -28,7 +28,6 @@
 
 #include <xf86.h>
 #include "radeon_video.h"
-#include "compat-api.h"
 
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/XvMC.h>
