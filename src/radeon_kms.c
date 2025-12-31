@@ -1201,7 +1201,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending, fb);
 }
 
-static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
+static void RADEONBlockHandler_KMS(ScreenPtr pScreen, pointer pTimeout)
 {
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
@@ -1209,7 +1209,7 @@ static void RADEONBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
     int c;
 
     pScreen->BlockHandler = info->BlockHandler;
-    (*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
+    pScreen->BlockHandler(pScreen, pTimeout);
     pScreen->BlockHandler = RADEONBlockHandler_KMS;
 
     if (!xf86ScreenToScrn(radeon_primary_screen(pScreen))->vtSema)
