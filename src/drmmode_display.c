@@ -48,10 +48,6 @@
 
 #define DEFAULT_NOMINAL_FRAME_RATE 60
 
-#if GET_ABI_MAJOR(ABI_VIDEODRV_VERSION) >= 22
-#define HAVE_NOTIFY_FD	1
-#endif
-
 static Bool
 drmmode_xf86crtc_resize (ScrnInfoPtr scrn, int width, int height);
 
@@ -2675,26 +2671,12 @@ drmmode_flip_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec, void *even
 	}
 }
 
-
-#if HAVE_NOTIFY_FD
 static void
 drm_notify_fd(int fd, int ready, void *data)
-#else
-static void
-drm_wakeup_handler(pointer data, int err, pointer p)
-#endif
 {
 	drmmode_ptr drmmode = data;
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(drmmode->scrn);
-
-#if !HAVE_NOTIFY_FD
-	fd_set *read_mask = p;
-
-	if (err >= 0 && FD_ISSET(pRADEONEnt->fd, read_mask))
-#endif
-	{
-		radeon_drm_handle_event(pRADEONEnt->fd, &drmmode->event_context);
-	}
+	radeon_drm_handle_event(pRADEONEnt->fd, &drmmode->event_context);
 }
 
 static Bool drmmode_probe_page_flip_target(RADEONEntPtr pRADEONEnt)
@@ -2857,15 +2839,8 @@ void drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	info->drmmode_inited = TRUE;
 	if (pRADEONEnt->fd_wakeup_registered != serverGeneration) {
-#if HAVE_NOTIFY_FD
 		SetNotifyFd(pRADEONEnt->fd, drm_notify_fd, X_NOTIFY_READ,
 			    &info->drmmode);
-#else
-		AddGeneralSocket(pRADEONEnt->fd);
-		RegisterBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-					       drm_wakeup_handler,
-					       &info->drmmode);
-#endif
 		pRADEONEnt->fd_wakeup_registered = serverGeneration;
 		pRADEONEnt->fd_wakeup_ref = 1;
 	} else
@@ -2887,16 +2862,9 @@ void drmmode_fini(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	if (pRADEONEnt->fd_wakeup_registered == serverGeneration &&
 	    !--pRADEONEnt->fd_wakeup_ref) {
-#if HAVE_NOTIFY_FD
 		RemoveNotifyFd(pRADEONEnt->fd);
-#else
-		RemoveGeneralSocket(pRADEONEnt->fd);
-		RemoveBlockAndWakeupHandlers((BlockHandlerProcPtr)NoopDDA,
-				drm_wakeup_handler, pScrn);
-#endif
 	}
 }
-
 
 Bool drmmode_set_bufmgr(ScrnInfoPtr pScrn, drmmode_ptr drmmode, struct radeon_bo_manager *bufmgr)
 {
