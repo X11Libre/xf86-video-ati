@@ -485,7 +485,7 @@ typedef struct {
 
     Bool              (*CloseScreen)(ScreenPtr pScreen);
 
-    void              (*BlockHandler)(ScreenPtr pScreen, pointer pTimeout);
+    void              (*BlockHandler)(ScreenPtr pScreen, void *pTimeout);
 
     void              (*CreateFence) (ScreenPtr pScreen, struct _SyncFence *pFence,
 				      Bool initially_triggered);

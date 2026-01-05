@@ -47,11 +47,11 @@ static XF86ModuleVersionInfo RADEONVersionRec =
  *
  * This function is called every time the module is loaded.
  */
-static pointer
+static void *
 RADEONSetup
 (
-    pointer Module,
-    pointer Options,
+    void *Module,
+    void *Options,
     int     *ErrorMajor,
     int     *ErrorMinor
 )
@@ -63,7 +63,7 @@ RADEONSetup
         xf86AddDriver(&RADEON, Module, HaveDriverFuncs);
     }
 
-    return (pointer)TRUE;
+    return (void*)TRUE;
 }
 
 /* The following record must be called radeonModuleData */

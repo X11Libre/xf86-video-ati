@@ -163,7 +163,7 @@ RADEONFreeVideoMemory(ScrnInfoPtr pScrn, RADEONPortPrivPtr pPriv)
 }
 
 static void
-RADEONStopVideo(ScrnInfoPtr pScrn, pointer data, Bool cleanup)
+RADEONStopVideo(ScrnInfoPtr pScrn, void *data, Bool cleanup)
 {
   RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
 
@@ -220,7 +220,7 @@ RADEONPutImageTextured(ScrnInfoPtr pScrn,
 		       short height,
 		       Bool sync,
 		       RegionPtr clipBoxes,
-		       pointer data,
+		       void *data,
 		       DrawablePtr pDraw)
 {
     ScreenPtr pScreen = pScrn->pScreen;
@@ -603,7 +603,7 @@ int
 RADEONGetTexPortAttribute(ScrnInfoPtr  pScrn,
 		       Atom	    attribute,
 		       INT32	    *value,
-		       pointer	    data)
+                          void *data)
 {
     RADEONInfoPtr	info = RADEONPTR(pScrn);
     RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
@@ -645,7 +645,7 @@ int
 RADEONSetTexPortAttribute(ScrnInfoPtr  pScrn,
 		       Atom	    attribute,
 		       INT32	    value,
-		       pointer	    data)
+                          void *data)
 {
     RADEONInfoPtr	info = RADEONPTR(pScrn);
     RADEONPortPrivPtr	pPriv = (RADEONPortPrivPtr)data;
@@ -737,7 +737,7 @@ RADEONQueryBestSize(
   short vid_w, short vid_h,
   short drw_w, short drw_h,
   unsigned int *p_w, unsigned int *p_h,
-  pointer data
+  void *data
 ){
     RADEONPortPrivPtr pPriv = (RADEONPortPrivPtr)data;
 
@@ -911,7 +911,7 @@ RADEONSetupImageTexturedVideo(ScreenPtr pScreen)
 
 	/* gotta uninit this someplace, XXX: shouldn't be necessary for textured */
 	REGION_NULL(pScreen, &pPriv->clip);
-	adapt->pPortPrivates[i].ptr = (pointer) (pPriv);
+        adapt->pPortPrivates[i].ptr = (void*) (pPriv);
     }
 
     if (IS_R500_3D || IS_R300_3D)

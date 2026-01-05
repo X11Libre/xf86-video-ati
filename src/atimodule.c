@@ -45,11 +45,11 @@ static XF86ModuleVersionInfo ATIVersionRec =
  *
  * This function is called every time the module is loaded.
  */
-static pointer
+static void*
 ATISetup
 (
-    pointer Module,
-    pointer Options,
+    void *Module,
+    void *Options,
     int     *ErrorMajor,
     int     *ErrorMinor
 )
@@ -62,7 +62,7 @@ ATISetup
         ati_gdev_subdriver(Options);
     }
 
-    return (pointer)1;
+    return (void*)1;
 }
 
 /* The following record must be called atiModuleData */

@@ -137,7 +137,7 @@ ati_device_get_indexed(int index)
 #endif
 
 void
-ati_gdev_subdriver(pointer options)
+ati_gdev_subdriver(void *options)
 {
     int      nATIGDev, nMach64GDev, nR128GDev, nRadeonGDev, nAmdgpuGDev;
     GDevPtr *ATIGDevs;

@@ -272,7 +272,7 @@ callback_needs_flush(RADEONInfoPtr info, struct radeon_client_priv *client_priv)
 
 static void
 radeon_event_callback(CallbackListPtr *list,
-		      pointer user_data, pointer call_data)
+		      void *user_data, void *call_data)
 {
     EventInfoRec *eventinfo = call_data;
     ScrnInfoPtr pScrn = user_data;
@@ -307,7 +307,7 @@ radeon_event_callback(CallbackListPtr *list,
 
 static void
 radeon_flush_callback(CallbackListPtr *list,
-		      pointer user_data, pointer call_data)
+                      void *user_data, void *call_data)
 {
     ScrnInfoPtr pScrn = user_data;
     ScreenPtr pScreen = pScrn->pScreen;
@@ -1201,7 +1201,7 @@ radeon_scanout_flip(ScreenPtr pScreen, RADEONInfoPtr info,
     drmmode_fb_reference(pRADEONEnt->fd, &drmmode_crtc->flip_pending, fb);
 }
 
-static void RADEONBlockHandler_KMS(ScreenPtr pScreen, pointer pTimeout)
+static void RADEONBlockHandler_KMS(ScreenPtr pScreen, void *pTimeout)
 {
     ScrnInfoPtr    pScrn   = xf86ScreenToScrn(pScreen);
     RADEONInfoPtr  info    = RADEONPTR(pScrn);
@@ -2582,7 +2582,7 @@ Bool RADEONEnterVT_KMS(ScrnInfoPtr pScrn)
 }
 
 static
-CARD32 cleanup_black_fb(OsTimerPtr timer, CARD32 now, pointer data)
+CARD32 cleanup_black_fb(OsTimerPtr timer, CARD32 now, void *data)
 {
     ScreenPtr screen = data;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);

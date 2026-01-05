@@ -245,7 +245,7 @@ RADEONCopyMungedData(
     w /= 2;
 
     for( j = 0; j < h; j++ ) {
-	dst = (pointer)dst1;
+	dst = (void*)dst1;
 	s1 = src1;  s2 = src2;  s3 = src3;
 	i = w;
 	while( i > 4 ) {
