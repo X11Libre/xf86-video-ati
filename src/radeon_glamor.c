@@ -69,7 +69,7 @@ radeon_glamor_pre_init(ScrnInfoPtr scrn)
 {
 	RADEONEntPtr pRADEONEnt = RADEONEntPriv(scrn);
 	RADEONInfoPtr info = RADEONPTR(scrn);
-	pointer glamor_module;
+	void *glamor_module;
 	CARD32 version;
 	const char *s;
 

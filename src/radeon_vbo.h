@@ -31,7 +31,7 @@ radeon_vbo_space(ScrnInfoPtr pScrn,
     radeon_vbo_check(pScrn, vbo, vert_size);
 
     vbo->vb_op_vert_size = vert_size;
-    vb = (pointer)((char *)vbo->vb_bo->ptr + vbo->vb_offset);
+    vb = (void*)((char *)vbo->vb_bo->ptr + vbo->vb_offset);
     return vb;
 }
 

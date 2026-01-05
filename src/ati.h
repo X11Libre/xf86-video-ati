@@ -31,6 +31,6 @@
 
 #include "xf86_OSproc.h"
 
-extern void ati_gdev_subdriver(pointer options);
+extern void ati_gdev_subdriver(void *options);
 
 #endif /* ___ATI_H___ */
