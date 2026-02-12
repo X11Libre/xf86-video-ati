@@ -2,8 +2,6 @@
 #define __RADEON_VIDEO_H__
 
 #include "xf86i2c.h"
-#include "i2c_def.h"
-
 #include "xf86Crtc.h"
 
 #include "bicubic_table.h"
