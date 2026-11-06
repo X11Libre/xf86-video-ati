@@ -2817,6 +2817,10 @@ static Bool radeon_setup_kernel_mem(ScreenPtr pScreen)
 						    &pitch,
 						    &info->front_surface,
 						    &tiling_flags);
+	if (!info->front_buffer) {
+	    xf86DrvMsg(pScreen->myNum, X_ERROR, "Failed to allocate front buffer\n");
+	    return FALSE;
+	}
 
         if (info->r600_shadow_fb == TRUE) {
             if (radeon_bo_map(info->front_buffer->bo.radeon, 1)) {
