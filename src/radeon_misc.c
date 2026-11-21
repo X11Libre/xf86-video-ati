@@ -73,3 +73,7 @@ _X_EXPORT XF86ModuleData radeonModuleData =
     RADEONSetup,
     NULL
 };
+
+#ifdef XF86_MODULE_VERSION_SUFFIX
+XF86_MODULE_VERSION_SUFFIX(radeon, RADEON_VERSION_SUFFIX);
+#endif

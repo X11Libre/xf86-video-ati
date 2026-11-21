@@ -72,3 +72,7 @@ _X_EXPORT XF86ModuleData atiModuleData =
     ATISetup,
     NULL
 };
+
+#ifdef XF86_MODULE_VERSION_SUFFIX
+XF86_MODULE_VERSION_SUFFIX(ati, ATI_VERSION_SUFFIX);
+#endif
