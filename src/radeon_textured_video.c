@@ -752,10 +752,6 @@ RADEONQueryBestSize(
   *p_h = drw_h;
 }
 
-#define FOURCC_RGB24    0x00000000
-#define FOURCC_RGBT16   0x54424752
-#define FOURCC_RGB16    0x32424752
-
 static int
 RADEONQueryImageAttributes(
     ScrnInfoPtr pScrn,
@@ -787,18 +783,6 @@ RADEONQueryImageAttributes(
 	if(offsets) offsets[2] = size;
 	size += tmp;
 	break;
-    case FOURCC_RGBA32:
-	size = *w << 2;
-	if(pitches) pitches[0] = size;
-	size *= *h;
-	break;
-    case FOURCC_RGB24:
-	size = *w * 3;
-	if(pitches) pitches[0] = size;
-	size *= *h;
-	break;
-    case FOURCC_RGBT16:
-    case FOURCC_RGB16:
     case FOURCC_UYVY:
     case FOURCC_YUY2:
     default:
