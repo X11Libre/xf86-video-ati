@@ -76,8 +76,8 @@ XORG_DRIVER_CHECK_EXT(XV, videoproto)
 XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for libraries.
-PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.89])
-PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon])
+PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.104])
+PKG_CHECK_MODULES(LIBDRM_RADEON, [libdrm_radeon >= 2.4.104])
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 25.0.0 xproto fontsproto xf86driproto $REQUIRED_MODULES])
