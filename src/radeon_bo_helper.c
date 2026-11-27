@@ -507,7 +507,8 @@ Bool radeon_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle,
     if (!ret)
 	goto error;
 
-    if (surface) {
+    /* the surface manager only exists for R600 and newer */
+    if (surface && info->surf_man) {
 	struct radeon_exa_pixmap_priv *driver_priv;
 	uint32_t tiling_flags;
 
